@@ -25,7 +25,7 @@ export default function Home() {
         <section className={`${s.wrap} ${s.hero}`}>
           <div>
             <h1 className={s.h1}>
-              Check every claim <em>before</em> it ships.
+              Get a sourced verdict <em>before</em> a claim ships.
             </h1>
             <p className={s.lede}>
               Truthful Pro is a fact-checking API. Send a claim, get back a
@@ -55,6 +55,7 @@ export default function Home() {
               </pre>
               <hr className={s.divider} />
               <p className={s.slug}>Dispatch</p>
+              <p className={s.dateline}>Dispatch 0001 &middot; 09:41 UTC &middot; Synthetic</p>
               <div>
                 <span className={s.line} style={{ ["--i" as string]: 0 }}>
                   <span className={s.flag}>Disputed</span>
@@ -72,7 +73,13 @@ export default function Home() {
                   {`    "https://example.org/source-1",`}
                 </span>
                 <span className={s.line} style={{ ["--i" as string]: 5 }}>
-                  {`    "https://example.org/source-2" ] }`}
+                  {`    "https://example.org/source-2"`}
+                </span>
+                <span className={s.line} style={{ ["--i" as string]: 6 }}>
+                  {`  ]`}
+                </span>
+                <span className={s.line} style={{ ["--i" as string]: 7 }}>
+                  {`}`}
                 </span>
               </div>
               <p className={s.note}>
@@ -99,6 +106,10 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <p className={`${s.wrap} ${s.draft}`}>
+          Draft copy: verdict names and API behavior below are proposed and will be confirmed against the API reference.
+        </p>
 
         <section className={`${s.wrap} ${s.features}`}>
           <h2 className={s.h2}>What comes back, and why it&rsquo;s usable.</h2>
