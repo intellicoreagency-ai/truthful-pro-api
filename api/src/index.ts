@@ -68,7 +68,7 @@ app.post('/v1/auth/otp/verify', async (c) => {
   if (!phone || !isUuid(challengeId) || !/^\d{6}$/.test(code)) return c.json({ error: 'invalid_request' }, 400)
   const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
   if (!(await allow(c.env, `verify:i:${clientIp(c)}`, 30, 600))) return c.json({ error: 'too_many_requests' }, 429)
-  const ch = await c.env.DB.prepare('SELECT * FROM otp_challenges WHERE id=? AND phone_hash=?').bind(challengeId, phoneHash)
+  const ch = await c.env.DB.prepare('SELECT * FROM otp_challenges WHERE id=? AND phone_hash=? AND purpose=\'customer\'').bind(challengeId, phoneHash)
     .first<{ code_hash: string; attempts: number; expires_at: number; consumed_at: number | null }>()
   if (!ch || ch.consumed_at || ch.expires_at < Date.now() || ch.attempts >= MAX_OTP_ATTEMPTS) return c.json({ error: 'invalid_code' }, 401)
   // Count the attempt first so parallel guesses cannot exceed the cap.

@@ -15,3 +15,21 @@ export async function sendOtp(env: Env, phone: string, code: string, lang: 'ar' 
   }
   return env.ENVIRONMENT !== 'production' && env.DEV_OTP_ECHO === '1'
 }
+
+/** Sends a login code through an approved WhatsApp authentication template (Meta bills the business for these). */
+export async function sendWhatsAppCode(env: Env, toDigits: string, code: string, lang: 'ar' | 'en'): Promise<boolean> {
+  if (!env.WA_TOKEN || !env.WA_PHONE_NUMBER_ID || !env.WA_OTP_TEMPLATE) return false
+  try {
+    const r = await fetch(`${env.WA_GRAPH_BASE ?? 'https://graph.facebook.com/v21.0'}/${env.WA_PHONE_NUMBER_ID}/messages`, {
+      method: 'POST', headers: { authorization: `Bearer ${env.WA_TOKEN}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp', to: toDigits, type: 'template',
+        template: { name: env.WA_OTP_TEMPLATE, language: { code: lang }, components: [
+          { type: 'body', parameters: [{ type: 'text', text: code }] },
+          { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: code }] },
+        ] },
+      }),
+    })
+    return r.ok
+  } catch { return false }
+}

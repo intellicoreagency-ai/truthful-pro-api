@@ -99,6 +99,12 @@ export const api = {
   },
   passkeys: async () => (await j<{ passkeys: { id: string; device_name: string; created_at: number; last_used_at: number | null }[] }>(await call('GET', '/staff/v1/passkeys'))).passkeys,
   removePasskey: (id: string) => call('DELETE', `/staff/v1/passkeys/${id}`),
+  methods: async () => j<{ passkey: boolean; authenticator: boolean; whatsappMessage: boolean; whatsappCode: boolean }>(await call('GET', '/staff/v1/auth/methods', { auth: false })),
+  otpRequest: async (phone: string, language: 'ar' | 'en') => j<{ challengeId: string; expiresIn: number }>(await call('POST', '/staff/v1/auth/otp/request', { auth: false, body: { phone, language } })),
+  async otpVerify(phone: string, challengeId: string, code: string) {
+    const r = await j<{ accessToken: string; refreshToken: string }>(await call('POST', '/staff/v1/auth/otp/verify', { auth: false, body: { phone, challengeId, code } }))
+    store(r.accessToken, r.refreshToken)
+  },
   me: async () => j<{ staff: { id: string; name: string; role: Role } }>(await call('GET', '/staff/v1/me')),
   logout: async () => { try { await call('POST', '/staff/v1/auth/logout') } catch { /* */ } signOutLocal() },
   stats: async () => j<Stats>(await call('GET', '/staff/v1/stats')),

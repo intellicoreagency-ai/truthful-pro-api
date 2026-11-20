@@ -19,5 +19,7 @@ export interface Env {
   WA_VERIFY_TOKEN?: string      // any random string you also enter in Meta's webhook setup
   WA_TOKEN?: string             // optional: lets us send a free confirmation reply
   WA_PHONE_NUMBER_ID?: string   // optional, needed with WA_TOKEN
+  WA_OTP_TEMPLATE?: string      // name of the approved WhatsApp *authentication* template (paid by Meta per message)
+  WA_GRAPH_BASE?: string        // defaults to https://graph.facebook.com/v21.0 (override only for local tests)
 }
 export type Vars = { userId: string; sessionId: string; staffId: string; staffRole: 'owner' | 'manager' | 'agent' | 'accountant' }

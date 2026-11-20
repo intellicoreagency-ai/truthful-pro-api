@@ -6,7 +6,8 @@ import { MAX_FILE_BYTES, isUuid, normalizePhone, safeFileName, sniffFile } from 
 import { allow, audit, clientIp, jsonBody, type C } from './security'
 import { newSecret, otpauthUri, verifyTotp } from './totp'
 import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server'
-import { b64, unb64 } from './crypto'
+import { b64, unb64, otpCode } from './crypto'
+import { sendWhatsAppCode } from './sms'
 
 type Role = Vars['staffRole']
 const ACCESS_TTL = 15 * 60 * 1000
@@ -386,6 +387,56 @@ guarded.put('/requests/:id/files', roles(...OPS), async (c) => {
   return c.json({ id: fid, name, kind }, 201)
 })
 
+
+
+// ---------- which sign-in methods are available (public; reveals configuration only) ----------
+staff.get('/auth/methods', (c) => c.json({
+  passkey: true, authenticator: true,
+  whatsappMessage: !!c.env.WA_BUSINESS_NUMBER,
+  whatsappCode: !!(c.env.WA_TOKEN && c.env.WA_PHONE_NUMBER_ID && c.env.WA_OTP_TEMPLATE),
+}))
+
+// ---------- a login code delivered to the member's WhatsApp (authentication template; paid by Meta) ----------
+const OTP_TTL = 5 * 60 * 1000
+staff.post('/auth/otp/request', async (c) => {
+  const b = await jsonBody(c)
+  const phone = normalizePhone(b?.phone)
+  const lang = b?.language === 'en' ? 'en' : 'ar'
+  if (!phone) return c.json({ error: 'invalid_phone' }, 400)
+  if (!(c.env.WA_TOKEN && c.env.WA_PHONE_NUMBER_ID && c.env.WA_OTP_TEMPLATE)) return c.json({ error: 'not_configured' }, 503)
+  const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
+  if (!(await allow(c.env, `sotp:p:${phoneHash}`, 3, 600)) || !(await allow(c.env, `sotp:i:${clientIp(c)}`, 10, 600))) return c.json({ error: 'too_many_requests' }, 429)
+  const id = newId()
+  const m = await staffByPhone(c.env, phoneHash)
+  if (m?.active) {
+    const code = otpCode()
+    await c.env.DB.prepare("INSERT INTO otp_challenges (id,phone_hash,code_hash,expires_at,created_at,purpose) VALUES (?,?,?,?,?,'staff')")
+      .bind(id, phoneHash, await hmacHex(c.env.PEPPER, `sotp:${id}:${code}`), Date.now() + OTP_TTL, Date.now()).run()
+    const sent = await sendWhatsAppCode(c.env, phone.replace('+', ''), code, lang)
+    await audit(c, sent ? 'staff.otp_sent' : 'staff.otp_send_failed', null, { staffId: m.id })
+  }
+  // Same answer whether or not the number is on the team, and whether or not delivery worked.
+  return c.json({ challengeId: id, expiresIn: OTP_TTL / 1000 })
+})
+
+staff.post('/auth/otp/verify', async (c) => {
+  const b = await jsonBody(c)
+  const phone = normalizePhone(b?.phone)
+  const id = typeof b?.challengeId === 'string' ? b.challengeId : '', code = typeof b?.code === 'string' ? b.code.trim() : ''
+  if (!phone || !isUuid(id) || !/^\d{6}$/.test(code)) return c.json({ error: 'invalid_code' }, 401)
+  const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
+  if (await tooMany(c, phoneHash, 'sotpv')) return c.json({ error: 'too_many_requests' }, 429)
+  const ch = await c.env.DB.prepare("SELECT code_hash,attempts,expires_at,consumed_at FROM otp_challenges WHERE id=? AND phone_hash=? AND purpose='staff'").bind(id, phoneHash)
+    .first<{ code_hash: string; attempts: number; expires_at: number; consumed_at: number | null }>()
+  if (!ch || ch.consumed_at || ch.expires_at < Date.now() || ch.attempts >= 5) return c.json({ error: 'invalid_code' }, 401)
+  const upd = await c.env.DB.prepare('UPDATE otp_challenges SET attempts=attempts+1 WHERE id=? AND attempts<5').bind(id).run() // count first so parallel guesses cannot exceed the cap
+  if (!upd.meta.changes) return c.json({ error: 'invalid_code' }, 401)
+  if (!timingSafeEqual(await hmacHex(c.env.PEPPER, `sotp:${id}:${code}`), ch.code_hash)) { await audit(c, 'staff.otp_fail', null); return c.json({ error: 'invalid_code' }, 401) }
+  const used = await c.env.DB.prepare('UPDATE otp_challenges SET consumed_at=? WHERE id=? AND consumed_at IS NULL').bind(Date.now(), id).run()
+  const m = await staffByPhone(c.env, phoneHash)
+  if (!used.meta.changes || !m || !m.active) return c.json({ error: 'invalid_code' }, 401)
+  return openSession(c, m.id, m.role)
+})
 
 // ---------- biometric sign-in: passkeys (WebAuthn) ----------
 // The fingerprint/face never leaves the phone; the server only stores a public key. User verification is required.

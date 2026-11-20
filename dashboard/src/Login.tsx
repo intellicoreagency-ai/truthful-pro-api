@@ -15,6 +15,9 @@ type Tab = 'code' | 'setup' | 'wa'
 export function Login({ onDone }: { onDone: () => void }) {
   const { t, toggle } = useI18n()
   const [tab, setTab] = useState<Tab>('code')
+  const [methods, setMethods] = useState<{ passkey: boolean; whatsappMessage: boolean; whatsappCode: boolean } | null>(null)
+  useEffect(() => { api.methods().then(setMethods).catch(() => setMethods({ passkey: true, whatsappMessage: false, whatsappCode: false })) }, [])
+  const waAvailable = !!methods && (methods.whatsappMessage || methods.whatsappCode)
   const [phone, setPhone] = useState('')
   const [err, setErr] = useState<Key | ''>('')
   const [busy, setBusy] = useState(false)
@@ -47,14 +50,14 @@ export function Login({ onDone }: { onDone: () => void }) {
           </>
         )}
         <div className="tabs" role="tablist">
-          {(['code', 'setup', 'wa'] as Tab[]).map((x) => (
+          {(['code', 'setup', 'wa'] as Tab[]).filter((x) => x !== 'wa' || waAvailable).map((x) => (
             <button key={x} role="tab" aria-selected={tab === x} className="tab" onClick={() => switchTab(x)}>{t(x === 'code' ? 'tabCode' : x === 'setup' ? 'tabSetup' : 'tabWa')}</button>
           ))}
         </div>
         {err && <div className="msg" role="alert">{t(err)}</div>}
         {tab === 'code' && <CodeForm {...common} />}
         {tab === 'setup' && <SetupForm {...common} />}
-        {tab === 'wa' && <WaForm {...common} />}
+        {tab === 'wa' && <WaForm {...common} code={!!methods?.whatsappCode} message={!!methods?.whatsappMessage} />}
         <p style={{ marginTop: 16 }}><button className="btn sm" onClick={toggle}>{t('lang')}</button></p>
       </div>
     </div>
@@ -123,7 +126,49 @@ function SetupForm({ phone, setPhone, setErr, busy, setBusy, onDone, fail }: P) 
   )
 }
 
-function WaForm({ phone, setPhone, setErr, busy, setBusy, onDone, fail }: P) {
+function WaForm(p: P & { code: boolean; message: boolean }) {
+  const { t } = useI18n()
+  const [mode, setMode] = useState<'code' | 'message'>(p.code ? 'code' : 'message')
+  return (
+    <div>
+      {mode === 'code' ? <WaCodeForm {...p} /> : <WaMessageForm {...p} />}
+      {p.code && p.message && (
+        <p className="small" style={{ marginTop: 14, textAlign: 'center' }}>
+          <button type="button" className="btn sm" onClick={() => { setMode(mode === 'code' ? 'message' : 'code'); p.setErr('') }}>{mode === 'code' ? t('waUseMessage') : t('waUseCode')}</button>
+        </p>
+      )}
+    </div>
+  )
+}
+
+function WaCodeForm({ phone, setPhone, setErr, busy, setBusy, onDone, fail }: P) {
+  const { t, lang } = useI18n()
+  const [challenge, setChallenge] = useState<string | null>(null)
+  const [code, setCode] = useState('')
+  const [sent, setSent] = useState(false)
+  const send = async () => {
+    setErr(''); const p = e164(phone)
+    if (!p) { setErr('e_phone'); return }
+    setBusy(true)
+    try { const r = await api.otpRequest(p, lang); setChallenge(r.challengeId); setSent(true); setCode('') } catch (e) { setErr(fail(e, 'wa')) } finally { setBusy(false) }
+  }
+  const verify = async () => {
+    setErr(''); const p = e164(phone); if (!p || !challenge) return
+    setBusy(true)
+    try { await api.otpVerify(p, challenge, code); onDone() } catch (e) { setErr(fail(e, 'code')) } finally { setBusy(false) }
+  }
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); void (sent ? verify() : send()) }}>
+      <p>{sent ? t('waCodeSent') : t('waCodeHint')}</p>
+      <PhoneField phone={phone} setPhone={setPhone} disabled={sent} />
+      {sent && <Field label={t('code6')}><input inputMode="numeric" autoComplete="one-time-code" dir="ltr" maxLength={6} className="otp" value={code} onChange={(e) => setCode(digits(e.target.value))} /></Field>}
+      <button className="btn primary" style={{ width: '100%' }} disabled={busy || (sent && code.length !== 6)}>{sent ? t('signIn') : t('waCodeSend')}</button>
+      {sent && <p style={{ textAlign: 'center' }}><button type="button" className="btn sm" disabled={busy} onClick={() => { setSent(false); setChallenge(null) }}>{t('newCode')}</button></p>}
+    </form>
+  )
+}
+
+function WaMessageForm({ phone, setPhone, setErr, busy, setBusy, onDone, fail }: P) {
   const { t } = useI18n()
   const [wa, setWa] = useState<WaStart | null>(null)
   const alive = useRef(true)

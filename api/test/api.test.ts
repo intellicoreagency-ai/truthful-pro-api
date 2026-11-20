@@ -631,3 +631,79 @@ describe('override, overview and customers', () => {
     expect((await hit('GET', `/staff/v1/customers/${crypto.randomUUID()}`, undefined, owner)).status).toBe(404)
   })
 })
+
+describe('staff WhatsApp login code (authentication template)', () => {
+  const OWNER = '+971521180001'
+  const base = () => ({ ...env, OWNER_PHONE: OWNER, OWNER_SETUP_KEY: 'owner-setup-key-0123456789', WA_TOKEN: 't', WA_PHONE_NUMBER_ID: '123', WA_OTP_TEMPLATE: 'login_code' } as Env)
+  let k = 0
+  const hit = (method: string, path: string, body?: unknown, token?: string, e: Env = base()) => {
+    const headers: Record<string, string> = { 'cf-connecting-ip': `10.7.${Math.floor(++k / 250)}.${k % 250}` }
+    if (body !== undefined) headers['content-type'] = 'application/json'
+    if (token) headers.authorization = `Bearer ${token}`
+    return app.fetch(new Request('https://api.test' + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }), e)
+  }
+  const sent: { to: string; code: string; template: string; lang: string }[] = []
+  let owner = ''
+  beforeAll(async () => {
+    const orig = globalThis.fetch
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input instanceof Request ? input.url : input)
+      if (url.startsWith('https://graph.facebook.com/')) {
+        const b = JSON.parse(String(init?.body))
+        sent.push({ to: b.to, code: b.template.components[0].parameters[0].text, template: b.template.name, lang: b.template.language.code })
+        return new Response('{}', { status: 200 })
+      }
+      return orig(input as RequestInfo, init)
+    }) as typeof fetch
+    const { hotp } = await import('../src/totp')
+    await env.DB.prepare('DELETE FROM staff_sessions').run(); await env.DB.prepare('DELETE FROM staff_passkeys').run(); await env.DB.prepare('DELETE FROM staff').run()
+    const s = await (await hit('POST', '/staff/v1/auth/setup/start', { phone: OWNER, setupKey: 'owner-setup-key-0123456789' })).json() as { secret: string }
+    owner = ((await (await hit('POST', '/staff/v1/auth/setup/confirm', { phone: OWNER, code: await hotp(s.secret, Math.floor(Date.now() / 30000)) })).json()) as { accessToken: string }).accessToken
+    await hit('POST', '/staff/v1/team', { phone: '+971521180002', name: 'Noura', role: 'agent' }, owner)
+  })
+  it('reports which methods are configured', async () => {
+    const m = await (await hit('GET', '/staff/v1/auth/methods')).json() as { whatsappCode: boolean; passkey: boolean }
+    expect(m.whatsappCode).toBe(true); expect(m.passkey).toBe(true)
+    const none = await (await hit('GET', '/staff/v1/auth/methods', undefined, undefined, { ...env } as Env)).json() as { whatsappCode: boolean }
+    expect(none.whatsappCode).toBe(false)
+    expect((await hit('POST', '/staff/v1/auth/otp/request', { phone: '+971521180002' }, undefined, { ...env } as Env)).status).toBe(503)
+  })
+  it('sends the code to a member and signs them in once', async () => {
+    const r = await (await hit('POST', '/staff/v1/auth/otp/request', { phone: '+971521180002', language: 'en' })).json() as { challengeId: string }
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toMatchObject({ to: '971521180002', template: 'login_code', lang: 'en' }); expect(sent[0]!.code).toMatch(/^\d{6}$/)
+    const wrong = sent[0]!.code === '000000' ? '111111' : '000000'
+    expect((await hit('POST', '/staff/v1/auth/otp/verify', { phone: '+971521180002', challengeId: r.challengeId, code: wrong })).status).toBe(401)
+    const ok = await hit('POST', '/staff/v1/auth/otp/verify', { phone: '+971521180002', challengeId: r.challengeId, code: sent[0]!.code })
+    expect(ok.status).toBe(200); expect((await ok.json() as { role: string }).role).toBe('agent')
+    expect((await hit('POST', '/staff/v1/auth/otp/verify', { phone: '+971521180002', challengeId: r.challengeId, code: sent[0]!.code })).status).toBe(401) // single use
+  })
+  it('does not reveal whether a number is on the team, and sends nothing to strangers', async () => {
+    const before = sent.length
+    const a = await hit('POST', '/staff/v1/auth/otp/request', { phone: '+971521189999' })
+    const b = await hit('POST', '/staff/v1/auth/otp/request', { phone: '+971521180002' })
+    expect(a.status).toBe(200); expect(b.status).toBe(200)
+    expect(Object.keys(await a.json() as object).sort()).toEqual(Object.keys(await b.json() as object).sort())
+    expect(sent.length).toBe(before + 1) // only the real member got a message
+  })
+  it('locks a challenge after 5 wrong guesses, even for the right code', async () => {
+    await hit('POST', '/staff/v1/team', { phone: '+971521180003', name: 'Layla', role: 'agent' }, owner)
+    const phone = '+971521180003'
+    const r = await (await hit('POST', '/staff/v1/auth/otp/request', { phone })).json() as { challengeId: string }
+    const code = sent[sent.length - 1]!.code
+    const wrong = code === '123456' ? '654321' : '123456'
+    for (let i = 0; i < 5; i++) expect((await hit('POST', '/staff/v1/auth/otp/verify', { phone, challengeId: r.challengeId, code: wrong })).status).toBe(401)
+    expect((await hit('POST', '/staff/v1/auth/otp/verify', { phone, challengeId: r.challengeId, code })).status).toBe(401)
+  })
+  it('caps code requests per number', async () => {
+    await hit('POST', '/staff/v1/team', { phone: '+971521180004', name: 'Huda', role: 'agent' }, owner)
+    const codes: number[] = []
+    for (let i = 0; i < 4; i++) codes.push((await hit('POST', '/staff/v1/auth/otp/request', { phone: '+971521180004' })).status)
+    expect(codes).toEqual([200, 200, 200, 429])
+  })
+  it('a staff code cannot be replayed through the customer login', async () => {
+    const row = await env.DB.prepare("SELECT id FROM otp_challenges WHERE purpose='staff' LIMIT 1").first<{ id: string }>()
+    const r = await hit('POST', '/v1/auth/otp/verify', { phone: '+971521180002', challengeId: row!.id, code: '123456' })
+    expect(r.status).toBe(401)
+  })
+})

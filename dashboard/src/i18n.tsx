@@ -28,6 +28,7 @@ const dict = {
     activity: 'آخر النشاط', workload: 'أعباء الفريق', openReq: 'طلب مفتوح', board: 'اللوحة', list: 'القائمة', customers: 'العملاء', nextStep: 'الخطوة التالية', moveTo: 'نقل إلى', noCustomers: 'لا عملاء بعد.', joined: 'انضم', reqCount: 'طلبات', lastActivity: 'آخر نشاط', consents: 'الموافقات', searchAll: 'بحث سريع…',
     override: 'تجاوز (Override)', overrideHint: 'للمالك والمدير فقط. يتجاوز مسار الحالات المعتاد ويُسجَّل بالسبب في السجل الداخلي وسجل التدقيق. لا يظهر السبب للعميل.', reason: 'السبب (إلزامي)', forceStatus: 'فرض حالة', customerName: 'اسم العميل في الطلب', overrideApply: 'تنفيذ التجاوز', overrideConfirm: 'تأكيد تنفيذ التجاوز؟', overrideDone: 'تم التجاوز وسُجّل.', reopen: 'إعادة فتح', same: '(بدون تغيير)',
     mine2: 'مسنَدة إليّ', kpi: 'المؤشرات',
+    waCodeSend: 'إرسال الرمز إلى واتساب', waCodeHint: 'سنرسل رمزاً من 6 أرقام إلى واتساب الخاص بك إن كان رقمك مسجلاً في الفريق.', waCodeSent: 'إن كان الرقم مسجلاً فقد أُرسل الرمز. أدخله هنا.', waUseMessage: 'أو تحقق بإرسال رسالة (مجاني)', waUseCode: 'أو أرسل لي رمزاً على واتساب', newCode: 'رمز جديد',
     enrollTitle: 'مفتاح إعداد العضو', enrollBody: 'سلّم هذا المفتاح للعضو بشكل خاص. يظهر مرة واحدة فقط وينتهي خلال 24 ساعة. يستخدمه في «أول دخول».', done: 'تم', copy: 'نسخ', copied: 'نُسخ',
   },
   en: {
@@ -55,6 +56,7 @@ const dict = {
     activity: 'Recent activity', workload: 'Team workload', openReq: 'open', board: 'Board', list: 'List', customers: 'Customers', nextStep: 'Next step', moveTo: 'Move to', noCustomers: 'No customers yet.', joined: 'Joined', reqCount: 'requests', lastActivity: 'Last activity', consents: 'Consents', searchAll: 'Quick search…',
     override: 'Override', overrideHint: 'Owner and manager only. Bypasses the normal status flow; recorded with the reason in the internal log and the audit trail. The customer never sees the reason.', reason: 'Reason (required)', forceStatus: 'Force status', customerName: 'Customer name on the request', overrideApply: 'Apply override', overrideConfirm: 'Apply this override?', overrideDone: 'Override applied and recorded.', reopen: 'Reopen', same: '(no change)',
     mine2: 'Assigned to me', kpi: 'Key figures',
+    waCodeSend: 'Send the code to WhatsApp', waCodeHint: 'We will send a 6-digit code to your WhatsApp if your number is on the team.', waCodeSent: 'If the number is registered, the code was sent. Enter it here.', waUseMessage: 'Or verify by sending a message (free)', waUseCode: 'Or send me a code on WhatsApp', newCode: 'New code',
     enrollTitle: 'Member setup key', enrollBody: 'Give this key to the member privately. It is shown once and expires in 24 hours. They use it under “First sign-in”.', done: 'Done', copy: 'Copy', copied: 'Copied',
   },
 } as const

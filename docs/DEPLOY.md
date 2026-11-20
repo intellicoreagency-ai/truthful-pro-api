@@ -64,6 +64,16 @@ Works on the **real domain over HTTPS** only. Set the dashboard domain so passke
 A passkey is tied to that domain: register again after any domain change, and do not register on `localhost` expecting it to work in production.
 After the first sign-in, open **Security -> Enable fingerprint on this device** on each phone/computer you use. Android Chrome and iOS Safari support it.
 
+### WhatsApp login code for staff (optional; **Meta charges per message**)
+Besides fingerprint, authenticator app and the free "send us a message" method, the dashboard can send a 6-digit code to a member's WhatsApp.
+It appears on the login screen only when configured. It needs the Cloud API (see 2b) and an approved **Authentication** template:
+1. WhatsApp Manager -> Message templates -> Create -> category **Authentication**, with the *copy code* button, languages Arabic and English
+   (both with the same name, e.g. `truthful_login_code`). Wait for Meta's approval.
+2. `npx wrangler secret put WA_TOKEN` (a permanent system-user token) and set `WA_PHONE_NUMBER_ID` and `WA_OTP_TEMPLATE = "truthful_login_code"` under `[vars]`.
+These messages are initiated by the company, so Meta bills them (check the current rate for authentication messages in the UAE). Codes last 5 minutes,
+work once, are capped at 5 guesses, and unknown numbers get the same answer and no message. A number without WhatsApp (such as the owner's) simply uses
+fingerprint or the authenticator app.
+
 WhatsApp sign-in for staff still exists as an optional second method for members who have WhatsApp.
 Use a separate custom domain for the dashboard in Cloudflare (e.g. `ops.<your-domain>`) pointing at this Worker.
 Local smoke test: start `wrangler dev`, then `node scripts/e2e-dashboard.cjs` (needs `playwright` and the vars in `.dev.vars`).
