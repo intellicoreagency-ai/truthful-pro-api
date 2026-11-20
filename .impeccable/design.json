@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-20T00:00:00Z",
+  "title": "Design System: Truthful Pro",
+  "extensions": {
+    "colorMeta": {
+      "newsprint": {"role": "neutral", "displayName": "Cool Newsprint", "canonical": "#e3e7e9", "tonalRamp": ["#12171b","#303538","#4e5256","#6c7073","#898e91","#a7acae","#c5c9cc","#e3e7e9"]},
+      "newsprint-raised": {"role": "neutral", "displayName": "Raised Newsprint", "canonical": "#eef1f2", "tonalRamp": ["#12171b","#363b3f","#5b6063","#808486","#a3a7a9","#c3c6c8","#dde0e1","#eef1f2"]},
+      "wire-ink": {"role": "neutral", "displayName": "Wire Ink", "canonical": "#12171b", "tonalRamp": ["#12171b","#2c3135","#494e51","#6a6e71","#8b8f91","#acb0b1","#cdd0d2","#e3e6e7"]},
+      "wire-ink-soft": {"role": "neutral", "displayName": "Soft Ink", "canonical": "#3d484f", "tonalRamp": ["#12171b","#252d32","#3d484f","#5f6a71","#808a90","#a2aaaf","#c5cacd","#e3e6e7"]},
+      "stop-press-red": {"role": "primary", "displayName": "Stop-Press Red", "canonical": "#b82e17", "tonalRamp": ["#53150a","#b82e17","#be4531","#c76554","#d0867a","#d9a79f","#e2c6c2","#e9dedc"]},
+      "verified-teal": {"role": "secondary", "displayName": "Verified Teal", "canonical": "#0f6355", "tonalRamp": ["#072d26","#0f6355","#2a7468","#4d8b81","#73a39c","#99bbb6","#bdd2cf","#d8e3e2"]}
+    },
+    "typographyMeta": {
+      "display": {"displayName": "Display", "purpose": "Hero headline, uppercase Big Shoulders 900."},
+      "headline": {"displayName": "Headline", "purpose": "Section headings and closing line."},
+      "title": {"displayName": "Title", "purpose": "Ledger row titles and verdict words."},
+      "body": {"displayName": "Body", "purpose": "Source Serif prose."},
+      "label": {"displayName": "Label", "purpose": "Buttons, nav, slug lines in condensed uppercase."},
+      "payload": {"displayName": "Payload", "purpose": "Request and response text in JetBrains Mono."}
+    },
+    "shadows": [
+      {"name": "panel-lift", "value": "6px 8px 18px rgba(18, 23, 27, 0.16)", "purpose": "Diffuse lift under the dispatch panel only."}
+    ],
+    "motion": [
+      {"name": "ease-expo-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Button state transitions (160ms) and dispatch line printing."},
+      {"name": "print-line", "value": "520ms, 260ms stagger, +400ms delay, clip-path reveal", "purpose": "Response lines print in; disabled under reduced motion."}
+    ],
+    "breakpoints": [
+      {"name": "collapse", "value": "900px"}
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button", "kind": "button", "refersTo": "button-primary",
+      "description": "Ink-filled call to action; flips to stop-press red on hover.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Get an API key</a>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;min-height:52px;padding:0 26px;font-family:'Big Shoulders Display','Arial Narrow',sans-serif;font-weight:900;font-size:1.3rem;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;background:#12171b;color:#e3e7e9;border:2px solid #12171b;transition:background 160ms,color 160ms,transform 160ms}.ds-btn-primary:hover{background:#b82e17;border-color:#b82e17}.ds-btn-primary:focus-visible{outline:3px solid #b82e17;outline-offset:3px}.ds-btn-primary:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Ghost Button", "kind": "button", "refersTo": "button-ghost",
+      "description": "Secondary action with an ink border.",
+      "html": "<a class=\"ds-btn-ghost\" href=\"#\">Read the docs</a>",
+      "css": ".ds-btn-ghost{display:inline-flex;align-items:center;min-height:52px;padding:0 26px;font-family:'Big Shoulders Display','Arial Narrow',sans-serif;font-weight:900;font-size:1.3rem;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;color:#12171b;border:2px solid #12171b;transition:background 160ms}.ds-btn-ghost:hover{background:#eef1f2}.ds-btn-ghost:focus-visible{outline:3px solid #b82e17;outline-offset:3px}"
+    },
+    {
+      "name": "Masthead Nav", "kind": "nav", "refersTo": "button-ghost",
+      "description": "Wordmark plus condensed uppercase links, with a bordered key link.",
+      "html": "<header class=\"ds-mast\"><span class=\"ds-mark\">Truthful<span>.</span>Pro</span><nav class=\"ds-nav\"><a href=\"#\">Verdicts</a><a href=\"#\">Docs</a><a class=\"ds-nav-cta\" href=\"#\">Get an API key</a></nav></header>",
+      "css": ".ds-mast{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:18px 0;border-bottom:2px solid #12171b;color:#12171b}.ds-mark{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:1.75rem;letter-spacing:.02em;text-transform:uppercase}.ds-mark span{color:#b82e17}.ds-nav{display:flex;align-items:center;gap:28px;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:1.15rem;letter-spacing:.06em;text-transform:uppercase}.ds-nav a{color:inherit;text-decoration:none;padding:6px 0;border-bottom:2px solid transparent}.ds-nav a:hover{border-bottom-color:#12171b}.ds-nav a:focus-visible{outline:3px solid #b82e17;outline-offset:3px}.ds-nav .ds-nav-cta{border:2px solid #12171b;padding:6px 14px}.ds-nav .ds-nav-cta:hover{background:#12171b;color:#e3e7e9}"
+    },
+    {
+      "name": "Verdict Flag", "kind": "custom", "refersTo": "flag-disputed",
+      "description": "Stamped DISPUTED flag, rotated slightly; teal and ink variants appear as plain verdict words.",
+      "html": "<span class=\"ds-flag\">Disputed</span>",
+      "css": ".ds-flag{display:inline-block;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:1.6rem;letter-spacing:.1em;text-transform:uppercase;line-height:1;padding:6px 12px 4px;border:3px solid #b82e17;color:#b82e17;transform:rotate(-2deg)}"
+    },
+    {
+      "name": "Verdict Vocabulary Item", "kind": "custom", "refersTo": "verified-teal",
+      "description": "A verdict word with its definition, set between ink rules.",
+      "html": "<div class=\"ds-vocab\"><span class=\"ds-vocab-word\">Verified</span><p>The claim holds up against its sources.</p></div>",
+      "css": ".ds-vocab{display:flex;flex-direction:column;gap:4px;padding:22px 0;border-block:2px solid #12171b;color:#12171b;font-family:'Source Serif 4 Variable',Georgia,serif}.ds-vocab-word{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:2rem;letter-spacing:.08em;text-transform:uppercase;line-height:1;color:#0f6355}.ds-vocab p{margin:0;font-size:.98rem;color:#3d484f}"
+    },
+    {
+      "name": "Dispatch Panel", "kind": "card", "refersTo": "dispatch-panel",
+      "description": "Signature ruled panel: ink header bar, request, divider, printed response.",
+      "html": "<figure class=\"ds-panel\"><div class=\"ds-panel-head\"><span>Verification desk</span><span>Synthetic example</span></div><div class=\"ds-panel-body\"><p class=\"ds-slug\">Request</p><pre>curl https://api.example.com/v1/check</pre><hr><p class=\"ds-slug\">Dispatch</p><span class=\"ds-panel-flag\">Disputed</span></div></figure>",
+      "css": ".ds-panel{margin:0;border:2px solid #12171b;background:#eef1f2;box-shadow:6px 8px 18px rgba(18,23,27,.16);color:#12171b}.ds-panel-head{display:flex;justify-content:space-between;gap:12px;padding:8px 14px;background:#12171b;color:#e3e7e9;font-family:'JetBrains Mono Variable',ui-monospace,monospace;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}.ds-panel-body{padding:18px 18px 20px;font-family:'JetBrains Mono Variable',ui-monospace,monospace;font-size:.86rem;line-height:1.7}.ds-slug{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:1rem;letter-spacing:.1em;text-transform:uppercase;color:#3d484f;margin:0 0 6px}.ds-panel pre{margin:0 0 20px;white-space:pre-wrap}.ds-panel hr{border:0;border-top:2px solid #12171b;margin:4px 0 16px}.ds-panel-flag{display:inline-block;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:1.6rem;letter-spacing:.1em;text-transform:uppercase;line-height:1;padding:6px 12px 4px;border:3px solid #b82e17;color:#b82e17;transform:rotate(-2deg)}"
+    },
+    {
+      "name": "Ledger Row", "kind": "custom", "refersTo": "wire-ink",
+      "description": "Rule-separated row replacing feature cards: condensed title beside serif body.",
+      "html": "<div class=\"ds-ledger\"><div class=\"ds-row\"><h3>Sources, not just answers</h3><p>Verdicts arrive with the evidence behind them.</p></div></div>",
+      "css": ".ds-ledger{border-top:2px solid #12171b;border-bottom:2px solid #12171b;color:#12171b}.ds-row{display:grid;grid-template-columns:17ch 1fr;gap:32px;padding:32px 0 36px}.ds-row h3{margin:0;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:1.9rem;line-height:1;text-transform:uppercase}.ds-row p{margin:0;max-width:58ch;font-family:'Source Serif 4 Variable',Georgia,serif;font-size:1.125rem;line-height:1.55}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Wire Desk",
+    "overview": "The page is a dispatch coming off the machine, and a claim is checked the way an editor checks copy. Cool grey newsprint carries near-black ink; two stamp colors carry meaning and nothing else. Structure comes from heavy ink rules and ledger rows, never from cards, glows or rounded containers. It reads sober and exact, with the density of a newsroom rather than a dev-tool terminal.\n\nDisplay type is condensed, uppercase and heavy, like a headline slug. Body is a book serif. Monospace appears only where actual payloads are shown. Motion is limited to the one thing a wire does: lines print in one by one.",
+    "keyCharacteristics": [
+      "Flat newsprint ground, 2px ink rules as the structural device",
+      "Condensed uppercase display for headlines, flags, buttons and nav",
+      "Red and teal are verdict signals, not decoration",
+      "Square corners everywhere",
+      "Ledger rows (rule-separated) instead of cards"
+    ],
+    "rules": [
+      {"name": "The Stamp Rule", "body": "Red means disputed, teal means verified. Neither appears as general accent or decoration. (Red also marks interaction: hover on primary buttons and the focus ring, which is a state signal, not decoration.)", "section": "colors"},
+      {"name": "The Two-Ink Rule", "body": "Everything else is paper or ink. Hairlines are ink at 35% over the ground, not a separate grey.", "section": "colors"},
+      {"name": "The Payload-Only Mono Rule", "body": "Monospace is for request and response text. Slug lines and flags use the condensed display face.", "section": "typography"},
+      {"name": "The Rule-Not-Shadow Rule", "body": "Separation uses ink rules (2px structural, 1px hair). A shadow is reserved for the one object that is a physical dispatch.", "section": "elevation"}
+    ],
+    "dos": [
+      "Do use 2px ink rules to separate sections and 1px hairlines inside them.",
+      "Do keep corners square and set headlines in uppercase Big Shoulders Display 900.",
+      "Do reserve red for disputed and teal for verified; show unverifiable in plain ink.",
+      "Do keep mono for payloads and label synthetic examples as such.",
+      "Do gate entrance motion behind `prefers-reduced-motion: no-preference`."
+    ],
+    "donts": [
+      "Don't use rounded cards, icon grids, gradients or glow; use ledger rows.",
+      "Don't use red or teal as a decorative accent.",
+      "Don't introduce a dark terminal treatment for the code; it sits on raised newsprint.",
+      "Don't add shadows beyond the dispatch panel."
+    ]
+  }
+}
