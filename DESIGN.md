@@ -145,6 +145,10 @@ A 1280px centered wrap with a fluid gutter (clamp(16px, 4vw, 56px)). The hero is
 
 Flat by default. Depth is conveyed by 2px ink borders, ink-filled bars and the raised-paper tone. The single shadow is a diffuse ambient lift under the dispatch panel; nothing else casts one.
 
+### Texture
+- **Paper grain:** one 180px SVG-noise tile (`--grain` in globals.css), tiled statically on the page and the dispatch panel. No blend modes, no fixed overlay, no animation.
+- **Ink impression:** the verdict stamp carries an SVG filter (`#ink-impression`) that roughens its edges and drops out specks. Stamps only; type and rules stay clean.
+
 ### Shadow Vocabulary
 - **Panel lift** (`box-shadow: 6px 8px 18px rgba(18, 23, 27, 0.16)`): Dispatch panel only.
 

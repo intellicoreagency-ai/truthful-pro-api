@@ -12,11 +12,13 @@
   --mono: "JetBrains Mono Variable", ui-monospace, monospace;
   --gutter: clamp(16px, 4vw, 56px);
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Static paper grain: one 180px tile of SVG noise, drawn once and tiled. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .07 0 0 0 0 .09 0 0 0 0 .1 0 0 0 .3 -.085'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { background: var(--paper); color: var(--ink); scrollbar-color: var(--ink) var(--paper); }
+html { background: var(--grain), var(--paper); color: var(--ink); scrollbar-color: var(--ink) var(--paper); }
 
 body {
   margin: 0;

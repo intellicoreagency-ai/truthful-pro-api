@@ -6,6 +6,15 @@ const KEY_URL = "/docs#get-a-key";
 export default function Home() {
   return (
     <>
+      <svg width="0" height="0" aria-hidden="true" focusable="false" style={{ position: "absolute" }}>
+        <filter id="ink-impression" x="-6%" y="-12%" width="112%" height="124%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="grain" />
+          <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  14 0 0 0 -4.6" result="speckle" />
+          <feComposite in="SourceGraphic" in2="speckle" operator="in" result="worn" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="8" result="wobble" />
+          <feDisplacementMap in="worn" in2="wobble" scale="2.4" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
       <header className={s.mast}>
         <div className={`${s.wrap} ${s.mastInner}`}>
           <Link href="/" className={s.mark}>
