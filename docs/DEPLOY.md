@@ -25,7 +25,10 @@ Set `ENVIRONMENT = "production"` in `wrangler.toml` for the production deploy.
 ## 2b. WhatsApp sign-in (free: the customer sends us a message)
 Customers are verified when they send a ready-made WhatsApp message to the company number. Inbound messages are free;
 the company never sends a paid authentication template. One-time setup:
-1. Meta for Developers -> create an app -> add **WhatsApp**; register the company's business number (it cannot be in use on a normal WhatsApp account).
+1. Meta for Developers -> create an app -> add **WhatsApp**. The company number +971585144005 is on the **WhatsApp Business app**, so onboard it
+   through Meta's **Embedded Signup with Coexistence** (the number stays active in the Business app AND works with the API). Do not
+   register it as a plain Cloud API number: that would disconnect the Business app. Check Meta's current Coexistence requirements
+   (app version, keeping the Business app in regular use, which app features are limited) before you start; they change.
 2. App settings -> copy the **App Secret** -> `WA_APP_SECRET`.
 3. WhatsApp -> Configuration -> Webhook: callback `https://<api-domain>/webhooks/whatsapp`, verify token = `WA_VERIFY_TOKEN`; subscribe to **messages**.
 4. Put the number in `WA_BUSINESS_NUMBER`. The optional confirmation reply needs `WA_TOKEN` + `WA_PHONE_NUMBER_ID` and is free inside the 24 h window the customer opens.
