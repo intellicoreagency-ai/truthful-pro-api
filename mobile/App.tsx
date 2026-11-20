@@ -1,5 +1,5 @@
 import React, {useMemo, useState} from 'react';
-import {Alert, BackHandler, Image, ImageBackground, Keyboard, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View} from 'react-native';
+import {Alert, AppState, BackHandler, Image, ImageBackground, Keyboard, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View} from 'react-native';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import {useFonts} from 'expo-font';
 import {IBMPlexSansArabic_500Medium} from '@expo-google-fonts/ibm-plex-sans-arabic/500Medium';
@@ -182,6 +182,15 @@ export default function App() {
      try{await me();setSignedIn(true);setPage(p=>p==='welcome'?'home':p);void syncNow()}catch{/* offline: stay on welcome; session kept */}
    })();
  },[]);
+ // Keep what the team does (status, requested documents, delivery files) fresh: on opening My Requests, when the app returns to the foreground, and about every minute while My Requests is open.
+ React.useEffect(()=>{
+   if(!signedIn)return;
+   const sub=AppState.addEventListener('change',st=>{if(st==='active')void syncNow()});
+   let timer:ReturnType<typeof setInterval>|undefined;
+   if(page==='requests'){void syncNow();timer=setInterval(()=>void syncNow(),60000)}
+   return()=>{sub.remove();if(timer)clearInterval(timer)};
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[signedIn,page]);
  const [business,setBusiness]=useState(false);
  const [query,setQuery]=useState('');
  const [chosen,setChosen]=useState<Service>(SERVICES.find(x=>x.id==='labor-employment')!);

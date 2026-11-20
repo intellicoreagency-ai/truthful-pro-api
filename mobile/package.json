@@ -9,7 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/validate-services.cjs && node scripts/test-client-workspace.cjs"
+    "test": "node scripts/validate-services.cjs && node scripts/test-client-workspace.cjs && node scripts/test-sync-map.mts"
   },
   "dependencies": {
     "@expo-google-fonts/ibm-plex-sans-arabic": "0.4.2",

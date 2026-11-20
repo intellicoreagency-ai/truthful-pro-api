@@ -1,6 +1,7 @@
 import {Platform} from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import type {ClientFile,ClientRequest,Status} from './clientModel';
+import type {ClientFile,ClientRequest} from './clientModel';
+import {holdsUpload,missingIdFor,toClientRequest,type ServerDetail,type ServerRow} from './syncMap';
 
 /** Set EXPO_PUBLIC_API_URL at build time (see eas.json). Empty = offline preview, no network calls. */
 const RAW=(process.env.EXPO_PUBLIC_API_URL??'').replace(/\/+$/,'');
@@ -76,25 +77,14 @@ export const exportMyData=async()=>json<unknown>(await call('GET','/v1/me/export
 export async function deleteAccount(){await call('DELETE','/v1/me',{body:{confirm:'DELETE'}});await clearTokens()}
 
 // ---- requests ----
-type Row={id:string;service_id:string;status:Status;data:string;renewal_of:string|null;created_at:number;updated_at:number};
-const STAGE:Record<Status,1|2|3|4|5>={draft:1,submitted:1,review:2,needs_documents:2,authority:3,decision:4,completed:5,cancelled:1,rejected:5};
-const iso=(ms:number)=>new Date(ms).toISOString();
+type Row=ServerRow;
 
 /** Only user-entered content is sent. Status, pricing and staff notes are never taken from the device. */
-function toServerData(r:ClientRequest){return{actionId:r.actionId,title:r.title,name:r.name,phone:r.phone,fields:r.fields,termsVersion:r.termsVersion,termsAcceptedAt:r.termsAcceptedAt,createdAt:r.createdAt,renewalOf:r.renewalOf,fileLabels:Object.fromEntries(r.files.filter(f=>f.remoteId).map(f=>[f.remoteId,{label:f.label,kind:f.kind,name:f.name}]))}}
-
-function fromRow(row:Row,files:{id:string;name:string;mime:string;size:number;created_at:number}[],local?:ClientRequest):ClientRequest{
-  let d:any={};try{d=JSON.parse(row.data)}catch{}
-  const labels=d.fileLabels??{};
-  const base:ClientRequest=local??{id:row.id,serviceId:row.service_id,actionId:d.actionId??'',title:d.title??{ar:'طلب',en:'Request'},createdAt:iso(row.created_at),updatedAt:iso(row.updated_at),status:row.status,stage:STAGE[row.status],name:d.name??'',phone:d.phone??'',fields:d.fields??{},files:[],missing:[],events:[],money:{government:0,handling:0,tax:0,extra:0,paid:0,refunded:0,quoted:false},termsVersion:d.termsVersion,termsAcceptedAt:d.termsAcceptedAt,renewalOf:d.renewalOf};
-  const known=new Set(base.files.map(f=>f.remoteId));
-  const extra:ClientFile[]=files.filter(f=>!known.has(f.id)).map(f=>({id:f.id,remoteId:f.id,name:f.name,mime:f.mime,size:f.size,kind:labels[f.id]?.kind??'source',label:labels[f.id]?.label??{ar:f.name,en:f.name},createdAt:iso(f.created_at)}));
-  return{...base,remoteId:row.id,status:row.status,stage:STAGE[row.status],updatedAt:iso(row.updated_at),files:[...base.files,...extra],syncedAt:iso(row.updated_at)};
-}
+function toServerData(r:ClientRequest){return{actionId:r.actionId,title:r.title,name:r.name,phone:r.phone,fields:r.fields,termsVersion:r.termsVersion,termsAcceptedAt:r.termsAcceptedAt,createdAt:r.createdAt,renewalOf:r.renewalOf,fileLabels:Object.fromEntries(r.files.filter(f=>f.remoteId&&f.kind==='source').map(f=>[f.remoteId,{label:f.label,kind:f.kind,name:f.name}]))}}
 
 /** Uploads a local file's bytes; returns the server file id. */
-async function upload(requestRemoteId:string,f:ClientFile,bytes:Blob|Uint8Array){
-  const r=await call('PUT',`/v1/requests/${requestRemoteId}/files`,{raw:bytes,headers:{'x-file-name':encodeURIComponent(f.name),'content-type':f.mime}});
+async function upload(requestRemoteId:string,f:ClientFile,bytes:Blob|Uint8Array,missingId?:string){
+  const r=await call('PUT',`/v1/requests/${requestRemoteId}/files${missingId?`?missingId=${missingId}`:''}`,{raw:bytes,headers:{'x-file-name':encodeURIComponent(f.name),'content-type':f.mime}});
   return (await json<{id:string}>(r)).id;
 }
 
@@ -108,8 +98,8 @@ export async function pushRequest(r:ClientRequest,getBytes:(f:ClientFile)=>Promi
   }
   const files:ClientFile[]=[];
   for(const f of r.files){
-    if(f.remoteId||f.kind!=='source'){files.push(f);continue}
-    files.push({...f,remoteId:await upload(remoteId,f,await getBytes(f))});
+    if(f.remoteId||f.kind!=='source'||holdsUpload(r,f)){files.push(f);continue}
+    files.push({...f,remoteId:await upload(remoteId,f,await getBytes(f),missingIdFor(r,f.id))});
   }
   const next={...r,remoteId,files};
   const patch:Record<string,unknown>={data:toServerData(next)};
@@ -124,12 +114,10 @@ export const needsSync=(r:ClientRequest)=>!r.sample&&(!r.syncedAt||r.updatedAt>r
 export async function pullRequests(local:ClientRequest[]):Promise<ClientRequest[]>{
   const {requests}=await json<{requests:Row[]}>(await call('GET','/v1/requests'));
   const byRemote=new Map(local.filter(r=>r.remoteId).map(r=>[r.remoteId!,r]));
-  const merged:ClientRequest[]=[];const seen=new Set<string>();
+  const merged:ClientRequest[]=[];
   for(const row of requests){
-    const det=await json<{files:{id:string;name:string;mime:string;size:number;created_at:number}[]}>(await call('GET',`/v1/requests/${row.id}`));
-    const l=byRemote.get(row.id);
-    merged.push(fromRow(row,det.files,l&&l.syncedAt&&l.updatedAt>l.syncedAt?undefined:l));
-    seen.add(row.id);
+    const det=await json<ServerDetail>(await call('GET',`/v1/requests/${row.id}`));
+    merged.push(toClientRequest(row,det,byRemote.get(row.id)));
   }
   // keep records the server doesn't know yet, and samples
   for(const r of local)if(!r.remoteId||r.sample)merged.push(r);
