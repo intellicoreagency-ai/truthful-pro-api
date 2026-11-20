@@ -1,13 +1,28 @@
 import type { NextRequest } from "next/server";
 
 const MAX_CLAIM_LENGTH = 2000;
+const MIN_WORDS = 3;
+const HEDGES = /\b(maybe|perhaps|probably|possibly|allegedly|i think|i guess)\b/i;
 
-type Verdict = "VERIFIED" | "DISPUTED";
+type Verdict = "VERIFIED" | "DISPUTED" | "UNVERIFIABLE";
+type Source = { title: string; url: string };
 
-// MOCK: stands in for the real verification engine. A claim containing the
-// word "fake" is DISPUTED; everything else is VERIFIED.
+// MOCK: stands in for the real verification engine. Rules, in order:
+//   1. Fewer than MIN_WORDS words, or a hedging word: UNVERIFIABLE (too thin to judge).
+//   2. Contains the whole word "fake": DISPUTED.
+//   3. Anything else: VERIFIED.
 function mockVerdict(claim: string): Verdict {
+  const words = claim.split(/\s+/).filter(Boolean).length;
+  if (words < MIN_WORDS || HEDGES.test(claim)) return "UNVERIFIABLE";
   return /\bfake\b/i.test(claim) ? "DISPUTED" : "VERIFIED";
+}
+
+// MOCK: a verdict that rests on evidence carries a source; an unverifiable
+// claim has none.
+function mockSources(verdict: Verdict): Source[] {
+  return verdict === "UNVERIFIABLE"
+    ? []
+    : [{ title: "Example Source", url: "https://example.com" }];
 }
 
 function error(status: number, code: string, message: string) {
@@ -43,9 +58,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const verdict = mockVerdict(trimmed);
   return Response.json({
     claim: trimmed,
-    verdict: mockVerdict(trimmed),
+    verdict,
+    sources: mockSources(verdict),
     mock: true,
   });
 }

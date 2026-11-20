@@ -34,11 +34,11 @@ export default function Home() {
         <section className={`${s.wrap} ${s.hero}`}>
           <div>
             <h1 className={s.h1}>
-              Get a verdict <em>before</em> a claim ships.
+              Get a sourced verdict <em>before</em> a claim ships.
             </h1>
             <p className={s.lede}>
               Truthful Pro is a fact-checking API. Send a claim, get back a
-              verdict you can branch on.
+              verdict you can branch on, with its sources attached.
             </p>
             <div className={s.actions}>
               <Link href={KEY_URL} className={`${s.btn} ${s.btnPrimary}`}>
@@ -79,16 +79,28 @@ export default function Home() {
                   {`  "verdict": "DISPUTED",`}
                 </span>
                 <span className={s.line} style={{ ["--i" as string]: 4 }}>
-                  {`  "mock": true`}
+                  {`  "sources": [`}
                 </span>
                 <span className={s.line} style={{ ["--i" as string]: 5 }}>
+                  {`    { "title": "Example Source",`}
+                </span>
+                <span className={s.line} style={{ ["--i" as string]: 6 }}>
+                  {`      "url": "https://example.com" }`}
+                </span>
+                <span className={s.line} style={{ ["--i" as string]: 7 }}>
+                  {`  ],`}
+                </span>
+                <span className={s.line} style={{ ["--i" as string]: 8 }}>
+                  {`  "mock": true`}
+                </span>
+                <span className={s.line} style={{ ["--i" as string]: 9 }}>
                   {`}`}
                 </span>
               </div>
               <p className={s.note}>
-                Real output of the current mock endpoint: a claim containing
-                the word &ldquo;fake&rdquo; is DISPUTED. The verification
-                engine is not built yet.
+                Real output of the current mock endpoint. The verdict and
+                sources are placeholders; the verification engine is not built
+                yet.
               </p>
             </div>
           </figure>
