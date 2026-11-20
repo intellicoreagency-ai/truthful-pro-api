@@ -11,6 +11,8 @@ export interface Env {
   DEV_OTP_ECHO?: string
   ALLOWED_ORIGINS?: string
   OWNER_SETUP_KEY?: string      // secret, 24+ random chars: lets the owner enrol their authenticator app once
+  WEBAUTHN_RP_ID?: string       // e.g. ops.example.com (defaults to the request host)
+  WEBAUTHN_ORIGINS?: string     // e.g. https://ops.example.com (comma separated; defaults to the request origin)
   OWNER_PHONE?: string          // E.164; the first sign-in with this number creates the owner account
   WA_BUSINESS_NUMBER?: string   // digits only, e.g. 9715XXXXXXXX
   WA_APP_SECRET?: string        // Meta app secret (signs webhooks)

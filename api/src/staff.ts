@@ -5,6 +5,8 @@ import { hmacHex, newId, open, openText, randomToken, seal, sealText, sha256Hex,
 import { MAX_FILE_BYTES, isUuid, normalizePhone, safeFileName, sniffFile } from './validate'
 import { allow, audit, clientIp, jsonBody, type C } from './security'
 import { newSecret, otpauthUri, verifyTotp } from './totp'
+import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server'
+import { b64, unb64 } from './crypto'
 
 type Role = Vars['staffRole']
 const ACCESS_TTL = 15 * 60 * 1000
@@ -382,6 +384,100 @@ guarded.put('/requests/:id/files', roles(...OPS), async (c) => {
   await addEvent(c, r.id, 'file', kind === 'final' ? 'أُضيف ملف التسليم' : 'أُضيفت فاتورة', kind === 'final' ? 'Delivery file added' : 'Invoice added', true)
   await audit(c, 'staff.file_upload', null, { fileId: fid, requestId: r.id, kind, by: c.get('staffId') })
   return c.json({ id: fid, name, kind }, 201)
+})
+
+
+// ---------- biometric sign-in: passkeys (WebAuthn) ----------
+// The fingerprint/face never leaves the phone; the server only stores a public key. User verification is required.
+const CHALLENGE_TTL = 5 * 60 * 1000
+const rp = (c: C) => {
+  const u = new URL(c.req.url)
+  return { rpID: c.env.WEBAUTHN_RP_ID ?? u.hostname, origins: (c.env.WEBAUTHN_ORIGINS ?? u.origin).split(',').map((x) => x.trim()).filter(Boolean) }
+}
+async function saveChallenge(c: C, challenge: string, purpose: 'register' | 'login', staffId: string | null) {
+  const id = newId()
+  await c.env.DB.prepare('INSERT INTO webauthn_challenges (id,challenge,purpose,staff_id,expires_at) VALUES (?,?,?,?,?)').bind(id, challenge, purpose, staffId, Date.now() + CHALLENGE_TTL).run()
+  if (Math.random() < 0.05) await c.env.DB.prepare('DELETE FROM webauthn_challenges WHERE expires_at < ?').bind(Date.now() - 3600_000).run()
+  return id
+}
+/** A challenge can be used exactly once. */
+async function takeChallenge(c: C, id: unknown, purpose: 'register' | 'login', staffId: string | null) {
+  if (typeof id !== 'string' || !isUuid(id)) return null
+  const row = await c.env.DB.prepare('SELECT challenge,staff_id FROM webauthn_challenges WHERE id=? AND purpose=? AND used_at IS NULL AND expires_at>?').bind(id, purpose, Date.now()).first<{ challenge: string; staff_id: string | null }>()
+  if (!row || (purpose === 'register' && row.staff_id !== staffId)) return null
+  const r = await c.env.DB.prepare('UPDATE webauthn_challenges SET used_at=? WHERE id=? AND used_at IS NULL').bind(Date.now(), id).run()
+  return r.meta.changes ? row.challenge : null
+}
+
+guarded.post('/passkeys/register/options', async (c) => {
+  const me = await c.env.DB.prepare('SELECT name FROM staff WHERE id=?').bind(c.get('staffId')).first<{ name: string }>()
+  const existing = await c.env.DB.prepare('SELECT credential_id FROM staff_passkeys WHERE staff_id=?').bind(c.get('staffId')).all<{ credential_id: string }>()
+  const { rpID } = rp(c)
+  const options = await generateRegistrationOptions({
+    rpName: 'TRUTHFUL PRO', rpID, userName: me?.name ?? 'staff', userDisplayName: me?.name ?? 'staff', userID: new Uint8Array(new TextEncoder().encode(c.get('staffId'))),
+    attestationType: 'none', excludeCredentials: existing.results.map((x) => ({ id: x.credential_id })),
+    authenticatorSelection: { residentKey: 'required', userVerification: 'required', authenticatorAttachment: 'platform' },
+  })
+  return c.json({ challengeId: await saveChallenge(c, options.challenge, 'register', c.get('staffId')), options })
+})
+
+guarded.post('/passkeys/register/verify', async (c) => {
+  const b = await jsonBody(c, 16 * 1024)
+  const challenge = await takeChallenge(c, b?.challengeId, 'register', c.get('staffId'))
+  if (!challenge || !b?.response) return c.json({ error: 'invalid_request' }, 400)
+  const { rpID, origins } = rp(c)
+  let v
+  try { v = await verifyRegistrationResponse({ response: b.response as never, expectedChallenge: challenge, expectedOrigin: origins, expectedRPID: rpID, requireUserVerification: true }) } catch { return c.json({ error: 'verification_failed' }, 400) }
+  if (!v.verified || !v.registrationInfo) return c.json({ error: 'verification_failed' }, 400)
+  const cred = v.registrationInfo.credential
+  const name = typeof b.deviceName === 'string' && b.deviceName.trim() ? b.deviceName.trim().slice(0, 60) : 'Device'
+  await c.env.DB.prepare('INSERT INTO staff_passkeys (id,staff_id,credential_id,public_key,counter,transports,device_name,created_at) VALUES (?,?,?,?,?,?,?,?)')
+    .bind(newId(), c.get('staffId'), cred.id, b64(cred.publicKey), cred.counter, JSON.stringify(cred.transports ?? []), name, Date.now()).run()
+  await audit(c, 'staff.passkey_add', null, { by: c.get('staffId') })
+  return c.json({ ok: true })
+})
+
+guarded.get('/passkeys', async (c) => {
+  const r = await c.env.DB.prepare('SELECT id,device_name,created_at,last_used_at FROM staff_passkeys WHERE staff_id=? ORDER BY created_at').bind(c.get('staffId')).all()
+  return c.json({ passkeys: r.results })
+})
+guarded.delete('/passkeys/:id', async (c) => {
+  const id = c.req.param('id')
+  if (!isUuid(id)) return c.json({ error: 'not_found' }, 404)
+  const r = await c.env.DB.prepare('DELETE FROM staff_passkeys WHERE id=? AND staff_id=?').bind(id, c.get('staffId')).run()
+  if (!r.meta.changes) return c.json({ error: 'not_found' }, 404)
+  await audit(c, 'staff.passkey_remove', null, { by: c.get('staffId') })
+  return c.json({ ok: true })
+})
+
+// Public: sign in with a fingerprint/face. No phone number is typed: the device offers its saved passkey.
+staff.post('/auth/passkey/options', async (c) => {
+  if (!(await allow(c.env, `pko:${clientIp(c)}`, 60, 600))) return c.json({ error: 'too_many_requests' }, 429)
+  const { rpID } = rp(c)
+  const options = await generateAuthenticationOptions({ rpID, userVerification: 'required' })
+  return c.json({ challengeId: await saveChallenge(c, options.challenge, 'login', null), options })
+})
+
+staff.post('/auth/passkey/verify', async (c) => {
+  if (!(await allow(c.env, `pkv:${clientIp(c)}`, 30, 600))) return c.json({ error: 'too_many_requests' }, 429)
+  const b = await jsonBody(c, 16 * 1024)
+  const challenge = await takeChallenge(c, b?.challengeId, 'login', null)
+  const resp = b?.response as { id?: string } | undefined
+  if (!challenge || !resp || typeof resp.id !== 'string') return c.json({ error: 'invalid_passkey' }, 401)
+  const row = await c.env.DB.prepare('SELECT k.id kid,k.public_key,k.counter,k.transports,k.credential_id,m.id staff_id,m.role,m.active FROM staff_passkeys k JOIN staff m ON m.id=k.staff_id WHERE k.credential_id=?').bind(resp.id)
+    .first<{ kid: string; public_key: string; counter: number; transports: string | null; credential_id: string; staff_id: string; role: Role; active: number }>()
+  if (!row || !row.active) { await audit(c, 'staff.passkey_fail', null); return c.json({ error: 'invalid_passkey' }, 401) }
+  const { rpID, origins } = rp(c)
+  let v
+  try {
+    v = await verifyAuthenticationResponse({
+      response: b?.response as never, expectedChallenge: challenge, expectedOrigin: origins, expectedRPID: rpID, requireUserVerification: true,
+      credential: { id: row.credential_id, publicKey: new Uint8Array(unb64(row.public_key)), counter: row.counter, transports: JSON.parse(row.transports ?? '[]') },
+    })
+  } catch { await audit(c, 'staff.passkey_fail', null); return c.json({ error: 'invalid_passkey' }, 401) }
+  if (!v.verified) return c.json({ error: 'invalid_passkey' }, 401)
+  await c.env.DB.prepare('UPDATE staff_passkeys SET counter=?, last_used_at=? WHERE id=?').bind(v.authenticationInfo.newCounter, Date.now(), row.kid).run()
+  return openSession(c, row.staff_id, row.role)
 })
 
 staff.route('/', guarded)

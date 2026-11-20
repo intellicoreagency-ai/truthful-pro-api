@@ -513,3 +513,45 @@ describe('totp implementation', () => {
     expect(base32(unbase32(secret))).toBe(secret)
   })
 })
+
+describe('passkeys (guards; the full ceremony is exercised in the browser smoke test)', () => {
+  const pe = () => ({ ...env, OWNER_PHONE: '+971521160001', OWNER_SETUP_KEY: 'owner-setup-key-0123456789' } as Env)
+  let k = 0
+  const hit = (method: string, path: string, body?: unknown, token?: string) => {
+    const headers: Record<string, string> = { 'cf-connecting-ip': `10.5.${Math.floor(++k / 250)}.${k % 250}` }
+    if (body !== undefined) headers['content-type'] = 'application/json'
+    if (token) headers.authorization = `Bearer ${token}`
+    return app.fetch(new Request('https://api.test' + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }), pe())
+  }
+  it('requires a staff session to register or list passkeys', async () => {
+    expect((await hit('POST', '/staff/v1/passkeys/register/options', {})).status).toBe(401)
+    expect((await hit('GET', '/staff/v1/passkeys')).status).toBe(401)
+    const cust = await (async () => { const s = await (await hit('POST', '/v1/auth/wa/start', { phone: '+971521160009' })).json().catch(() => ({})) as { error?: string }; return s })()
+    void cust
+  })
+  it('issues a login challenge that cannot be replayed and rejects unknown credentials', async () => {
+    const o = await (await hit('POST', '/staff/v1/auth/passkey/options', {})).json() as { challengeId: string; options: { challenge: string; rpId: string; userVerification: string } }
+    expect(o.options.userVerification).toBe('required')
+    expect(o.options.rpId).toBe('api.test')
+    const fake = { id: 'AAAA', rawId: 'AAAA', type: 'public-key', response: { clientDataJSON: 'e30', authenticatorData: 'AA', signature: 'AA' }, clientExtensionResults: {} }
+    expect((await hit('POST', '/staff/v1/auth/passkey/verify', { challengeId: o.challengeId, response: fake })).status).toBe(401) // unknown credential
+    expect((await hit('POST', '/staff/v1/auth/passkey/verify', { challengeId: o.challengeId, response: fake })).status).toBe(401) // challenge already consumed
+    expect((await hit('POST', '/staff/v1/auth/passkey/verify', { challengeId: 'not-a-uuid', response: fake })).status).toBe(401)
+  })
+  it('refuses a registration response without a valid challenge', async () => {
+    const owner = await (async () => {
+      const { hotp } = await import('../src/totp')
+      await env.DB.prepare('DELETE FROM staff_sessions').run(); await env.DB.prepare('DELETE FROM staff_passkeys').run(); await env.DB.prepare('DELETE FROM staff').run()
+      const s = await (await hit('POST', '/staff/v1/auth/setup/start', { phone: '+971521160001', setupKey: 'owner-setup-key-0123456789' })).json() as { secret: string }
+      const r = await (await hit('POST', '/staff/v1/auth/setup/confirm', { phone: '+971521160001', code: await hotp(s.secret, Math.floor(Date.now() / 30000)) })).json() as { accessToken: string }
+      return r.accessToken
+    })()
+    const ro = await (await hit('POST', '/staff/v1/passkeys/register/options', {}, owner)).json() as { challengeId: string; options: { authenticatorSelection: { userVerification: string; residentKey: string } } }
+    expect(ro.options.authenticatorSelection.userVerification).toBe('required')
+    expect(ro.options.authenticatorSelection.residentKey).toBe('required')
+    const junk = { id: 'AAAA', rawId: 'AAAA', type: 'public-key', response: { clientDataJSON: 'e30', attestationObject: 'AA' }, clientExtensionResults: {} }
+    expect((await hit('POST', '/staff/v1/passkeys/register/verify', { challengeId: ro.challengeId, response: junk }, owner)).status).toBe(400)
+    expect((await hit('POST', '/staff/v1/passkeys/register/verify', { challengeId: ro.challengeId, response: junk }, owner)).status).toBe(400) // burnt
+    expect((await hit('GET', '/staff/v1/passkeys', undefined, owner)).status).toBe(200)
+  })
+})

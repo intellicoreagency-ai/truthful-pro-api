@@ -30,11 +30,22 @@ export function Login({ onDone }: { onDone: () => void }) {
     return ctx === 'wa' && c === 'invalid_phone' ? 'e_phone' : 'e_gen'
   }
   const common = { phone, setPhone, err, setErr, busy, setBusy, onDone, fail }
+  const bio = async () => {
+    setErr(''); setBusy(true)
+    try { await api.passkeyLogin(); try { localStorage.setItem('tp.pk', '1') } catch { /* */ } onDone() }
+    catch (e) { setErr(e instanceof ApiError && e.code === 'too_many_requests' ? 'e_many' : e instanceof ApiError && e.code === 'network' ? 'e_net' : 'bioFail') } finally { setBusy(false) }
+  }
   return (
     <div className="login">
       <div className="card">
         <img className="logo" src="/logo.png" alt="" />
         <h1>{t('loginTitle')}</h1>
+        {api.passkeysSupported() && (
+          <>
+            <button className="btn primary bio" disabled={busy} onClick={bio}><span aria-hidden="true">☝︎</span> {t('bio')}</button>
+            <p className="small" style={{ margin: '6px 0 0' }}>{t('bioHint')}</p>
+          </>
+        )}
         <div className="tabs" role="tablist">
           {(['code', 'setup', 'wa'] as Tab[]).map((x) => (
             <button key={x} role="tab" aria-selected={tab === x} className="tab" onClick={() => switchTab(x)}>{t(x === 'code' ? 'tabCode' : x === 'setup' ? 'tabSetup' : 'tabWa')}</button>

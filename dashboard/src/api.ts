@@ -1,3 +1,5 @@
+import { browserSupportsWebAuthn, startAuthentication, startRegistration } from '@simplewebauthn/browser'
+
 export class ApiError extends Error { constructor(public status: number, public code: string) { super(code) } }
 
 let access: string | undefined
@@ -75,6 +77,20 @@ export const api = {
     const r = await j<{ accessToken: string; refreshToken: string }>(await call('POST', '/staff/v1/auth/setup/confirm', { auth: false, body: { phone, code } }))
     store(r.accessToken, r.refreshToken)
   },
+  passkeysSupported: () => browserSupportsWebAuthn(),
+  async passkeyLogin() {
+    const o = await j<{ challengeId: string; options: Parameters<typeof startAuthentication>[0]['optionsJSON'] }>(await call('POST', '/staff/v1/auth/passkey/options', { auth: false, body: {} }))
+    const response = await startAuthentication({ optionsJSON: o.options })
+    const r = await j<{ accessToken: string; refreshToken: string }>(await call('POST', '/staff/v1/auth/passkey/verify', { auth: false, body: { challengeId: o.challengeId, response } }))
+    store(r.accessToken, r.refreshToken)
+  },
+  async passkeyRegister(deviceName: string) {
+    const o = await j<{ challengeId: string; options: Parameters<typeof startRegistration>[0]['optionsJSON'] }>(await call('POST', '/staff/v1/passkeys/register/options', { body: {} }))
+    const response = await startRegistration({ optionsJSON: o.options })
+    await call('POST', '/staff/v1/passkeys/register/verify', { body: { challengeId: o.challengeId, response, deviceName } })
+  },
+  passkeys: async () => (await j<{ passkeys: { id: string; device_name: string; created_at: number; last_used_at: number | null }[] }>(await call('GET', '/staff/v1/passkeys'))).passkeys,
+  removePasskey: (id: string) => call('DELETE', `/staff/v1/passkeys/${id}`),
   me: async () => j<{ staff: { id: string; name: string; role: Role } }>(await call('GET', '/staff/v1/me')),
   logout: async () => { try { await call('POST', '/staff/v1/auth/logout') } catch { /* */ } signOutLocal() },
   stats: async () => j<Stats>(await call('GET', '/staff/v1/stats')),

@@ -5,6 +5,7 @@ import { Overview } from './Overview'
 import { RequestDetail } from './RequestDetail'
 import { Requests } from './Requests'
 import { Team } from './Team'
+import { Security } from './Security'
 import { useI18n } from './i18n'
 
 type Me = { id: string; name: string; role: Role }
@@ -20,6 +21,7 @@ export default function App() {
   const [me, setMe] = useState<Me | null>(null)
   const [checking, setChecking] = useState(signedIn())
   const [hash, go] = useHash()
+  const [offer, setOffer] = useState(() => { try { return !localStorage.getItem('tp.pk') && !sessionStorage.getItem('tp.pk.later') } catch { return false } })
 
   const load = async () => { try { setMe((await api.me()).staff) } catch { setMe(null) } finally { setChecking(false) } }
   useEffect(() => { setExpiredHandler(() => setMe(null)); if (signedIn()) void load() }, [])
@@ -43,15 +45,24 @@ export default function App() {
             <a href="#/" aria-current={cur('')}>{t('overview')}</a>
             <a href="#/requests" aria-current={cur('requests')}>{t('requests')}</a>
             {canTeam && <a href="#/team" aria-current={cur('team')}>{t('members')}</a>}
+            <a href="#/security" aria-current={cur('security')}>{t('security')}</a>
           </nav>
           <button className="btn sm" onClick={toggle}>{t('lang')}</button>
           <button className="btn sm" onClick={async () => { await api.logout(); setMe(null) }}>{t('logout')}</button>
         </div>
       </header>
+      {offer && api.passkeysSupported() && section !== 'security' && (
+        <div className="banner" role="note"><div className="banner-in">
+          <span>{t('bioBanner')}</span>
+          <button className="btn primary sm" onClick={() => go('#/security')}>{t('bioEnable')}</button>
+          <button className="btn sm" onClick={() => { try { sessionStorage.setItem('tp.pk.later', '1') } catch { /* */ } setOffer(false) }}>{t('bioLater')}</button>
+        </div></div>
+      )}
       <main className="main">
         {section === 'requests' && parts[1] ? <RequestDetail key={parts[1]} id={parts[1]} me={me} back={() => go('#/requests')} />
           : section === 'requests' ? <Requests params={params} go={go} />
           : section === 'team' && canTeam ? <Team meId={me.id} />
+          : section === 'security' ? <Security />
           : <Overview go={go} />}
       </main>
     </div>

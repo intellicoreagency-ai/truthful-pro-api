@@ -22,6 +22,8 @@ const dict = {
     owner: 'مالك', manager: 'مدير', agent: 'موظف', accountant: 'محاسب', you: 'أنت', lang: 'EN',
     tabCode: 'تطبيق المصادقة', tabSetup: 'أول دخول', tabWa: 'واتساب', code6: 'الرمز المكوّن من 6 أرقام', signIn: 'دخول', codeHint: 'افتح تطبيق المصادقة (Google Authenticator أو Microsoft Authenticator) وأدخل الرمز الظاهر لحسابك.',
     setupHint: 'أدخل رقمك ومفتاح الإعداد الذي سلّمك إياه المالك، ثم امسح الرمز بتطبيق المصادقة وأدخل أول رمز.', setupKey: 'مفتاح الإعداد', continue: 'متابعة', scanQr: 'امسح الرمز بتطبيق المصادقة، أو أدخل المفتاح يدوياً:', openApp: 'فتح في التطبيق', firstCode: 'أدخل أول رمز من التطبيق لإنهاء التفعيل', e_code: 'الرمز غير صحيح أو مستخدم من قبل.', e_setup: 'مفتاح الإعداد غير صحيح أو منتهي.',
+    bio: 'الدخول بالبصمة', bioHint: 'استخدم بصمة إصبعك أو وجهك للدخول مباشرة.', bioFail: 'تعذّر الدخول بالبصمة. استخدم الرمز بدلاً منها.', bioNone: 'لا توجد بصمة مسجّلة على هذا الجهاز بعد. ادخل بالرمز ثم فعّلها من «الأمان».',
+    security: 'الأمان', bioEnable: 'تفعيل البصمة على هذا الجهاز', bioEnabled: 'تم تفعيل الدخول بالبصمة.', bioDevices: 'الأجهزة المسجّلة', bioRemove: 'إزالة', bioLater: 'لاحقاً', bioBanner: 'فعّل الدخول بالبصمة على هذا الجهاز لدخول أسرع وأكثر أماناً.', bioCancelled: 'أُلغي التفعيل أو لم يدعمه هذا الجهاز.', lastUsed: 'آخر استخدام', never: 'لم يُستخدم',
     enrollTitle: 'مفتاح إعداد العضو', enrollBody: 'سلّم هذا المفتاح للعضو بشكل خاص. يظهر مرة واحدة فقط وينتهي خلال 24 ساعة. يستخدمه في «أول دخول».', done: 'تم', copy: 'نسخ', copied: 'نُسخ',
   },
   en: {
@@ -43,6 +45,8 @@ const dict = {
     owner: 'Owner', manager: 'Manager', agent: 'Agent', accountant: 'Accountant', you: 'You', lang: 'عربي',
     tabCode: 'Authenticator app', tabSetup: 'First sign-in', tabWa: 'WhatsApp', code6: '6-digit code', signIn: 'Sign in', codeHint: 'Open your authenticator app (Google Authenticator or Microsoft Authenticator) and enter the code shown for your account.',
     setupHint: 'Enter your number and the setup key the owner gave you, scan the code with your authenticator app, then enter the first code.', setupKey: 'Setup key', continue: 'Continue', scanQr: 'Scan this code with your authenticator app, or enter the key manually:', openApp: 'Open in app', firstCode: 'Enter the first code from the app to finish', e_code: 'The code is wrong or was already used.', e_setup: 'The setup key is wrong or expired.',
+    bio: 'Sign in with fingerprint', bioHint: 'Use your fingerprint or face to sign in directly.', bioFail: 'Biometric sign-in failed. Use your code instead.', bioNone: 'No fingerprint is registered on this device yet. Sign in with your code, then enable it under Security.',
+    security: 'Security', bioEnable: 'Enable fingerprint on this device', bioEnabled: 'Fingerprint sign-in enabled.', bioDevices: 'Registered devices', bioRemove: 'Remove', bioLater: 'Later', bioBanner: 'Enable fingerprint sign-in on this device for faster and safer access.', bioCancelled: 'Cancelled, or this device does not support it.', lastUsed: 'Last used', never: 'Never used',
     enrollTitle: 'Member setup key', enrollBody: 'Give this key to the member privately. It is shown once and expires in 24 hours. They use it under “First sign-in”.', done: 'Done', copy: 'Copy', copied: 'Copied',
   },
 } as const
