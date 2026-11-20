@@ -25,6 +25,7 @@ const ui={
     emptyNotifications:'لا توجد إشعارات جديدة.',emptyFavorites:'لم تضف أي خدمة إلى المفضلة.',
     browse:'تصفّح الخدمات',settings:'إعدادات الحساب',
     privacy:'تُحفظ صورة الحساب وبياناته على هذا الجهاز. تسجيل الدخول والتحقق من الهوية غير متاحين في المعاينة.',
+    terms:'شروط الاستخدام',policy:'سياسة الخصوصية',exportData:'تصدير بياناتي',deleteAccount:'حذف حسابي',deleteWarn:'سيُحذف حسابك وطلباتك ومستنداتك نهائياً ولا يمكن التراجع.',deleteConfirm:'نعم، احذف كل شيء',cancel:'إلغاء',signOut:'تسجيل الخروج',working:'جارٍ التنفيذ…',exported:'تم تجهيز نسخة من بياناتك.',failed:'تعذّر التنفيذ. تحقق من الاتصال وحاول مجدداً.',signedInNote:'حسابك مرتبط بالخادم. لك حق الاطلاع على بياناتك وتصحيحها وحذفها.',
     name:'الاسم الكامل',email:'البريد الإلكتروني',phone:'رقم الهاتف',companyName:'اسم الشركة',license:'رقم الرخصة',
   },
   en:{
@@ -42,6 +43,7 @@ const ui={
     emptyNotifications:'No new notifications.',emptyFavorites:'You haven’t added any favorite services.',
     browse:'Browse Services',settings:'Account Settings',
     privacy:'Your profile and photo are stored on this device. Sign-in and identity verification are unavailable in this preview.',
+    terms:'Terms of Use',policy:'Privacy Policy',exportData:'Export my data',deleteAccount:'Delete my account',deleteWarn:'Your account, requests and documents will be permanently deleted. This cannot be undone.',deleteConfirm:'Yes, delete everything',cancel:'Cancel',signOut:'Sign out',working:'Working…',exported:'A copy of your data is ready.',failed:'Could not complete. Check your connection and try again.',signedInNote:'Your account is linked to our server. You can access, correct and delete your data.',
     name:'Full name',email:'Email address',phone:'Phone number',companyName:'Company name',license:'Trade licence number',
   },
 };
@@ -58,12 +60,17 @@ type Props={
   onBrowse:()=>void;
   onLanguage:(lang:Language)=>void;
   onLeave:()=>void;
+  signedIn:boolean;
+  onLegal:(kind:'terms'|'privacy')=>void;
+  onExport:()=>Promise<boolean>;
+  onDelete:()=>Promise<boolean>;
+  onSignOut:()=>Promise<void>;
   logo:number;
   Text:React.ComponentType<{lang:Language;children:React.ReactNode;style?:object;numberOfLines?:number}>;
   inputFont:string;
 };
 
-export function AccountScreen({lang,account,update,requests,documents,favorites,onFavorite,onRequests,onBrowse,onLanguage,onLeave,logo,Text:T,inputFont}:Props) {
+export function AccountScreen({lang,account,update,requests,documents,favorites,onFavorite,onRequests,onBrowse,onLanguage,onLeave,signedIn,onLegal,onExport,onDelete,onSignOut,logo,Text:T,inputFont}:Props) {
   const ar=lang==='ar';
   const row=ar?'row-reverse':'row';
   const forward=ar?'back':'next';
@@ -73,6 +80,10 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
   const [message,setMessage]=useState('');
   const [photoMessage,setPhotoMessage]=useState('');
   const [photoFailed,setPhotoFailed]=useState(false);
+  const [privacyMsg,setPrivacyMsg]=useState('');
+  const [confirmDelete,setConfirmDelete]=useState(false);
+  const [working,setWorking]=useState(false);
+  const run=async(f:()=>Promise<boolean|void>,ok?:string)=>{setWorking(true);setPrivacyMsg(t.working);try{const r=await f();setPrivacyMsg(r===false?t.failed:ok??'')}catch{setPrivacyMsg(t.failed)}finally{setWorking(false);setConfirmDelete(false)}};
   const scroll=useRef<React.ComponentRef<typeof ScrollView>>(null);
   const pickerPending=useRef(false);
 
@@ -207,7 +218,21 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
         {button(t.browse,onBrowse)}
       </>}
       {section==='notifications'&&<T lang={lang} style={s.sub}>{t.emptyNotifications}</T>}
-      {section==='security'&&<T lang={lang} style={s.sub}>{t.privacy}</T>}
+      {section==='security'&&<>
+        <T lang={lang} style={s.sub}>{signedIn?t.signedInNote:t.privacy}</T>
+        {button(t.terms,()=>onLegal('terms'))}
+        {button(t.policy,()=>onLegal('privacy'))}
+        {signedIn&&<>
+          {button(t.exportData,()=>{if(!working)void run(onExport,t.exported)})}
+          {!confirmDelete?button(t.deleteAccount,()=>setConfirmDelete(true)):<>
+            <T lang={lang} style={[s.sub,{color:'#9C2B14'}]}>{t.deleteWarn}</T>
+            {button(t.deleteConfirm,()=>{if(!working)void run(onDelete)})}
+            {button(t.cancel,()=>setConfirmDelete(false))}
+          </>}
+          {button(t.signOut,()=>{if(!working)void run(async()=>{await onSignOut()})})}
+          {!!privacyMsg&&<T lang={lang} style={s.sub}>{privacyMsg}</T>}
+        </>}
+      </>}
       {section==='language'&&<>
         {button(lang==='ar'?'العربية ✓':'العربية',()=>onLanguage('ar'))}
         {button(lang==='en'?'English ✓':'English',()=>onLanguage('en'))}

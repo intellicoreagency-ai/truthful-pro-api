@@ -9,5 +9,6 @@ export interface Env {
   TWILIO_TOKEN?: string
   TWILIO_FROM?: string
   DEV_OTP_ECHO?: string
+  ALLOWED_ORIGINS?: string
 }
 export type Vars = { userId: string; sessionId: string }

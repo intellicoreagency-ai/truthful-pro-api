@@ -13,12 +13,15 @@ import {Icon, serviceIcon, transactionIcon} from './src/Icons';
 import {bannerFrameFor, individualCatalogueBannerFor} from './src/approvedBanners';
 import {CompanyBanner, companyBannerFonts} from './src/CompanyBanner';
 import {ClientWorkspace,RequestWizard} from './src/ClientWorkspace';
-import {pickClientFile,pruneOrphanFiles,readRequests,writeRequests} from './src/clientStorage';
+import {pickClientFile,pruneOrphanFiles,readRequests,writeRequests,getBytes,saveDataExport} from './src/clientStorage';
 import {makeId,type ClientRequest,type ClientFile} from './src/clientModel';
 import {HomeScreen} from './src/HomeScreen';
 import {WelcomeScreen} from './src/WelcomeScreen';
 import {AccountScreen} from './src/AccountScreen';
-import {readAccount,saveAccount,type AccountData} from './src/accountStorage';
+import {readAccount,saveAccount,emptyAccount,type AccountData} from './src/accountStorage';
+import {LegalScreen} from './src/LegalScreen';
+import {TERMS,PRIVACY} from './src/legal';
+import {apiEnabled,hasSession,loadTokens,logout,me,pullRequests,pushRequest,needsSync,exportMyData,deleteAccount,setSessionExpiredHandler} from './src/api';
 
 type Language='ar'|'en';
 type Page='welcome'|'home'|'services'|'detail'|'requests'|'profile'|'request';
@@ -137,7 +140,33 @@ export default function App() {
  // Unsaved starting point for the wizard; persisted only by Save draft / Confirm (prevents duplicate drafts).
  const [clientSeed,setClientSeed]=useState<ClientRequest|null>(null);
  const setLang=(next:Language)=>{setLangState(next);updateAccount({language:next});};
- const saveClientRecords=(records:ClientRequest[])=>{try{writeRequests(records);setClientRecords(records);return true}catch{return false}};
+ const recordsRef=React.useRef(clientRecords);
+ const [signedIn,setSignedIn]=useState(false);
+ const [legal,setLegal]=useState<'terms'|'privacy'|null>(null);
+ const writeLocal=(records:ClientRequest[])=>{try{writeRequests(records);recordsRef.current=records;setClientRecords(records);return true}catch{return false}};
+ const syncing=React.useRef(false);
+ const syncAgain=React.useRef(false);
+ /** Push unsynced requests, then pull. The server is authoritative for status; failures keep local data and retry later. */
+ const syncNow=async()=>{
+   if(!apiEnabled||!hasSession())return;
+   if(syncing.current){syncAgain.current=true;return}
+   syncing.current=true;
+   try{
+     do{
+       syncAgain.current=false;
+       let recs=recordsRef.current;
+       for(const r of recs.filter(needsSync)){
+         const next=await pushRequest(r,getBytes,id=>recs.find(x=>x.id===id)?.remoteId);
+         recs=recs.map(x=>x.id===next.id?next:x);writeLocal(recs);
+       }
+       writeLocal(await pullRequests(recordsRef.current));
+     }while(syncAgain.current);
+   }catch{/* offline or expired: local data stays, next save/login retries */}
+   finally{syncing.current=false}
+ };
+ const syncTimer=React.useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
+ const saveClientRecords=(records:ClientRequest[])=>{const ok=writeLocal(records);if(ok&&apiEnabled&&hasSession()){clearTimeout(syncTimer.current);syncTimer.current=setTimeout(()=>void syncNow(),600)}return ok};
+ const wipeLocal=async()=>{writeLocal([]);try{await pruneOrphanFiles([])}catch{}try{saveAccount({...emptyAccount,language:lang});accountRef.current={...emptyAccount,language:lang};setAccount(accountRef.current)}catch{}};
  const createClientRequest=(r:ClientRequest)=>saveClientRecords([...clientRecords.filter(v=>v.id!==r.id),r]);
  const resumeClient=(serviceId:string,id:string,draftId?:string,renewalOf?:string)=>{const service=SERVICES.find(s=>s.id===serviceId);if(!service)return;
    // A renewal is a new request linked to the source; the source record is never modified.
@@ -145,6 +174,14 @@ export default function App() {
    setClientSeed(source?{id:makeId(),serviceId,actionId:id,title:source.title,createdAt:now,updatedAt:now,status:'draft',stage:1,name:source.name,phone:source.phone,fields:{},files:[],missing:[],events:[],money:{government:0,handling:0,tax:0,extra:0,paid:0,refunded:0,quoted:false},renewalOf:source.id}:null);
    setClientDraft(draftId??null);open(service,id)};
  React.useEffect(()=>{void pruneOrphanFiles(readRequests()).catch(()=>{});},[]);
+ React.useEffect(()=>{
+   if(!apiEnabled)return;
+   setSessionExpiredHandler(()=>{setSignedIn(false);setPage('welcome')});
+   void (async()=>{
+     if(!await loadTokens())return;
+     try{await me();setSignedIn(true);setPage(p=>p==='welcome'?'home':p);void syncNow()}catch{/* offline: stay on welcome; session kept */}
+   })();
+ },[]);
  const [business,setBusiness]=useState(false);
  const [query,setQuery]=useState('');
  const [chosen,setChosen]=useState<Service>(SERVICES.find(x=>x.id==='labor-employment')!);
@@ -505,6 +542,7 @@ export default function App() {
  </ScrollView>;
  const backRef=React.useRef<()=>boolean>(()=>false);
  backRef.current=()=>{
+   if(legal){setLegal(null);return true}
    if(page==='welcome'||page==='home') return false;
    if(page==='detail'){go(detailOrigin);return true;}
    if(page==='request'){go('detail');setTab('about');return true;}
@@ -515,10 +553,10 @@ export default function App() {
  return <SafeAreaProvider><SafeAreaView edges={['top','bottom','left','right']} style={[styles.safe,webViewportHeight!==undefined&&{height:webViewportHeight,flexGrow:0,flexShrink:0,flexBasis:'auto'}]}>
    <StatusBar barStyle="dark-content"/>
    <View key={page==='detail'?'detail:'+chosen.id:page} style={styles.screen}>
-     {page==='welcome'?<WelcomeScreen lang={lang} onLanguage={setLang} onGuest={()=>go('home')}
+     {page==='welcome'?<WelcomeScreen lang={lang} onLanguage={setLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal}
        logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily}/>
      :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents')}/>:page==='services'?cataloguePage(false):page==='detail'?detailPage():page==='profile'?
-       <AccountScreen lang={lang} account={account} update={updateAccount} requests={clientRecords.length+savedDrafts.length}
+       <AccountScreen lang={lang} account={account} update={updateAccount} signedIn={signedIn} onLegal={setLegal} onExport={async()=>{await saveDataExport(await exportMyData());return true}} onDelete={async()=>{await deleteAccount();await wipeLocal();setSignedIn(false);go('welcome');return true}} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);go('welcome')}} requests={clientRecords.length+savedDrafts.length}
          documents={Object.entries(drafts).flatMap(([key,item])=>Object.entries(item.files).map(([id,file])=>({key:key+'/'+id,name:file.name})))}
          favorites={catalogueServices.filter(item=>account.favorites.includes(item.id)).map(item=>({id:item.id,label:title(item)}))}
          onFavorite={id=>{const item=catalogueServices.find(service=>service.id===id);if(item) open(item);}}
@@ -526,7 +564,8 @@ export default function App() {
          onLeave={()=>go('welcome')} logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily}/>
        :page==='requests'?<ClientWorkspace lang={lang} onLanguage={switchLang} onFocusChange={setClientFocused} records={clientRecords} save={saveClientRecords} onStart={()=>{setClientDraft(null);openCatalogue(true);}} onResume={resumeClient} drafts={savedDrafts.map(item=>({key:item.key,title:wording(item.action,lang),resume:()=>open(item.service,item.action.id)}))}/>:page==='request'&&action?<RequestWizard key={chosen.id+'/'+action.id+'/'+(clientDraft??clientSeed?.id??'new')} lang={lang} serviceId={chosen.id} action={action} create={createClientRequest} onDone={()=>{setClientSeed(null);go('requests');}} onKeep={kept=>setClientSeed(kept)} onBack={()=>{go('detail');setTab('about');}} defaults={{name:account.name,phone:account.phone}} initial={clientRecords.find(r=>r.id===clientDraft)??(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id?clientSeed:undefined)}/>:simplePage()}
    </View>
-   {page!=='welcome'&&!(page==='requests'&&clientFocused)&&<View style={styles.bottomDock}>
+   {legal&&<View style={StyleSheet.absoluteFill}><LegalScreen lang={lang} doc={legal==='terms'?TERMS:PRIVACY} onBack={()=>setLegal(null)} Text={AppText}/></View>}
+   {page!=='welcome'&&!legal&&!(page==='requests'&&clientFocused)&&<View style={styles.bottomDock}>
      {page==='detail'&&detailCTA()}
      {nav()}
    </View>}

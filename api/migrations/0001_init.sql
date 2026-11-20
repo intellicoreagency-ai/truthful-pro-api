@@ -33,7 +33,7 @@ CREATE TABLE requests (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id),
   service_id TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','submitted','in_review','missing_documents','in_progress','completed','cancelled')),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','submitted','review','needs_documents','authority','decision','completed','cancelled','rejected')),
   data TEXT NOT NULL DEFAULT '{}',
   renewal_of TEXT,
   created_at INTEGER NOT NULL,

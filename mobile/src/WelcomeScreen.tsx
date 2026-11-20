@@ -2,8 +2,11 @@ import React, {useState} from 'react';
 import {Image, Pressable, ScrollView, StyleSheet, TextInput, View} from 'react-native';
 import Svg, {Defs, LinearGradient, Rect, Stop} from 'react-native-svg';
 import {Icon} from './Icons';
+import {ApiError, apiEnabled, recordConsent, requestOtp, verifyOtp} from './api';
+import {LEGAL_VERSION} from './legal';
+import {phoneDigits} from './clientModel';
 
-const cover = require('../assets/brand/cover-dubai-marina.jpg');
+const cover = require('../assets/brand/cover-dubai.jpg');
 const ink = '#FFF8EF';
 const accent = '#FFE1AC';
 
@@ -20,6 +23,9 @@ const copy={
   email:'البريد الإلكتروني',password:'كلمة المرور',show:'إظهار كلمة المرور',hide:'إخفاء كلمة المرور',
   remember:'تذكّرني',forgot:'نسيت كلمة المرور؟',or:'أو',guest:'المتابعة كضيف',back:'العودة إلى تسجيل الدخول',
   preview:'نسخة معاينة. تسجيل الدخول غير متاح حالياً.',
+  otpIntro:'أدخل رقم جوالك وسنرسل لك رمز تحقق.',phone:'رقم الجوال (05XXXXXXXX)',code:'رمز التحقق (6 أرقام)',sendCode:'إرسال الرمز',verify:'تأكيد ودخول',changeNumber:'تغيير الرقم',
+  agree:'أوافق على',terms:'شروط الاستخدام',and:'و',privacy:'سياسة الخصوصية',docConsent:'أوافق على معالجة مستنداتي لتنفيذ طلباتي، ويمكنني سحب موافقتي في أي وقت.',
+  e_phone:'أدخل رقم جوال إماراتي صحيحاً.',e_consent:'يلزم الموافقة على الشروط والخصوصية ومعالجة المستندات.',e_many:'محاولات كثيرة. حاول لاحقاً.',e_code:'الرمز غير صحيح أو منتهي.',e_send:'تعذّر إرسال الرمز. حاول مرة أخرى.',e_net:'تعذّر الاتصال. تحقق من الإنترنت.',e_gen:'حدث خطأ. حاول مرة أخرى.',
  },
  en:{
   brand:'TRUTHFUL PRO',tagline:'Document Clearance Services',
@@ -30,16 +36,19 @@ const copy={
   email:'Email address',password:'Password',show:'Show password',hide:'Hide password',
   remember:'Remember me',forgot:'Forgot password?',or:'or',guest:'Continue as Guest',back:'Back to Sign In',
   preview:'Preview only. Sign-in is currently unavailable.',
+  otpIntro:'Enter your mobile number and we will send you a verification code.',phone:'Mobile number (05XXXXXXXX)',code:'Verification code (6 digits)',sendCode:'Send code',verify:'Verify and sign in',changeNumber:'Change number',
+  agree:'I agree to the',terms:'Terms of Use',and:'and',privacy:'Privacy Policy',docConsent:'I consent to processing my documents to carry out my requests, and I can withdraw consent at any time.',
+  e_phone:'Enter a valid UAE mobile number.',e_consent:'You must accept the Terms, Privacy Policy and document processing.',e_many:'Too many attempts. Try again later.',e_code:'The code is wrong or has expired.',e_send:'Could not send the code. Try again.',e_net:'Connection failed. Check your internet.',e_gen:'Something went wrong. Try again.',
  },
 };
 
 type Props={
- lang:Language; onLanguage:(lang:Language)=>void; onGuest:()=>void; logo:number;
+ lang:Language; onLanguage:(lang:Language)=>void; onGuest:()=>void; onSignedIn:()=>void; onLegal:(kind:'terms'|'privacy')=>void; logo:number;
  Text:React.ComponentType<{lang:Language;children:React.ReactNode;style?:object}>;
  inputFont:string;
 };
 
-export function WelcomeScreen({lang,onLanguage,onGuest,logo,Text:T,inputFont}:Props) {
+export function WelcomeScreen({lang,onLanguage,onGuest,onSignedIn,onLegal,logo,Text:T,inputFont}:Props) {
  const ar=lang==='ar';
  const row=ar?'row-reverse':'row';
  const t=copy[lang];
@@ -47,6 +56,17 @@ export function WelcomeScreen({lang,onLanguage,onGuest,logo,Text:T,inputFont}:Pr
  const [showPassword,setShowPassword]=useState(false);
  const [remember,setRemember]=useState(false);
  const changeMode=(next:Mode)=>{setShowPassword(false);setMode(next);};
+ const [phone,setPhone]=useState('');
+ const [code,setCode]=useState('');
+ const [challenge,setChallenge]=useState<string|null>(null);
+ const [agreed,setAgreed]=useState(false);
+ const [docOk,setDocOk]=useState(false);
+ const [busy,setBusy]=useState(false);
+ const [err,setErr]=useState('');
+ const e164=():string|null=>{const d=phoneDigits(phone);const n=d.startsWith('971')?d:d.startsWith('0')?'971'+d.slice(1):d.length===9?'971'+d:'';return /^9715\d{8}$/.test(n)?'+'+n:null;};
+ const fail=(e:unknown)=>{const c=e instanceof ApiError?e.code:'';setErr(c==='too_many_requests'?t.e_many:c==='invalid_code'?t.e_code:c==='delivery_failed'?t.e_send:c==='invalid_phone'?t.e_phone:c==='network'?t.e_net:t.e_gen);};
+ const send=async()=>{setErr('');const p=e164();if(!p){setErr(t.e_phone);return}if(!agreed||!docOk){setErr(t.e_consent);return}setBusy(true);try{const r=await requestOtp(p,lang);setChallenge(r.challengeId);setCode('')}catch(e){fail(e)}finally{setBusy(false)}};
+ const confirm=async()=>{setErr('');const p=e164();if(!p||!challenge)return;if(!/^\d{6}$/.test(phoneDigits(code))){setErr(t.e_code);return}setBusy(true);try{await verifyOtp(p,challenge,phoneDigits(code));await Promise.all([recordConsent('terms',LEGAL_VERSION,true),recordConsent('privacy',LEGAL_VERSION,true),recordConsent('document_processing',LEGAL_VERSION,true)]);onSignedIn()}catch(e){fail(e)}finally{setBusy(false)}};
 
  return <View style={s.cover}>
   <View style={StyleSheet.absoluteFill} pointerEvents="none" aria-hidden>
@@ -86,6 +106,37 @@ export function WelcomeScreen({lang,onLanguage,onGuest,logo,Text:T,inputFont}:Pr
      <T lang={lang} style={s.heading}>{t[mode]}</T>
      <T lang={lang} style={s.intro}>{mode==='signIn'?t.intro:mode==='create'?t.createIntro:t.resetIntro}</T>
      {mode==='signIn'?<>
+     {apiEnabled?<>
+       <T lang={lang} style={s.preview}>{t.otpIntro}</T>
+       <View style={[s.field,{flexDirection:row}]}>
+         <Icon name="user" size={20} color={accent}/>
+         <TextInput editable={!challenge&&!busy} value={phone} onChangeText={setPhone} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" maxLength={16}
+           accessibilityLabel={t.phone} placeholder={t.phone} placeholderTextColor={ink} style={[s.input,{fontFamily:inputFont,textAlign:ar?'right':'left'}]}/>
+       </View>
+       {challenge?<View style={[s.field,{flexDirection:row}]}>
+         <Icon name="lock" size={20} color={accent}/>
+         <TextInput value={code} onChangeText={setCode} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" maxLength={6} editable={!busy}
+           accessibilityLabel={t.code} placeholder={t.code} placeholderTextColor={ink} style={[s.input,{fontFamily:inputFont,textAlign:ar?'right':'left',letterSpacing:4}]}/>
+       </View>:<>
+         <Pressable accessibilityRole="checkbox" accessibilityState={{checked:agreed}} onPress={()=>setAgreed(v=>!v)} style={[s.inline,{flexDirection:row,alignItems:'flex-start'}]}>
+           <View style={[s.check,agreed&&s.checked]}>{agreed&&<Icon name="check" size={13} color="#30251F"/>}</View>
+           <T lang={lang} style={[s.linkText,{flex:1,textAlign:ar?'right':'left'}]}>{t.agree} {t.terms} {t.and} {t.privacy}</T>
+         </Pressable>
+         <View style={[s.legalRow,{flexDirection:row}]}>
+           <Pressable accessibilityRole="link" onPress={()=>onLegal('terms')} style={s.inline}><T lang={lang} style={s.under}>{t.terms}</T></Pressable>
+           <Pressable accessibilityRole="link" onPress={()=>onLegal('privacy')} style={s.inline}><T lang={lang} style={s.under}>{t.privacy}</T></Pressable>
+         </View>
+         <Pressable accessibilityRole="checkbox" accessibilityState={{checked:docOk}} onPress={()=>setDocOk(v=>!v)} style={[s.inline,{flexDirection:row,alignItems:'flex-start'}]}>
+           <View style={[s.check,docOk&&s.checked]}>{docOk&&<Icon name="check" size={13} color="#30251F"/>}</View>
+           <T lang={lang} style={[s.linkText,{flex:1,textAlign:ar?'right':'left'}]}>{t.docConsent}</T>
+         </Pressable>
+       </>}
+       {err?<T lang={lang} style={s.error}>{err}</T>:null}
+       <Pressable accessibilityRole="button" accessibilityState={{disabled:busy}} disabled={busy} onPress={challenge?confirm:send} style={({pressed})=>[s.primary,s.cta,{flexDirection:row},(pressed||busy)&&{opacity:.7}]}>
+         <Icon name="lock" size={18} color="#30251F"/><T lang={lang} style={[s.primaryText,s.guestText]}>{challenge?t.verify:t.sendCode}</T>
+       </Pressable>
+       {challenge?<Pressable accessibilityRole="button" onPress={()=>{setChallenge(null);setCode('');setErr('')}} style={s.inline}><T lang={lang} style={s.linkText}>{t.changeNumber}</T></Pressable>:null}
+     </>:<>
        <T lang={lang} style={s.preview}>{t.preview}</T>
        <View style={[s.field,{flexDirection:row}]}>
          <Icon name="mail" size={20} color={accent}/>
@@ -118,6 +169,7 @@ export function WelcomeScreen({lang,onLanguage,onGuest,logo,Text:T,inputFont}:Pr
        <Pressable accessibilityRole="button" onPress={()=>changeMode('create')} style={[s.secondary,{flexDirection:row}]}>
          <Icon name="user" size={19} color={accent}/><T lang={lang} style={s.primaryText}>{t.create}</T>
        </Pressable>
+     </>}
      </>:<Pressable accessibilityRole="button" onPress={()=>changeMode('signIn')} style={s.secondary}>
        <T lang={lang} style={s.primaryText}>{t.back}</T>
      </Pressable>}
@@ -163,6 +215,10 @@ const s=StyleSheet.create({
  rule:{height:1,backgroundColor:'rgba(255,225,172,0.43)',flex:1},
  secondary:{minHeight:46,justifyContent:'center',alignItems:'center',gap:7,borderRadius:13,borderWidth:1,borderColor:accent,backgroundColor:'rgba(13,20,34,0.46)',paddingHorizontal:9},
  guest:{backgroundColor:'#FFAA42'},
+ cta:{backgroundColor:'#FFAA42'},
+ legalRow:{gap:22,justifyContent:'center'},
+ under:{textDecorationLine:'underline',fontWeight:'900',color:'#FFE1AC'},
+ error:{fontSize:12,lineHeight:18,color:'#FFC9B8',textAlign:'center',textShadowColor:'#050812',textShadowRadius:5},
  guestText:{color:'#30251F'},
 });
 

@@ -187,3 +187,16 @@ describe('privacy rights', () => {
     expect(r.headers.get('access-control-allow-origin')).toBeNull()
   })
 })
+
+describe('cors', () => {
+  it('is closed by default and opens only for listed origins', async () => {
+    const closed = await call('OPTIONS', '/v1/me', { headers: { origin: 'https://evil.example' } })
+    expect(closed.status).toBe(403)
+    const open = { ...env, ALLOWED_ORIGINS: 'https://app.example' } as Env
+    const r = await app.fetch(new Request('https://api.test/v1/me', { method: 'OPTIONS', headers: { origin: 'https://app.example' } }), open)
+    expect(r.status).toBe(204)
+    expect(r.headers.get('access-control-allow-origin')).toBe('https://app.example')
+    const bad = await app.fetch(new Request('https://api.test/v1/me', { method: 'OPTIONS', headers: { origin: 'https://evil.example' } }), open)
+    expect(bad.status).toBe(403)
+  })
+})
