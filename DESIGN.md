@@ -15,6 +15,11 @@ typography:
     fontWeight: 900
     lineHeight: 0.92
     letterSpacing: "-0.005em"
+  display-close:
+    fontFamily: "Big Shoulders Display, Arial Narrow, sans-serif"
+    fontSize: "clamp(2.8rem, 7vw, 5.5rem)"
+    fontWeight: 900
+    lineHeight: 0.92
   headline:
     fontFamily: "Big Shoulders Display, Arial Narrow, sans-serif"
     fontSize: "clamp(2.6rem, 5vw, 4rem)"
@@ -25,16 +30,33 @@ typography:
     fontSize: "1.9rem"
     fontWeight: 900
     lineHeight: 1
-  body:
-    fontFamily: "Source Serif 4 Variable, Georgia, serif"
-    fontSize: "1.125rem"
-    fontWeight: 400
-    lineHeight: 1.55
+    letterSpacing: "0.08em"
+  mark:
+    fontFamily: "Big Shoulders Display, Arial Narrow, sans-serif"
+    fontSize: "1.75rem"
+    fontWeight: 900
+    lineHeight: 1
+    letterSpacing: "0.02em"
   label:
     fontFamily: "Big Shoulders Display, Arial Narrow, sans-serif"
     fontSize: "1.3rem"
     fontWeight: 900
     letterSpacing: "0.06em"
+  body:
+    fontFamily: "Source Serif 4 Variable, Georgia, serif"
+    fontSize: "1.125rem"
+    fontWeight: 400
+    lineHeight: 1.55
+  ui:
+    fontFamily: "Big Shoulders Display, Arial Narrow, sans-serif"
+    fontSize: "1rem"
+    fontWeight: 700
+    letterSpacing: "0.1em"
+  small:
+    fontFamily: "Source Serif 4 Variable, Georgia, serif"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    lineHeight: 1.55
   payload:
     fontFamily: "JetBrains Mono Variable, ui-monospace, monospace"
     fontSize: "0.86rem"
@@ -128,11 +150,17 @@ A two-ink newsprint palette: one paper, one ink, plus two reserved stamp colors.
 
 ### Hierarchy
 - **Display** (900, clamp(3.4rem, 8.5vw, 6rem), 0.92): Hero headline, uppercase. One word may be set as an ink block (inverse highlight).
-- **Headline** (900, clamp(2.6rem, 5vw, 4rem), 0.95): Section heading, uppercase; the closing headline scales up to 5.5rem.
-- **Title** (900, 1.9rem, 1): Ledger row titles, uppercase. Verdict words in the vocabulary strip are 2rem at 0.08em tracking.
-- **Body** (400, 1.125rem, 1.55): Serif prose, capped around 58ch in rows; the lede is 1.3rem at 34ch in soft ink.
-- **Label** (900, 1.3rem, 0.06em, uppercase): Buttons. Nav is 700 at 1.15rem; slug lines 700 at 1rem and 0.1em.
+- **Display close** (900, clamp(2.8rem, 7vw, 5.5rem), 0.92): The closing band headline, uppercase.
+- **Headline** (900, clamp(2.6rem, 5vw, 4rem), 0.95): Section heading, uppercase.
+- **Title** (900, 1.9rem, 1): Ledger row titles and the verdict words in the vocabulary strip (0.08em tracking), uppercase.
+- **Mark** (900, 1.75rem, 1, 0.02em): The wordmark and the verdict flag text (0.1em tracking).
+- **Body** (400, 1.125rem, 1.55): Serif prose, capped around 58ch in rows.
+- **Label** (900, 1.3rem, 0.06em, uppercase): Buttons and nav links (nav weight 700). The serif lede uses this size at 34ch in soft ink.
+- **UI** (700, 1rem, 0.1em, uppercase): Slug lines, dateline, panel header bar. The vocabulary descriptions use 1rem serif.
+- **Small** (400, 0.875rem, 1.55): Panel footnote, draft note, footer.
 - **Payload** (400, 0.86rem, 1.7): Request and response text, inline code samples.
+
+These ten steps are the whole scale, defined as `--fs-*` variables in `globals.css`; no other `font-size` ships.
 
 ### Named Rules
 **The Payload-Only Mono Rule.** Monospace is for request and response text. Slug lines and flags use the condensed display face.
@@ -171,10 +199,10 @@ Square. Radius is 0 everywhere; borders are full, 2px ink (3px on the verdict fl
 Masthead under a 2px ink rule: wordmark (900, uppercase, red period) left, condensed uppercase links right. Hover is an underline rule. The key link is a bordered button that inverts to ink on hover. Mobile keeps only that button.
 
 ### Dispatch Panel (signature)
-A bordered raised-paper figure: ink header bar with two small mono caps labels (desk name, "Synthetic example"), request block, a 2px divider, then the response. Slug lines ("Request", "Dispatch") label each half. Response lines print in sequentially (520ms each, 260ms stagger) with a clip reveal; disabled under reduced motion. A footnote states the example is illustrative.
+A bordered raised-paper figure: ink header bar with two condensed display labels (desk name, "Synthetic example"), request block, a 2px divider, then the response. Slug lines ("Request", "Dispatch") label each half. Response lines print in sequentially (520ms each, 260ms stagger) with a clip reveal; disabled under reduced motion. A footnote states the example is illustrative.
 
 ### Verdict Flag
-Uppercase 1.6rem display text in a 3px red box, rotated -2deg. Verdict words in the vocabulary strip use the same type colored red, teal, or plain ink (unverifiable).
+Uppercase mark-size (1.75rem) display text in a 3px red box, rotated -2deg. Verdict words in the vocabulary strip use the same type colored red, teal, or plain ink (unverifiable).
 
 ### Ledger Rows
 Two-column rows (17ch title, body), separated by 1px hairlines inside a 2px top and bottom rule. Code samples sit in raised-paper blocks with a hairline border.

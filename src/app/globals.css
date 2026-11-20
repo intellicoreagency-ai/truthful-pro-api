@@ -11,6 +11,17 @@
   --serif: "Source Serif 4 Variable", Georgia, serif;
   --mono: "JetBrains Mono Variable", ui-monospace, monospace;
   --gutter: clamp(16px, 4vw, 56px);
+  /* Type scale: every font-size on the site is one of these, and DESIGN.md lists the same steps. */
+  --fs-display: clamp(3.4rem, 8.5vw, 6rem);
+  --fs-display-close: clamp(2.8rem, 7vw, 5.5rem);
+  --fs-headline: clamp(2.6rem, 5vw, 4rem);
+  --fs-title: 1.9rem;
+  --fs-mark: 1.75rem;
+  --fs-label: 1.3rem;
+  --fs-body: 1.125rem;
+  --fs-ui: 1rem;
+  --fs-small: 0.875rem;
+  --fs-payload: 0.86rem;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   /* Static paper grain: one 180px tile of SVG noise, drawn once and tiled. */
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .07 0 0 0 0 .09 0 0 0 0 .1 0 0 0 .3 -.085'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
@@ -23,7 +34,7 @@ html { background: var(--grain), var(--paper); color: var(--ink); scrollbar-colo
 body {
   margin: 0;
   font-family: var(--serif);
-  font-size: 1.125rem;
+  font-size: var(--fs-body);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
