@@ -7,6 +7,8 @@ workers_dev = true
 [vars]
 ENVIRONMENT = "staging"
 OTP_TTL_SECONDS = "300"
+WA_BUSINESS_NUMBER = "971585144005"   # public: customers send their verification message here
+# WA_PHONE_NUMBER_ID = ""           # optional, from Meta, only for the free confirmation reply
 
 # Create these first, then paste the real ids (see docs/DEPLOY.md):
 #   wrangler d1 create truthful-pro-v2-db
