@@ -1285,6 +1285,16 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     for (const nums of Object.values(by)) { expect(new Set(nums).size).toBe(nums.length); expect(nums[0]).toBe(1); expect(nums[nums.length - 1]).toBe(nums.length) }
     expect(new Set(rows.results.map((r) => r.n)).size).toBe(rows.results.length)
   })
+  it('CORS headers also reach raw-Response routes (documents, files) for allowed origins only', async () => {
+    const id = await submit(); await priced(id)
+    const docId = (await fin(id)).documents[0]!.id
+    const withCors = { ...wenv(), ALLOWED_ORIGINS: 'https://app.example' } as Env
+    const call = (origin: string, e: Env) => app.fetch(new Request(`https://api.test/v1/documents/${docId}`, { headers: { authorization: `Bearer ${cust}`, origin, 'cf-connecting-ip': `10.10.${Math.floor(++k / 250)}.${k % 250}` } }), e)
+    const ok = await call('https://app.example', withCors)
+    expect(ok.status).toBe(200); expect(ok.headers.get('access-control-allow-origin')).toBe('https://app.example')
+    expect((await call('https://evil.example', withCors)).headers.get('access-control-allow-origin')).toBeNull()
+    expect((await call('https://app.example', wenv())).headers.get('access-control-allow-origin')).toBeNull() // closed by default
+  })
 })
 
 describe('calendar-month rules', () => {

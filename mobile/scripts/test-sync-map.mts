@@ -72,5 +72,15 @@ assert.equal(rfa.status,'ready_for_authority');assert.equal(rfa.stage,2);
 const v2=toClientRequest(dRow({delivery_version:2,acknowledged_version:2,acknowledged_at:1_700_000_300_000}),{files:[file(F1),file(F2,{kind:'final',label:'v2'})]});
 assert.equal(v2.files.filter(f=>f.kind==='final').length,1);assert.equal(v2.deliveryVersion,2);assert.ok(v2.acknowledgedAt);
 
+// 10. Money: from the live quote and the invoice; tax is "not configured", never zero.
+const money10={quotes:[{id:'q1',version:1,status:'superseded',number:'T-QUO-2026-000001',total_fils:90000,items:[{kind:'service_fee',description_ar:'ا',description_en:'a',amount_fils:90000}]},{id:'q2',version:2,status:'accepted',number:'T-QUO-2026-000002',total_fils:100000,items:[{kind:'government_fee',description_ar:'ر',description_en:'g',amount_fils:35000},{kind:'service_fee',description_ar:'أ',description_en:'s',amount_fils:50000},{kind:'extra',description_ar:'م',description_en:'e',amount_fils:15000}]}],payments:[{id:'p1',kind:'payment',amount_fils:60000,status:'approved',created_at:1_700_000_000_000,decision_note:null},{id:'p2',kind:'payment',amount_fils:10000,status:'pending_verification',created_at:1_700_000_100_000,decision_note:null},{id:'p3',kind:'refund',amount_fils:10000,status:'approved',created_at:1_700_000_200_000,decision_note:null}],documents:[{id:'d1',doc_type:'invoice',number:'T-INV-2026-000001',status:'issued',total_fils:100000,created_at:1_700_000_000_000}],totals:{total:100000,paid:60000,refunded:10000,pending:10000,remaining:50000,state:'partial',invoice:{id:'d1',number:'T-INV-2026-000001',total:100000}}};
+const m=toClientRequest(row({status:'review'}),{files:[file(F1)],finance:money10});
+assert.deepEqual([m.money.government,m.money.handling,m.money.extra,m.money.paid,m.money.refunded,m.money.quoted],[35000,50000,15000,60000,10000,true]);
+assert.equal(m.money.tax,0);assert.equal(m.money.taxConfigured,false,'tax is flagged as not configured');
+assert.equal(m.finance!.quote!.version,2,'the superseded quote is not the live one');assert.equal(m.finance!.quote!.status,'accepted');
+assert.equal(m.finance!.totals.remaining,50000);assert.equal(m.finance!.payments.length,3);assert.equal(m.finance!.invoice!.number,'T-INV-2026-000001');
+const unpriced=toClientRequest(row(),{files:[file(F1)],finance:{quotes:[],payments:[],documents:[],totals:{total:0,paid:0,refunded:0,pending:0,remaining:0,state:'unpriced',invoice:null}}});
+assert.equal(unpriced.money.quoted,false);assert.equal(unpriced.finance!.quote,undefined);
+
 assert.ok(isServerId(U));assert.ok(!isServerId('abc-123'));
 console.log('PASS: server-to-app mapping (status, timeline, requested documents, delivery, dates, pending uploads).');

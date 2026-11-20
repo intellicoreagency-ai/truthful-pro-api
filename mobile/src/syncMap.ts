@@ -1,11 +1,12 @@
 // Pure mapping between what the server stores and what the app shows. No React Native imports, so it can be tested in Node.
-import type {ClientFile,ClientRequest,MissingDocument,Status} from './clientModel';
+import type {ClientFile,ClientFinance,ClientRequest,MissingDocument,Status} from './clientModel';
 
 export type ServerRow={id:string;service_id:string;status:Status;data:string;staff_data?:string;renewal_of:string|null;created_at:number;updated_at:number;delivery_version?:number;acknowledged_version?:number|null;acknowledged_at?:number|null};
 export type ServerFile={id:string;name:string;mime:string;size:number;kind?:'source'|'final'|'invoice';label?:string|null;created_at:number};
 export type ServerEvent={id:string;text_ar:string;text_en:string;created_at:number};
 export type ServerMissing={id:string;label_ar:string;label_en:string;note_ar:string;note_en:string;replacement_file_id:string|null;resolved_at:number|null};
-export type ServerDetail={files:ServerFile[];events?:ServerEvent[];missing?:ServerMissing[]};
+export type ServerFinance={quotes:{id:string;version:number;status:string;number:string|null;total_fils:number;items:{kind:string;description_ar:string;description_en:string;amount_fils:number}[]}[];payments:{id:string;kind:string;amount_fils:number;status:string;created_at:number;decision_note:string|null}[];documents:{id:string;doc_type:string;number:string;status:string;total_fils:number;created_at:number}[];totals:{total:number;paid:number;refunded:number;pending:number;remaining:number;state:string;invoice:{id:string;number:string;total:number}|null}};
+export type ServerDetail={files:ServerFile[];events?:ServerEvent[];missing?:ServerMissing[];finance?:ServerFinance};
 
 export const STAGE:Record<Status,1|2|3|4|5>={draft:1,submitted:1,review:2,needs_documents:2,ready_for_authority:2,authority:3,decision:4,completed:5,cancelled:1,rejected:5};
 const iso=(ms:number)=>new Date(ms).toISOString();
@@ -20,6 +21,23 @@ export function missingIdFor(r:ClientRequest,localFileId:string):string|undefine
 
 /** Files that answer a team request are held back until the customer presses Send (which moves the request out of needs_documents). */
 export function holdsUpload(r:ClientRequest,f:ClientFile):boolean{return r.status==='needs_documents'&&!!missingIdFor(r,f.id)}
+
+const sumKind=(items:{kind:string;amount_fils:number}[],k:string)=>items.filter(i=>i.kind===k).reduce((a,i)=>a+i.amount_fils,0);
+/** Money as the customer sees it. Tax is NOT configured: it is shown as "not configured", never as zero. */
+export function mapFinance(f:ServerFinance|undefined):{finance?:ClientFinance;money?:ClientRequest['money']}{
+  if(!f)return{};
+  const live=[...f.quotes].filter(q=>q.status==='issued'||q.status==='accepted').pop();
+  const finance:ClientFinance={
+    ...(live?{quote:{id:live.id,version:live.version,status:live.status as 'issued'|'accepted',number:live.number,total:live.total_fils,items:live.items.map(i=>({kind:i.kind as 'government_fee'|'service_fee'|'extra',ar:i.description_ar,en:i.description_en,amount:i.amount_fils}))}}:{}),
+    ...(f.totals.invoice?{invoice:{id:f.totals.invoice.id,number:f.totals.invoice.number,total:f.totals.invoice.total}}:{}),
+    payments:f.payments.map(p=>({id:p.id,kind:p.kind as 'payment'|'refund',amount:p.amount_fils,status:p.status as 'pending_verification'|'approved'|'rejected',at:iso(p.created_at),...(p.decision_note?{note:p.decision_note}:{})})),
+    documents:f.documents.map(d=>({id:d.id,type:d.doc_type as 'quote'|'invoice'|'receipt'|'credit_note',number:d.number,status:d.status as 'issued'|'void',total:d.total_fils,at:iso(d.created_at)})),
+    totals:{total:f.totals.total,paid:f.totals.paid,refunded:f.totals.refunded,pending:f.totals.pending,remaining:f.totals.remaining,state:f.totals.state as ClientFinance['totals']['state']},
+  };
+  const items=live?.items??[];
+  const money={government:sumKind(items,'government_fee'),handling:sumKind(items,'service_fee'),tax:0,extra:sumKind(items,'extra'),paid:f.totals.paid,refunded:f.totals.refunded,quoted:!!live,taxConfigured:false};
+  return{finance,money};
+}
 
 /** Server is authoritative for status, timeline, requested documents, delivery files and dates. Local-only work (unsynced files) is kept. */
 export function toClientRequest(row:ServerRow,det:ServerDetail,local?:ClientRequest):ClientRequest{
@@ -47,7 +65,8 @@ export function toClientRequest(row:ServerRow,det:ServerDetail,local?:ClientRequ
     status:row.status,stage:STAGE[row.status],name:d.name??'',phone:d.phone??'',fields:d.fields??{},files:[],missing:[],events:[],
     money:{government:0,handling:0,tax:0,extra:0,paid:0,refunded:0,quoted:false},termsVersion:d.termsVersion,termsAcceptedAt:d.termsAcceptedAt,renewalOf:d.renewalOf,
   };
-  const out:ClientRequest={...base,remoteId:row.id,status:row.status,stage:STAGE[row.status],updatedAt:iso(row.updated_at),files,missing,events:events.length?events:base.events,syncedAt:iso(row.updated_at)};
+  const fin=mapFinance(det.finance);
+  const out:ClientRequest={...base,...(fin.money?{money:fin.money}:{}),...(fin.finance?{finance:fin.finance}:{}),remoteId:row.id,status:row.status,stage:STAGE[row.status],updatedAt:iso(row.updated_at),files,missing,events:events.length?events:base.events,syncedAt:iso(row.updated_at)};
   if(sd.expectedAt)out.expectedAt=new Date(sd.expectedAt+'T00:00:00+04:00').toISOString();else delete out.expectedAt;
   if(completedAt)out.completedAt=completedAt;else delete out.completedAt;
   if(row.status==='completed'&&finals.length)out.deliveredAt=completedAt;else delete out.deliveredAt;

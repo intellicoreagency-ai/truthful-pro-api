@@ -94,3 +94,9 @@ In `mobile/eas.json` add it under each profile's `env`. Then `eas build --profil
 - Cloudflare has no UAE region: data is processed outside the UAE (disclosed in the privacy draft).
 - Legal texts in `mobile/src/legal.ts` are drafts and need review by a UAE-licensed lawyer.
 - Not yet tested on a real Android/iOS device.
+
+## Live-launch gates (the API enforces the first one)
+1. **Malware scanner.** `ENVIRONMENT=production` with no real scanner integrated makes every upload return 503 and `/health` report `ready:false`. The `SCANNER_MODE=fake-test` option is ignored in production. A real engine must be integrated (and tested with EICAR) before launch.
+2. **Financial documents.** All documents are TEST copies (`is_test` is forced to 1 by the database). Issuing live documents needs the company's approved details and accounting/tax setup and a deliberate migration; nothing here does it.
+3. **No real payment gateway and no real messages** are enabled.
+4. Fill `COMPANY_NAME_AR` / `COMPANY_NAME_EN` under `[vars]` only with approved names; licence, address and TRN fields are intentionally not rendered yet.

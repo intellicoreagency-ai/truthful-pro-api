@@ -31,3 +31,9 @@ export async function saveDataExport(data:unknown){const text=JSON.stringify(dat
  if(Platform.OS==='web'){const uri=URL.createObjectURL(new Blob([text],{type:'application/json'}));const a=document.createElement('a');a.href=uri;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(uri),60000);return}
  const f=new File(Paths.cache,name);if(f.exists)f.delete();f.create();f.write(text);
  if(!await Sharing.isAvailableAsync())throw Error('share-unavailable');await Sharing.shareAsync(f.uri,{mimeType:'application/json',dialogTitle:name})}
+
+/** Shows a financial document (HTML): a new tab on web, the share sheet on phones. These are TEST copies. */
+export async function openHtmlDocument(name:string,html:string){
+ if(Platform.OS==='web'){const uri=URL.createObjectURL(new Blob([html],{type:'text/html'}));const a=document.createElement('a');a.href=uri;a.target='_blank';a.rel='noopener noreferrer';a.click();setTimeout(()=>URL.revokeObjectURL(uri),60000);return}
+ const f=new File(Paths.cache,name.replace(/[^A-Za-z0-9._-]/g,'_')+'.html');if(f.exists)f.delete();f.create();f.write(html);
+ if(!await Sharing.isAvailableAsync())throw Error('share-unavailable');await Sharing.shareAsync(f.uri,{mimeType:'text/html',dialogTitle:name})}

@@ -15,17 +15,19 @@ const MAX_OTP_ATTEMPTS = 5
 export const app = new Hono<{ Bindings: Env; Variables: Vars }>()
 app.use('*', securityHeaders)
 // Optional CORS for the web build only. Empty by default: native apps do not need it.
+// Headers are added AFTER the handler runs so they also reach handlers that return a ready-made Response (documents, files).
 app.use('*', async (c, next) => {
   const origin = c.req.header('origin')
   const allowed = (c.env.ALLOWED_ORIGINS ?? '').split(',').map((x) => x.trim()).filter(Boolean)
   const ok = !!origin && allowed.includes(origin)
-  if (ok) { c.header('Access-Control-Allow-Origin', origin as string); c.header('Vary', 'Origin') }
   if (c.req.method === 'OPTIONS') {
     if (!ok) return c.body(null, 403)
-    c.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE'); c.header('Access-Control-Allow-Headers', 'authorization,content-type,x-file-name'); c.header('Access-Control-Max-Age', '600')
+    c.header('Access-Control-Allow-Origin', origin as string); c.header('Vary', 'Origin')
+    c.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE'); c.header('Access-Control-Allow-Headers', 'authorization,content-type,x-file-name,idempotency-key'); c.header('Access-Control-Max-Age', '600')
     return c.body(null, 204)
   }
   await next()
+  if (ok) { c.res.headers.set('Access-Control-Allow-Origin', origin as string); c.res.headers.append('Vary', 'Origin') }
 })
 app.onError((e, c) => { console.error('unhandled', e instanceof Error ? e.message : 'unknown'); return c.json({ error: 'server_error' }, 500) })
 app.notFound((c) => c.json({ error: 'not_found' }, 404))

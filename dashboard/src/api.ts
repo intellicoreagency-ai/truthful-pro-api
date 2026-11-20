@@ -68,6 +68,12 @@ export type Overview = {
 }
 export type CustomerRow = { id: string; name: string; phone: string; joinedAt: number; requests: number; open: number; lastAt: number | null }
 export type CustomerDetail = { customer: { id: string; name: string; phone: string; language: string; joinedAt: number }; requests: { id: string; status: Status; title: Bi | null; createdAt: number; updatedAt: number }[]; consents: { type: string; version: string; accepted: number; created_at: number }[] }
+export type FinQuote = { id: string; version: number; status: 'draft' | 'issued' | 'accepted' | 'superseded'; number: string | null; total_fils: number; items: { kind: string; description_ar: string; description_en: string; amount_fils: number }[]; accepted_at: number | null }
+export type FinPayment = { id: string; kind: 'payment' | 'refund'; amount_fils: number; method: string; reference: string | null; status: 'pending_verification' | 'approved' | 'rejected'; created_by_kind: string; created_at: number; decision_note: string | null; reason: string | null; proof_file_id: string | null }
+export type FinDoc = { id: string; doc_type: 'quote' | 'invoice' | 'receipt' | 'credit_note'; number: string; status: 'issued' | 'void'; void_reason: string | null; total_fils: number; created_at: number }
+export type Finance = { quotes: FinQuote[]; payments: FinPayment[]; documents: FinDoc[]; totals: { total: number; paid: number; refunded: number; net: number; pending: number; remaining: number; state: string; invoice: { id: string; number: string } | null }; tax: { configured: boolean }; test: boolean }
+export type QueuePayment = { id: string; requestId: string; amount_fils: number; method: string; reference: string | null; createdBy: string; createdAt: number; hasProof: boolean; title: Bi | null; customer: string }
+export type QuoteLine = { kind: 'government_fee' | 'service_fee' | 'extra'; descriptionAr: string; descriptionEn: string; amountFils: number }
 export type WaStart = { challengeId: string; pollToken: string; code: string; link: string; expiresIn: number }
 
 export const api = {
@@ -130,6 +136,18 @@ export const api = {
   readPassport: (fileId: string, expiry: string) => call('POST', `/staff/v1/files/${fileId}/extracted`, { body: { docType: 'passport', expiry } }),
   manualCheck: (fileId: string, ruleCode: string, outcome: 'pass' | 'fail' | 'manual_review', note: string) => call('POST', `/staff/v1/files/${fileId}/checks`, { body: { ruleCode, outcome, note } }),
   overrideCheck: (fileId: string, checkId: string, reason: string) => call('POST', `/staff/v1/files/${fileId}/override`, { body: { checkId, reason } }),
+  finance: async (id: string) => j<Finance>(await call('GET', `/staff/v1/requests/${id}/finance`)),
+  draftQuote: (id: string, items: QuoteLine[]) => call('POST', `/staff/v1/requests/${id}/quotes`, { body: { items } }),
+  issueQuote: (qid: string) => call('POST', `/staff/v1/quotes/${qid}/issue`, { body: {} }),
+  issueInvoice: (id: string) => call('POST', `/staff/v1/requests/${id}/invoice`, { body: {} }),
+  cancelInvoice: (docId: string, reason: string) => call('POST', `/staff/v1/invoices/${docId}/cancel`, { body: { reason } }),
+  recordPayment: (id: string, body: { amountFils: number; method: string; reference?: string }) => call('POST', `/staff/v1/requests/${id}/payments`, { body }),
+  approvePayment: (pid: string) => call('POST', `/staff/v1/payments/${pid}/approve`, { body: {} }),
+  rejectPayment: (pid: string, reason: string) => call('POST', `/staff/v1/payments/${pid}/reject`, { body: { reason } }),
+  refund: (id: string, body: { amountFils: number; reason: string; paymentId?: string }) => call('POST', `/staff/v1/requests/${id}/refunds`, { body }),
+  paymentQueue: async (status = 'pending_verification') => (await j<{ payments: QueuePayment[] }>(await call('GET', `/staff/v1/payments?status=${status}`))).payments,
+  docBlob: async (docId: string) => (await call('GET', `/staff/v1/documents/${docId}`)).blob(),
+  proofBlob: async (pid: string) => (await call('GET', `/staff/v1/payments/${pid}/proof`)).blob(),
   fileBlob: async (id: string) => (await call('GET', `/staff/v1/files/${id}`)).blob(),
   team: async () => (await j<{ team: TeamRow[] }>(await call('GET', '/staff/v1/team'))).team,
   addMember: async (phone: string, name: string, role: Role) => j<{ id: string; enrollKey: string; enrollExpiresInHours: number }>(await call('POST', '/staff/v1/team', { body: { phone, name, role } })),

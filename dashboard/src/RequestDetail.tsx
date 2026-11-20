@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { ApiError, api, type CheckRow, type Detail, type FileRow, type Role, type Status } from './api'
 import { STATUS_LABEL, useI18n } from './i18n'
 import { Field, Badge, Card, NEXT, shortId, useAsync } from './ui'
+import { FinanceCard } from './Finance'
 
 type Preview = { url: string; mime: string; name: string }
 
@@ -14,7 +15,7 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
   const act = async (fn: () => Promise<unknown>) => {
     setMsg(null)
     try { await fn(); setMsg({ ok: true, text: t('saved') }); reload() }
-    catch (e) { setMsg({ ok: false, text: e instanceof ApiError && e.code === 'invalid_transition' ? t('invalidTransition') : e instanceof ApiError && e.code === 'version_conflict' ? t('conflict') : e instanceof ApiError && e.code === 'documents_blocked' ? t('blockedDocs') : t('failed') }); if (e instanceof ApiError && e.status === 409) reload() }
+    catch (e) { setMsg({ ok: false, text: e instanceof ApiError && e.code === 'invalid_transition' ? t('invalidTransition') : e instanceof ApiError && e.code === 'version_conflict' ? t('conflict') : e instanceof ApiError && e.code === 'documents_blocked' ? t('blockedDocs') : e instanceof ApiError && e.code === 'scan_pending' ? t('e_scan') : t('failed') }); if (e instanceof ApiError && e.status === 409) reload() }
   }
   const openFile = async (f: FileRow) => {
     try { const b = await api.fileBlob(f.id); setPreview({ url: URL.createObjectURL(b), mime: f.mime, name: f.name }) } catch { setMsg({ ok: false, text: t('failed') }) }
@@ -75,6 +76,7 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
             ))}
           </Card>
           <DeliveryCard d={d} act={act} openFile={openFile} />
+          <FinanceCard requestId={r.id} role={me.role} setPreview={setPreview} />
           {r.staff.authorityRef && <Card title={t('authorityAt')}><p dir="ltr" style={{ margin: 0, textAlign: lang === 'ar' ? 'right' : 'left' }}><b>{r.staff.authorityRef}</b></p></Card>}
           {d.missing.length > 0 && (
             <Card title={t('missingList')}>
