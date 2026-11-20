@@ -199,7 +199,7 @@ Square. Radius is 0 everywhere; borders are full, 2px ink (3px on the verdict fl
 Masthead under a 2px ink rule: wordmark (900, uppercase, red period) left, condensed uppercase links right. Hover is an underline rule. The key link is a bordered button that inverts to ink on hover. Mobile keeps only that button.
 
 ### Dispatch Panel (signature)
-A bordered raised-paper figure: ink header bar with two condensed display labels (desk name, "Synthetic example"), request block, a 2px divider, then the response. Slug lines ("Request", "Dispatch") label each half. Response lines print in sequentially (520ms each, 260ms stagger) with a clip reveal; disabled under reduced motion. A footnote states the example is illustrative.
+A bordered raised-paper figure: ink header bar with two condensed display labels (desk name, "Mock endpoint"), request block, a 2px divider, then the response. Slug lines ("Request", "Dispatch") label each half. Response lines print in sequentially (520ms each, 260ms stagger) with a clip reveal; disabled under reduced motion. A footnote states the example is illustrative.
 
 ### Verdict Flag
 Uppercase mark-size (1.75rem) display text in a 3px red box, rotated -2deg. Verdict words in the vocabulary strip use the same type colored red, teal, or plain ink (unverifiable).

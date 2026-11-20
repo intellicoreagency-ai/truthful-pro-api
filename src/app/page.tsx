@@ -34,11 +34,11 @@ export default function Home() {
         <section className={`${s.wrap} ${s.hero}`}>
           <div>
             <h1 className={s.h1}>
-              Get a sourced verdict <em>before</em> a claim ships.
+              Get a verdict <em>before</em> a claim ships.
             </h1>
             <p className={s.lede}>
               Truthful Pro is a fact-checking API. Send a claim, get back a
-              verdict you can branch on, with its sources attached.
+              verdict you can branch on.
             </p>
             <div className={s.actions}>
               <Link href={KEY_URL} className={`${s.btn} ${s.btnPrimary}`}>
@@ -53,47 +53,42 @@ export default function Home() {
           <figure className={s.panel} style={{ margin: 0 }}>
             <div className={s.panelHead}>
               <span>Verification desk</span>
-              <span>Synthetic example</span>
+              <span>Mock endpoint</span>
             </div>
             <div className={s.panelBody}>
               <p className={s.slug}>Request</p>
               <pre className={s.pre}>
-{`curl https://api.example.com/v1/check \\
-  -H "Authorization: Bearer $KEY" \\
-  -d '{"claim": "The Great Wall of China is visible from space with the naked eye."}'`}
+{`curl -X POST http://localhost:3000/api/verify \\
+  -H "Content-Type: application/json" \\
+  -d '{"claim": "This photo is fake."}'`}
               </pre>
               <hr className={s.divider} />
-              <p className={s.slug}>Dispatch</p>
-              <p className={s.dateline}>Dispatch 0001 &middot; 09:41 UTC &middot; Synthetic</p>
+              <p className={s.slug}>Response</p>
+              <p className={s.dateline}>200 OK &middot; application/json</p>
               <div>
                 <span className={s.line} style={{ ["--i" as string]: 0 }}>
                   <span className={s.flag}>Disputed</span>
                 </span>
                 <span className={s.line} style={{ ["--i" as string]: 1 }}>
-                  {`{ "verdict": "disputed",`}
+                  {`{`}
                 </span>
                 <span className={s.line} style={{ ["--i" as string]: 2 }}>
-                  {`  "summary": "Not visible unaided from orbit.",`}
+                  {`  "claim": "This photo is fake.",`}
                 </span>
                 <span className={s.line} style={{ ["--i" as string]: 3 }}>
-                  {`  "sources": [`}
+                  {`  "verdict": "DISPUTED",`}
                 </span>
                 <span className={s.line} style={{ ["--i" as string]: 4 }}>
-                  {`    "https://example.org/source-1",`}
+                  {`  "mock": true`}
                 </span>
                 <span className={s.line} style={{ ["--i" as string]: 5 }}>
-                  {`    "https://example.org/source-2"`}
-                </span>
-                <span className={s.line} style={{ ["--i" as string]: 6 }}>
-                  {`  ]`}
-                </span>
-                <span className={s.line} style={{ ["--i" as string]: 7 }}>
                   {`}`}
                 </span>
               </div>
               <p className={s.note}>
-                Illustrative only. Endpoint, fields and values are placeholders
-                until the API reference is published.
+                Real output of the current mock endpoint: a claim containing
+                the word &ldquo;fake&rdquo; is DISPUTED. The verification
+                engine is not built yet.
               </p>
             </div>
           </figure>
@@ -130,7 +125,7 @@ export default function Home() {
                   Each claim returns a machine-readable verdict, so your code
                   decides what to publish, flag or hold without parsing prose.
                 </p>
-                <pre>{`if (res.verdict === "disputed") hold(post)`}</pre>
+                <pre>{`if (res.verdict === "DISPUTED") hold(post)`}</pre>
               </div>
             </li>
             <li className={s.row}>
