@@ -188,6 +188,18 @@ describe('privacy rights', () => {
   })
 })
 
+describe('consent log', () => {
+  it('records a decision once, but records changes and withdrawals', async () => {
+    const a = (await login('+971521130001')).json
+    const post = (accepted: boolean, version = '1.0') => call('POST', '/v1/consents', { token: a.accessToken, body: { type: 'privacy', version, accepted } })
+    await post(true); await post(true); await post(true)
+    await post(false) // withdrawal
+    await post(true, '1.1') // new version
+    const n = await env.DB.prepare("SELECT COUNT(*) n FROM consents c JOIN users u ON u.id=c.user_id WHERE c.type='privacy' AND u.id=(SELECT user_id FROM sessions ORDER BY created_at DESC LIMIT 1)").first<{ n: number }>()
+    expect(n?.n).toBe(3)
+  })
+})
+
 describe('cors', () => {
   it('is closed by default and opens only for listed origins', async () => {
     const closed = await call('OPTIONS', '/v1/me', { headers: { origin: 'https://evil.example' } })

@@ -210,6 +210,10 @@ authed.post('/consents', async (c) => {
   if (!['terms', 'privacy', 'document_processing'].includes(type as string) || typeof version !== 'string' || !/^[\w.-]{1,20}$/.test(version) || typeof b?.accepted !== 'boolean') {
     return c.json({ error: 'invalid_request' }, 400)
   }
+  // Idempotent: re-sending the same decision for the same version adds nothing.
+  const last = await c.env.DB.prepare('SELECT version,accepted FROM consents WHERE user_id=? AND type=? ORDER BY created_at DESC, rowid DESC LIMIT 1')
+    .bind(c.get('userId'), type).first<{ version: string; accepted: number }>()
+  if (last && last.version === version && !!last.accepted === b.accepted) return c.json({ ok: true, unchanged: true })
   await c.env.DB.prepare('INSERT INTO consents (id,user_id,type,version,accepted,created_at) VALUES (?,?,?,?,?,?)')
     .bind(newId(), c.get('userId'), type, version, b.accepted ? 1 : 0, Date.now()).run()
   await audit(c, 'consent.record', c.get('userId'), { type, version, accepted: b.accepted })
