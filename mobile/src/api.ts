@@ -137,4 +137,9 @@ export async function submitPayment(remoteRequestId:string,proof:ClientFile,byte
   const proofFileId=await upload(remoteRequestId,proof,bytes);
   return json<{id:string;status:string}>(await call('POST',`/v1/requests/${remoteRequestId}/payments`,{body:{amountFils:p.amountFils,method:'bank_transfer',reference:p.reference,proofFileId,clientKey:p.clientKey}}));
 }
+/** The customer paid the government fee to the authority themselves (official link); this only reports it for verification. */
+export async function reportAuthorityPayment(remoteRequestId:string,proof:ClientFile|null,bytes:Blob|Uint8Array|null,p:{amountFils:number;reference:string;clientKey:string}){
+  const proofFileId=proof&&bytes?await upload(remoteRequestId,proof,bytes):undefined;
+  return json<{id:string;status:string}>(await call('POST',`/v1/requests/${remoteRequestId}/authority-payments`,{body:{amountFils:p.amountFils,reference:p.reference,proofFileId,clientKey:p.clientKey}}));
+}
 export async function fetchDocumentHtml(docId:string):Promise<string>{return await (await call('GET',`/v1/documents/${docId}`)).text()}

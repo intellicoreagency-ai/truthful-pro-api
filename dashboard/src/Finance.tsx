@@ -28,7 +28,7 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [lines, setLines] = useState<{ kind: QuoteLine['kind']; ar: string; en: string; amount: string }[]>([{ kind: 'service_fee', ar: '', en: '', amount: '' }])
   const [payAmt, setPayAmt] = useState(''); const [payMethod, setPayMethod] = useState('cash'); const [payRef, setPayRef] = useState('')
-  const [refAmt, setRefAmt] = useState('')
+  const [refAmt, setRefAmt] = useState(''); const [payUrl, setPayUrl] = useState('')
   const canFin = role === 'owner' || role === 'manager' || role === 'accountant'
   const canRefund = role === 'owner' || role === 'manager'
   const run = async (fn: () => Promise<unknown>, ok?: string) => {
@@ -41,7 +41,7 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
   const stateLabel: Record<string, Key> = { unpriced: 'stUnpriced', awaiting_payment: 'stAwaiting', partial: 'stPartial', paid: 'stPaid', refunded: 'stRefunded' }
   const qLabel: Record<string, Key> = { draft: 'quoteDraft', issued: 'quoteIssued', accepted: 'quoteAccepted', superseded: 'quoteSuperseded' }
   const dLabel: Record<string, Key> = { quote: 'dQuote', invoice: 'dInvoice', receipt: 'dReceipt', credit_note: 'dCredit' }
-  const kLabel: Record<string, Key> = { government_fee: 'kGov', service_fee: 'kSvc', extra: 'kExtra' }
+  const kLabel: Record<string, Key> = { government_fee: 'kGov', service_fee: 'kSvc' }
   const pLabel: Record<string, Key> = { pending_verification: 'pPending', approved: 'pApproved', rejected: 'pRejected' }
   const parsed = lines.map((l) => ({ ...l, fils: aedToFils(l.amount) }))
   const valid = parsed.length > 0 && parsed.every((l) => l.fils && l.ar.trim() && l.en.trim())
@@ -70,19 +70,39 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
           <b className="small">{t('quoteDraft')}{draft ? ` v${draft.version}` : ''}</b>
           {lines.map((l, i) => (
             <div key={i} className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 8, margin: '6px 0' }}>
-              <Field label={t('lineKind')}><select value={l.kind} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, kind: e.target.value as QuoteLine['kind'] } : x)))}><option value="government_fee">{t('kGov')}</option><option value="service_fee">{t('kSvc')}</option><option value="extra">{t('kExtra')}</option></select></Field>
+              <Field label={t('lineKind')}><select value={l.kind} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, kind: e.target.value as QuoteLine['kind'] } : x)))}><option value="government_fee">{t('kGov')}</option><option value="service_fee">{t('kSvc')}</option></select></Field>
               <Field label={t('amountAed')}><input dir="ltr" inputMode="decimal" placeholder="350.50" value={l.amount} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))} /></Field>
               <Field label={t('descAr')}><input value={l.ar} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, ar: e.target.value } : x)))} /></Field>
               <Field label={t('descEn')}><input dir="ltr" value={l.en} onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, en: e.target.value } : x)))} /></Field>
             </div>
           ))}
+          <Field label={t('payLink')}><input dir="ltr" placeholder="https://…gov.ae/…" value={payUrl} onChange={(e) => setPayUrl(e.target.value)} /></Field>
           <div className="row">
-            <button className="btn sm" onClick={() => setLines([...lines, { kind: 'extra', ar: '', en: '', amount: '' }])}>{t('addLine')}</button>
-            <button className="btn sm" disabled={!valid} onClick={() => run(() => api.draftQuote(requestId, parsed.map((l) => ({ kind: l.kind, descriptionAr: l.ar.trim(), descriptionEn: l.en.trim(), amountFils: l.fils as number }))))}>{t('saveDraft')}</button>
+            <button className="btn sm" onClick={() => setLines([...lines, { kind: 'service_fee', ar: '', en: '', amount: '' }])}>{t('addLine')}</button>
+            <button className="btn sm" disabled={!valid} onClick={() => run(() => api.draftQuote(requestId, parsed.map((l) => ({ kind: l.kind, descriptionAr: l.ar.trim(), descriptionEn: l.en.trim(), amountFils: l.fils as number })), payUrl.trim()))}>{t('saveDraft')}</button>
             {canFin && draft && <button className="btn primary sm" onClick={() => run(() => api.issueQuote(draft.id))}>{t('issueQuote')}</button>}
           </div>
-          {draft && <p className="muted small">{draft.items.map((i) => `${t(kLabel[i.kind] ?? 'kExtra')}: ${fmtFils(i.amount_fils)}`).join(' · ')}</p>}
+          {draft && <p className="muted small">{draft.items.map((i) => `${t(kLabel[i.kind] ?? 'kSvc')}: ${fmtFils(i.amount_fils)}`).join(' · ')}</p>}
         </div>
+      )}
+      {f.gov.total > 0 && (
+        <>
+          <h3 style={{ marginTop: 14 }}>{t('govTitle')}</h3>
+          <p className="muted small">{t('govNote')}</p>
+          <dl className="kv"><dt>{t('kGov')}</dt><dd dir="ltr">{fmtFils(f.gov.total)}</dd><dt>{t('govVerified')}</dt><dd dir="ltr">{fmtFils(f.gov.verified)}</dd><dt>{t('govRemaining')}</dt><dd dir="ltr">{fmtFils(f.gov.remaining)}</dd></dl>
+          {f.gov.payUrl && <p className="small" dir="ltr">{f.gov.payUrl}</p>}
+          {f.authorityPayments.map((a) => (
+            <div className="file" key={a.id}>
+              <span><b dir="ltr">{fmtFils(a.amount_fils)}</b> · <span dir="ltr">{a.reference}</span> · {fmt(a.created_at)} · <span className="badge">{t(a.status === 'verified' ? 'aVerified' : a.status === 'rejected' ? 'aRejected' : 'aReported')}</span>{a.note ? ` · ${a.note}` : ''}</span>
+              {canFin && a.status === 'reported' && (
+                <span className="row">
+                  <button className="btn primary sm" onClick={() => run(() => api.verifyAuthority(a.id))}>{t('verifyGov')}</button>
+                  <button className="btn sm danger" onClick={() => { const r = window.prompt(t('govRejectPrompt'))?.trim(); if (r) void run(() => api.rejectAuthority(a.id, r)) }}>{t('rejectGov')}</button>
+                </span>
+              )}
+            </div>
+          ))}
+        </>
       )}
       {canFin && live?.status === 'accepted' && !inv && <button className="btn primary" style={{ marginTop: 8 }} onClick={() => run(() => api.issueInvoice(requestId))}>{t('issueInvoice')}</button>}
       {canFin && inv && <button className="btn sm danger" style={{ marginTop: 8 }} onClick={() => { const r = window.prompt(t('cancelReason'))?.trim(); if (r && r.length >= 10) void run(() => api.cancelInvoice(inv.id, r)) }}>{t('cancelInvoice')}</button>}

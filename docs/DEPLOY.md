@@ -100,3 +100,7 @@ In `mobile/eas.json` add it under each profile's `env`. Then `eas build --profil
 2. **Financial documents.** All documents are TEST copies (`is_test` is forced to 1 by the database). Issuing live documents needs the company's approved details and accounting/tax setup and a deliberate migration; nothing here does it.
 3. **No real payment gateway and no real messages** are enabled.
 4. Fill `COMPANY_NAME_AR` / `COMPANY_NAME_EN` under `[vars]` only with approved names; licence, address and TRN fields are intentionally not rendered yet.
+
+## Government payment links
+
+Customers pay government fees directly to the authority; staff attach the official payment link to the quote. The API only accepts `https://` links whose host ends in `.gov.ae`. If an authority uses another domain, add it as a comma-separated list in the `GOV_PAY_HOSTS` variable (exact host suffixes, e.g. `pay.example-authority.ae`). Review the list with the owner before launch.

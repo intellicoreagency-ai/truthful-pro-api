@@ -3,10 +3,10 @@ import {View,Text,Image,TextInput,Pressable,ScrollView,StyleSheet,Modal,Linking,
 import {DashboardTop,DashboardCard,DetailDesign,MissingDesign,ShareDesign} from './ClientDesign';
 import {RefText,RefButton,RefHeader,ReferenceProgress,useReference,refStyles,palette,stageNumber} from './ReferenceUI';
 import {Icon,type IconName} from './Icons';
-import {dubaiDay,steps,statusLabels,phoneDigits,applicantAge,total,remaining,money,renewalDue,dateText,makeId,event,confirmReceipt,canSendMissing,shareSummary,demoRequests,type ClientRequest,type ClientFile} from './clientModel';
+import {dubaiDay,steps,statusLabels,phoneDigits,applicantAge,total,remaining,money,renewalDue,dateText,makeId,event,confirmReceipt,canSendMissing,shareSummary,demoRequests,type ClientRequest,type ClientFile,type ClientFinance} from './clientModel';
 import {pickClientFile,downloadFile,previewFile,shareRequest,exportSummary,seedDemoFiles,getBytes,openHtmlDocument} from './clientStorage';
 import type {ServiceAction} from './serviceDetails';
-import {apiEnabled,hasSession,acceptQuote,submitPayment,fetchDocumentHtml} from './api';
+import {apiEnabled,hasSession,acceptQuote,submitPayment,reportAuthorityPayment,fetchDocumentHtml} from './api';
 import {LEGAL_VERSION} from './legal';
 type Lang='ar'|'en';
 type Props={lang:Lang;onLanguage:()=>void;onFocusChange:(focused:boolean)=>void;records:ClientRequest[];save:(records:ClientRequest[])=>boolean;onStart:()=>void;onResume:(serviceId:string,actionId:string,draftId?:string,renewalOf?:string)=>void;drafts:{key:string;title:string;resume:()=>void}[];onRefresh?:()=>void;};
@@ -79,11 +79,38 @@ const s=StyleSheet.create({page:{padding:16,paddingBottom:30,gap:13,backgroundCo
 const aed=(fils:number)=>'AED '+String(Math.floor(Math.abs(fils)/100)).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'.'+String(Math.abs(fils)%100).padStart(2,'0');
 /** "350.50" -> 35050 with integer arithmetic only. */
 const aedToFils=(v:string)=>{const m=/^(\d{1,7})(?:\.(\d{1,2}))?$/.exec(v.trim().replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632)));if(!m)return null;const n=Number(m[1])*100+Number((m[2]??'').padEnd(2,'0'));return n>0?n:null};
+function GovSection({lang,r,gov,act,onChanged,setMessage}:{lang:Lang;r:ClientRequest;gov:NonNullable<ClientFinance['gov']>;act:(fn:()=>Promise<void>|void)=>void;onChanged:()=>void;setMessage:(m:string)=>void}){
+ const ar=lang==='ar',row=ar?'row-reverse':'row',tx=(a:string,e:string)=>ar?a:e;
+ const [open,setOpen]=useState(false);const [amount,setAmount]=useState('');const [reference,setReference]=useState('');const [proof,setProof]=useState<ClientFile|null>(null);
+ const keyRef=useRef('gov-'+makeId()+makeId());
+ const st:Record<string,[string,string]>={reported:['بانتظار التحقق','Awaiting verification'],verified:['تم التحقق','Verified'],rejected:['مرفوض','Rejected']};
+ const room=Math.max(0,gov.total-gov.verified-gov.reported);
+ const fils=aedToFils(amount);const refOk=/^[A-Za-z0-9 ._/-]{4,60}$/.test(reference.trim());
+ const send=()=>act(async()=>{if(!fils||!refOk||!r.remoteId||fils>room)return;try{await reportAuthorityPayment(r.remoteId,proof,proof?await getBytes(proof):null,{amountFils:fils,reference:reference.trim(),clientKey:keyRef.current});keyRef.current='gov-'+makeId()+makeId();setOpen(false);setAmount('');setReference('');setProof(null);onChanged()}catch(e){const c=(e as {code?:string}).code;setMessage(c==='exceeds_balance'?tx('المبلغ يتجاوز الرسوم الحكومية','Amount exceeds the government fees'):c==='reference_used'?tx('هذا المرجع مسجل مسبقاً','This reference is already recorded'):tx('تعذر الإرسال','Could not send'))}});
+ return <View style={{gap:6,borderTopWidth:1,borderColor:'#E3D8C6',paddingTop:8}}>
+  <T lang={lang} bold>{tx('الرسوم الحكومية — تُدفع مباشرة للجهة','Government fees — paid directly to the authority')}</T>
+  <T lang={lang} style={s.small}>{tx('تُسدَّد للجهة الحكومية عبر الرابط الرسمي وفق التعرفة الحكومية. لا تحصّلها الشركة، وتتقاضى الشركة أتعابها فقط.','Paid to the government authority through the official link at the official tariff. The Company does not collect them; it only charges its own fee.')}</T>
+  {([[tx('الرسوم الحكومية','Government fees'),gov.total],[tx('تم التحقق منها','Verified'),gov.verified],[tx('المتبقي','Remaining'),gov.remaining]] as [string,number][]).map(([l,v])=><View key={l} style={[s.between,{flexDirection:row}]}><T lang={lang}>{l}</T><T lang="en" bold>{aed(v)}</T></View>)}
+  {gov.payUrl?<Button lang={lang} primary icon="arrows" label={tx('فتح رابط الدفع الرسمي','Open the official payment link')} onPress={()=>{if(/^https:\/\//i.test(gov.payUrl!))void Linking.openURL(gov.payUrl!)}}/>:<T lang={lang} style={s.small}>{tx('سيضيف الفريق رابط الدفع الرسمي قريباً','The team will add the official payment link shortly')}</T>}
+  {gov.entries.map(e=><T key={e.id} lang={lang} style={s.small}>{aed(e.amount)} · {e.reference} · {st[e.status]?.[ar?0:1]}{e.note?' · '+e.note:''}</T>)}
+  {room>0&&!open&&<Button lang={lang} icon="upload" label={tx('أبلغ بأنك دفعت للجهة','Report that you paid the authority')} onPress={()=>setOpen(true)}/>}
+  {open&&<>
+   <T lang={lang}>{tx('المبلغ بالدرهم (حتى '+aed(room)+')','Amount in AED (up to '+aed(room)+')')}</T>
+   <TextInput accessibilityLabel={tx('المبلغ','Amount')} keyboardType="decimal-pad" value={amount} onChangeText={setAmount} style={[s.input,font(lang)]}/>
+   <T lang={lang}>{tx('رقم إيصال/عملية الجهة','Authority receipt / transaction number')}</T>
+   <TextInput accessibilityLabel={tx('رقم العملية','Transaction number')} autoCapitalize="characters" value={reference} onChangeText={setReference} style={[s.input,font(lang)]}/>
+   <Button lang={lang} icon="upload" label={proof?proof.name:tx('إرفاق الإيصال (اختياري)','Attach receipt (optional)')} onPress={()=>act(async()=>{const x=await pickClientFile({ar:'إيصال الجهة',en:'Authority receipt'});if(x)setProof(x)})}/>
+   <Button lang={lang} primary disabled={!fils||!refOk||fils>room} label={tx('إرسال للتحقق','Send for verification')} onPress={send}/>
+   <Button lang={lang} label={tx('إلغاء','Cancel')} onPress={()=>setOpen(false)}/>
+  </>}
+ </View>;
+}
+
 function FinancePanel({lang,r,act,onChanged,setMessage}:{lang:Lang;r:ClientRequest;act:(fn:()=>Promise<void>|void)=>void;onChanged:()=>void;setMessage:(m:string)=>void}){
  const ar=lang==='ar',row=ar?'row-reverse':'row',tx=(a:string,e:string)=>ar?a:e;
  const f=r.finance!;const [open,setOpen]=useState(false);const [amount,setAmount]=useState('');const [reference,setReference]=useState('');const [proof,setProof]=useState<ClientFile|null>(null);
  const keyRef=useRef('pay-'+makeId()+makeId());
- const kind:Record<string,[string,string]>={government_fee:['رسوم حكومية','Government fee'],service_fee:['أتعاب الخدمة','Service fee'],extra:['مصاريف إضافية','Extra expense']};
+ const kind:Record<string,[string,string]>={government_fee:['رسوم حكومية (تُدفع للجهة)','Government fee (paid to authority)'],service_fee:['أتعاب الشركة','Company fee']};
  const state:Record<string,[string,string]>={unpriced:['غير مسعّر','Not priced'],awaiting_payment:['بانتظار الدفع','Awaiting payment'],partial:['مدفوع جزئياً','Partly paid'],paid:['مدفوع','Paid'],refunded:['مسترد','Refunded']};
  const pst:Record<string,[string,string]>={pending_verification:['بانتظار التحقق','Awaiting verification'],approved:['معتمدة','Approved'],rejected:['مرفوضة','Rejected']};
  const dtype:Record<string,[string,string]>={quote:['عرض سعر','Quotation'],invoice:['فاتورة','Invoice'],receipt:['إيصال','Receipt'],credit_note:['إشعار دائن','Credit note']};
@@ -94,11 +121,12 @@ function FinancePanel({lang,r,act,onChanged,setMessage}:{lang:Lang;r:ClientReque
   <T lang={lang} bold style={s.cardTitle}>{tx('عرض السعر والدفع','Quotation & payment')}</T>
   <T lang={lang} style={[s.notice,{color:'#A3261A',backgroundColor:'#FBE6E3'}]}>{tx('نسخة تجريبية — لا قيمة مالية لهذه المستندات','TEST COPY — these documents have no financial value')}</T>
   {f.quote?<>
-   {f.quote.items.map((i,k)=><View key={k} style={[s.between,{flexDirection:row}]}><T lang={lang} style={{flex:1}}>{kind[i.kind]?.[ar?0:1]}: {i[lang]}</T><T lang="en" bold>{aed(i.amount)}</T></View>)}
-   <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('الإجمالي','Total')} ({f.quote.number??''})</T><T lang="en" bold>{aed(f.quote.total)}</T></View>
+   {f.quote.items.filter(i=>i.kind==='service_fee').map((i,k)=><View key={k} style={[s.between,{flexDirection:row}]}><T lang={lang} style={{flex:1}}>{kind[i.kind]?.[ar?0:1]}: {i[lang]}</T><T lang="en" bold>{aed(i.amount)}</T></View>)}
+   <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('إجمالي أتعاب الشركة','Company fee total')} ({f.quote.number??''})</T><T lang="en" bold>{aed(f.quote.total)}</T></View>
    <T lang={lang} style={s.small}>{tx('الضريبة غير مهيأة ولم تُحتسب. هذه المستندات ليست فواتير ضريبية.','Tax is not configured and was not calculated. These are not tax invoices.')}</T>
    {f.quote.status==='issued'?<Button lang={lang} primary label={tx('الموافقة على عرض السعر','Accept the quotation')} onPress={()=>act(async()=>{await acceptQuote(r.remoteId!,f.quote!.id,f.quote!.version);onChanged()})}/>:<T lang={lang} style={s.notice}>{tx('✓ وافقت على عرض السعر','✓ You accepted the quotation')}</T>}
   </>:<T lang={lang}>{tx('بانتظار عرض السعر من الفريق','Waiting for the team to send a quotation')}</T>}
+  {f.gov&&<GovSection lang={lang} r={r} gov={f.gov} act={act} onChanged={onChanged} setMessage={setMessage}/>}
   {f.invoice&&<>
    <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('حالة الدفع','Payment status')}</T><T lang={lang} style={s.badge}>{state[f.totals.state]?.[ar?0:1]}</T></View>
    {[[tx('الإجمالي','Total'),f.totals.total],[tx('المدفوع','Paid'),f.totals.paid],[tx('بانتظار التحقق','Awaiting verification'),f.totals.pending],[tx('المسترد','Refunded'),f.totals.refunded],[tx('المتبقي','Remaining'),f.totals.remaining]].map(([l,v])=><View key={String(l)} style={[s.between,{flexDirection:row}]}><T lang={lang}>{l}</T><T lang="en" bold>{aed(v as number)}</T></View>)}
