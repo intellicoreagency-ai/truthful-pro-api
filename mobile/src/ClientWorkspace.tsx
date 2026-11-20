@@ -125,6 +125,7 @@ function FinancePanel({lang,r,act,onChanged,setMessage}:{lang:Lang;r:ClientReque
    <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('إجمالي أتعاب الشركة','Company fee total')} ({f.invoice?.number??''})</T><T lang="en" bold>{aed(f.quote.total)}</T></View>
    <T lang={lang} style={s.small}>{tx('الضريبة غير مهيأة ولم تُحتسب. هذه المستندات ليست فواتير ضريبية.','Tax is not configured and was not calculated. These are not tax invoices.')}</T>
   </>:<T lang={lang}>{tx('بانتظار إصدار الفاتورة من الفريق','Waiting for the team to issue your invoice')}</T>}
+  {(f.credit??0)>0&&<T lang={lang} style={s.notice}>{tx('رصيدك الدائن لدينا (مبلغ زائد لم يُخصص لمعاملة): ','Your credit with us (excess not allocated to a transaction): ')}{aed(f.credit!)}</T>}
   {f.gov&&f.invoice&&<View style={{backgroundColor:'#F6EACD',borderRadius:10,padding:10,gap:4}}>
    <T lang={lang} bold>{tx('التكلفة الكاملة لمعاملتك','Full cost of your transaction')}</T>
    <View style={[s.between,{flexDirection:row}]}><T lang={lang}>{tx('أتعاب الشركة','Company fee')}</T><T lang="en" bold>{aed(f.totals.total)}</T></View>

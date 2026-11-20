@@ -7,7 +7,7 @@ import { allow, audit, clientIp, jsonBody, type C } from './security'
 import { RULES, passportValidity } from './rules'
 import { scanBytes, uploadsBlocked } from './scanner'
 import { enqueueInvoiceEmail } from './mail'
-import { approvePayment, documentStatements, govFor, insertAuthorityPayment, insertPayment, insertRefund, isFils, parseGovUrl, parseItems, renderDocument, totalsFor, type DocRow } from './finance'
+import { allocateManually, approvePayment, creditFor, documentStatements, govFor, insertAuthorityPayment, insertPayment, isFils, refundable, reverseAllocation, parseGovUrl, parseItems, renderDocument, totalsFor, type DocRow } from './finance'
 import { newSecret, otpauthUri, verifyTotp } from './totp'
 import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server'
 import { b64, unb64, otpCode } from './crypto'
@@ -271,6 +271,23 @@ guarded.get('/requests', roles(...OPS), async (c) => {
   return c.json({ requests: out })
 })
 
+/** Payment is its own state, independent of the request status; WHEN it is required is a per-service policy (default: before submission to the authority). */
+async function payGate(c: C, r: { id: string; service_id: string }, stage: 'authority' | 'delivery', b: any): Promise<Response | null> {
+  const pol = await c.env.DB.prepare('SELECT pay_gate FROM service_policies WHERE service_id=?').bind(r.service_id).first<{ pay_gate: string }>()
+  if ((pol?.pay_gate ?? 'authority') !== stage) return null
+  const [tot, gov] = [await totalsFor(c.env, r.id), await govFor(c.env, r.id)]
+  const unmet: string[] = []
+  if (!tot.invoice || tot.remaining > 0 || tot.pending > 0) unmet.push('company_fee')
+  if (gov.total > 0 && gov.state !== 'paid') unmet.push('government_fee')
+  if (!unmet.length) return null
+  const why = typeof b?.overrideReason === 'string' ? b.overrideReason.trim() : ''
+  if (!(c.get('staffRole') === 'owner' || c.get('staffRole') === 'manager')) return c.json({ error: 'payment_required', unmet }, 409)
+  if (why.length < 10) return c.json({ error: 'payment_required', unmet, overridable: true }, 409)
+  await audit(c, 'staff.payment_gate_override', null, { requestId: r.id, stage, unmet, reason: why.slice(0, 300), by: c.get('staffId') })
+  await addEvent(c, r.id, 'note', `Payment gate overridden (${unmet.join(', ')}): ${why.slice(0, 300)}`, `Payment gate overridden (${unmet.join(', ')}): ${why.slice(0, 300)}`, false)
+  return null
+}
+
 async function loadRequest(c: C, id: string) {
   if (!isUuid(id)) return null
   const r = await c.env.DB.prepare(
@@ -346,20 +363,7 @@ guarded.post('/requests/:id/status', roles(...OPS), async (c) => {
     const unscanned = await c.env.DB.prepare("SELECT id FROM request_files WHERE request_id=? AND kind='source' AND deleted_at IS NULL AND scan_status!='clean'").bind(r.id).all<{ id: string }>()
     if (unscanned.results.length) return c.json({ error: 'scan_pending', files: unscanned.results.map((x) => x.id) }, 409)
   }
-  // Our fee is agreed and paid in advance (bank transfer or cash, verified), and the government fee is paid by the customer to the authority: both before we submit.
-  if (to === 'authority') {
-    const [tot, gov] = [await totalsFor(c.env, r.id), await govFor(c.env, r.id)]
-    const unmet: string[] = []
-    if (!tot.invoice || tot.remaining > 0 || tot.pending > 0) unmet.push('company_fee')
-    if (gov.total > 0 && gov.state !== 'paid') unmet.push('government_fee')
-    if (unmet.length) {
-      const why = typeof b?.overrideReason === 'string' ? b.overrideReason.trim() : ''
-      if (!(c.get('staffRole') === 'owner' || c.get('staffRole') === 'manager')) return c.json({ error: 'payment_required', unmet }, 409)
-      if (why.length < 10) return c.json({ error: 'payment_required', unmet, overridable: true }, 409)
-      await audit(c, 'staff.payment_gate_override', null, { requestId: r.id, unmet, reason: why.slice(0, 300), by: c.get('staffId') })
-      await addEvent(c, r.id, 'note', `Payment gate overridden (${unmet.join(', ')}): ${why.slice(0, 300)}`, `Payment gate overridden (${unmet.join(', ')}): ${why.slice(0, 300)}`, false)
-    }
-  }
+  if (to === 'authority') { const blocked = await payGate(c, r, 'authority', b); if (blocked) return blocked }
   // "With authority" is a fact that needs evidence of the actual submission; a rejection needs an understandable reason.
   if (to === 'authority') {
     const ref = typeof b?.reference === 'string' ? b.reference.trim() : ''
@@ -497,6 +501,7 @@ guarded.post('/requests/:id/deliveries/publish', roles(...OPS), async (c) => {
   const unscanned = await c.env.DB.prepare("SELECT COUNT(*) n FROM request_files WHERE delivery_id=? AND deleted_at IS NULL AND scan_status!='clean'").bind(draft.id).first<{ n: number }>()
   if ((unscanned?.n ?? 0) > 0) return c.json({ error: 'scan_pending' }, 409) // nothing is published until every file has a clean verdict
   if (r.status !== 'decision' && r.status !== 'completed') return c.json({ error: 'authority_not_finished' }, 409) // deliver only once the authority has finished
+  { const blocked = await payGate(c, r, 'delivery', b); if (blocked) return blocked }
   const mx = await c.env.DB.prepare('SELECT MAX(version) v FROM deliveries WHERE request_id=?').bind(r.id).first<{ v: number | null }>()
   const version = (mx?.v ?? 0) + 1
   const manifest = await sha256Hex(items.map((x) => `${x.id}:${x.sha256}`).join('|'))
@@ -832,8 +837,8 @@ const FIN_VIEW: Role[] = ['owner', 'manager', 'accountant', 'agent']
 
 async function finRequest(c: C, id: string) {
   if (!isUuid(id)) return null
-  const r = await c.env.DB.prepare("SELECT r.id,r.user_id,r.status,r.data,r.assignee_id,u.display_name FROM requests r JOIN users u ON u.id=r.user_id WHERE r.id=? AND r.deleted_at IS NULL AND r.status!='draft'").bind(id)
-    .first<{ id: string; user_id: string; status: string; data: string; assignee_id: string | null; display_name: string | null }>()
+  const r = await c.env.DB.prepare("SELECT r.id,r.user_id,r.service_id,r.status,r.data,r.assignee_id,u.display_name FROM requests r JOIN users u ON u.id=r.user_id WHERE r.id=? AND r.deleted_at IS NULL AND r.status!='draft'").bind(id)
+    .first<{ id: string; user_id: string; service_id: string; status: string; data: string; assignee_id: string | null; display_name: string | null }>()
   return r && canSee(c, r.assignee_id) ? r : null
 }
 const reqMeta = (r: { id: string; data: string; display_name: string | null }) => {
@@ -853,7 +858,7 @@ guarded.get('/requests/:id/finance', roles(...FIN_VIEW), async (c) => {
   const payments = await c.env.DB.prepare('SELECT id,kind,amount_fils,method,reference,status,created_by_kind,created_at,decided_at,decision_note,reason,receipt_id,proof_file_id,refund_of FROM payments WHERE request_id=? ORDER BY created_at').bind(r.id).all()
   const documents = await c.env.DB.prepare('SELECT id,doc_type,number,status,void_reason,total_fils,created_at,related_id FROM fin_documents WHERE request_id=? ORDER BY created_at').bind(r.id).all()
   const authority = await c.env.DB.prepare('SELECT id,amount_fils,reference,status,reported_by_kind,created_at,verified_at,note,proof_file_id FROM authority_payments WHERE request_id=? ORDER BY created_at').bind(r.id).all()
-  return c.json({ quotes, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, r.id), gov: await govFor(c.env, r.id), authorityPayments: authority.results, tax: { configured: false }, test: true })
+  return c.json({ quotes, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, r.id), gov: await govFor(c.env, r.id), authorityPayments: authority.results, credit: await creditFor(c.env, r.user_id), refundRequests: (await c.env.DB.prepare('SELECT id,amount_fils,resolution,reason,status,requested_by,requested_at,decided_by,executed_at,execution_ref FROM refund_requests WHERE request_id=? ORDER BY requested_at').bind(r.id).all()).results, tax: { configured: false }, test: true })
 })
 
 // Draft a quote (manual pricing: nothing is pre-priced). Replaces the open draft or starts the next version.
@@ -932,7 +937,8 @@ guarded.post('/requests/:id/government-fee', roles(...FIN), async (c) => {
   if (!isFils(b?.amountFils) || b.amountFils > 100000000) return c.json({ error: 'invalid_request' }, 400)
   const url = parseGovUrl(c.env, b?.url)
   if (url === undefined) return c.json({ error: 'invalid_pay_url' }, 400)
-  const u = await c.env.DB.prepare("UPDATE quotes SET gov_fils=?, gov_pay_url=? WHERE id=? AND gov_fils=0").bind(b.amountFils, url, q.id).run()
+  const ben = typeof b?.beneficiary === 'string' ? b.beneficiary.trim().slice(0, 100) : null
+  const u = await c.env.DB.prepare("UPDATE quotes SET gov_fils=?, gov_pay_url=?, gov_beneficiary=? WHERE id=? AND gov_fils=0").bind(b.amountFils, url, ben || null, q.id).run()
   if (!u.meta.changes) return c.json({ error: 'government_fee_set' }, 409)
   await visibleEvent(c, r.id, 'أُضيفت الرسوم الحكومية الرسمية ورابط الدفع للجهة', 'The official government fee and its payment link were added')
   await audit(c, 'finance.government_fee', null, { requestId: r.id, amountFils: b.amountFils, by: c.get('staffId') })
@@ -994,9 +1000,10 @@ async function ensureReceipt(c: C, paymentId: string, requestId: string, meta: R
   const have = await c.env.DB.prepare("SELECT id,number FROM fin_documents WHERE related_id=? AND doc_type='receipt'").bind(paymentId).first<{ id: string; number: string }>()
   if (have) { await c.env.DB.prepare('UPDATE payments SET receipt_id=? WHERE id=? AND receipt_id IS NULL').bind(have.id, paymentId).run(); return have }
   const t = await totalsFor(c.env, requestId)
+  const allocated = (await c.env.DB.prepare('SELECT COALESCE(SUM(amount_fils),0) v FROM allocations WHERE payment_id=?').bind(paymentId).first<{ v: number }>())?.v ?? 0
   const inv = await c.env.DB.prepare('SELECT number FROM fin_documents WHERE id=?').bind(p.invoice_id).first<{ number: string }>()
   const id = newId(), now = Date.now()
-  const snapshot = { ...meta, lines: [], totals: { amount: p.amount_fils, total: t.total, paid: t.paid, refunded: t.refunded, remaining: t.remaining }, extra: { invoiceNumber: inv?.number, paymentMethod: p.method, paymentRef: p.reference ? `…${p.reference.slice(-4)}` : null } }
+  const snapshot = { ...meta, lines: [], totals: { amount: p.amount_fils, total: t.total, paid: t.paid, refunded: t.refunded, remaining: t.remaining }, extra: { invoiceNumber: inv?.number, allocatedToInvoice: allocated, creditFromThisPayment: p.amount_fils - allocated, paymentMethod: p.method, paymentRef: p.reference ? `…${p.reference.slice(-4)}` : null } }
   try {
     await c.env.DB.batch([...(await documentStatements(c.env, { id, requestId, type: 'receipt', relatedId: paymentId, totalFils: p.amount_fils, snapshot, createdBy: c.get('staffId'), now })), c.env.DB.prepare('UPDATE payments SET receipt_id=? WHERE id=? AND receipt_id IS NULL').bind(id, paymentId)])
   } catch { /* a concurrent approval created it first */ }
@@ -1018,7 +1025,7 @@ guarded.post('/payments/:pid/approve', roles(...FIN), async (c) => {
   if (!done) {
     const now = await c.env.DB.prepare('SELECT status FROM payments WHERE id=?').bind(p.id).first<{ status: string }>()
     if (now?.status === 'approved') { const rc = await ensureReceipt(c, p.id, r.id, reqMeta(r), p); return c.json({ ok: true, duplicate: true, receipt: rc?.number ?? null }) } // repeating an approval changes nothing
-    return c.json({ error: now?.status === 'rejected' ? 'rejected' : 'exceeds_balance' }, 409)
+    return c.json({ error: now?.status === 'rejected' ? 'rejected' : 'not_pending' }, 409)
   }
   const rc = await ensureReceipt(c, p.id, r.id, reqMeta(r), p)
   await visibleEvent(c, r.id, `تم اعتماد دفعتك — إيصال ${rc?.number ?? ''} (نسخة تجريبية)`, `Your payment was verified — receipt ${rc?.number ?? ''} (test copy)`)
@@ -1041,25 +1048,209 @@ guarded.post('/payments/:pid/reject', roles(...FIN), async (c) => {
   return c.json({ ok: true })
 })
 
-// Refunds: owner/manager only; never above what is paid; linked credit note; the original receipt is untouched.
-guarded.post('/requests/:id/refunds', roles('owner', 'manager'), async (c) => {
+// ---------- refunds: a REQUEST is not an EXECUTION; approval and execution are separate steps with separate roles ----------
+guarded.post('/requests/:id/refund-requests', roles(...FIN), async (c) => {
   const r = await finRequest(c, c.req.param('id'))
   if (!r) return c.json({ error: 'not_found' }, 404)
   const b = await jsonBody(c)
   const reason = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) : ''
-  const refundOf = typeof b?.paymentId === 'string' && isUuid(b.paymentId) ? b.paymentId : null
+  const resolution = b?.resolution === 'to_credit' ? 'to_credit' : 'to_customer'
   if (!isFils(b?.amountFils) || reason.length < 10) return c.json({ error: 'invalid_request' }, 400)
   const t = await totalsFor(c.env, r.id)
   if (!t.invoice) return c.json({ error: 'no_invoice' }, 409)
-  const id = newId(), now = Date.now()
-  if (!(await insertRefund(c.env, { id, requestId: r.id, invoiceId: t.invoice.id, amount: b.amountFils, reason, refundOf, by: c.get('staffId'), now }))) return c.json({ error: 'exceeds_paid' }, 409)
-  const after = await totalsFor(c.env, r.id)
-  const cn = newId()
-  const snapshot = { ...reqMeta(r), lines: [], totals: { amount: b.amountFils, total: after.total, paid: after.paid, refunded: after.refunded, remaining: after.remaining }, extra: { invoiceNumber: t.invoice.number, reason } }
-  await c.env.DB.batch([...(await documentStatements(c.env, { id: cn, requestId: r.id, type: 'credit_note', relatedId: id, totalFils: b.amountFils, snapshot, createdBy: c.get('staffId'), now })), c.env.DB.prepare('UPDATE payments SET receipt_id=? WHERE id=?').bind(cn, id)])
-  await visibleEvent(c, r.id, 'تم رد مبلغ إليك (نسخة تجريبية)', 'A refund was issued to you (test copy)')
-  await audit(c, 'finance.refund', null, { requestId: r.id, paymentId: id, by: c.get('staffId') })
-  return c.json({ ok: true, refundId: id, creditNote: await numberOf(c, cn) }, 201)
+  if (b.amountFils > (await refundable(c.env, t.invoice.id))) return c.json({ error: 'exceeds_paid' }, 409)
+  // which payment the money returns from: the named one, or the newest approved payment that still has enough allocated to this invoice
+  const net = (pid: string) => c.env.DB.prepare("SELECT COALESCE(SUM(amount_fils),0) v FROM allocations WHERE payment_id=? AND invoice_id=?").bind(pid, t.invoice!.id).first<{ v: number }>().then((x) => x?.v ?? 0)
+  let pid = typeof b?.paymentId === 'string' && isUuid(b.paymentId) ? b.paymentId : null
+  if (!pid) for (const x of (await c.env.DB.prepare("SELECT DISTINCT payment_id FROM allocations WHERE invoice_id=? ORDER BY created_at DESC").bind(t.invoice.id).all<{ payment_id: string }>()).results) if ((await net(x.payment_id)) >= b.amountFils) { pid = x.payment_id; break }
+  if (!pid || (await net(pid)) < b.amountFils) return c.json({ error: 'needs_payment_id' }, 409)
+  const id = newId()
+  await c.env.DB.prepare('INSERT INTO refund_requests (id,request_id,invoice_id,payment_id,amount_fils,resolution,reason,requested_by,requested_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(id, r.id, t.invoice.id, pid, b.amountFils, resolution, reason, c.get('staffId'), Date.now()).run()
+  await audit(c, 'finance.refund_requested', null, { requestId: r.id, refundRequestId: id, amountFils: b.amountFils, resolution, by: c.get('staffId') })
+  return c.json({ id, status: 'requested' }, 201)
+})
+async function loadRefund(c: C, id: string) {
+  const q = isUuid(id) ? await c.env.DB.prepare('SELECT * FROM refund_requests WHERE id=?').bind(id).first<any>() : null
+  const r = q ? await finRequest(c, q.request_id) : null
+  return q && r ? { q, r } : null
+}
+guarded.post('/refund-requests/:rid/approve', roles('owner', 'manager'), async (c) => {
+  const x = await loadRefund(c, c.req.param('rid'))
+  if (!x) return c.json({ error: 'not_found' }, 404)
+  if (x.q.requested_by === c.get('staffId') && c.get('staffRole') !== 'owner') return c.json({ error: 'second_approver_required' }, 403)
+  const b = await jsonBody(c)
+  const u = await c.env.DB.prepare("UPDATE refund_requests SET status='approved', decided_by=?, decided_at=?, decision_note=? WHERE id=? AND status='requested'").bind(c.get('staffId'), Date.now(), typeof b?.note === 'string' ? b.note.slice(0, 300) : null, x.q.id).run()
+  if (!u.meta.changes) return c.json(x.q.status === 'approved' ? { ok: true, duplicate: true } : { error: 'not_requested' }, x.q.status === 'approved' ? 200 : 409)
+  await audit(c, 'finance.refund_approved', null, { requestId: x.r.id, refundRequestId: x.q.id, by: c.get('staffId') })
+  return c.json({ ok: true, duplicate: false })
+})
+guarded.post('/refund-requests/:rid/reject', roles('owner', 'manager'), async (c) => {
+  const x = await loadRefund(c, c.req.param('rid'))
+  if (!x) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const reason = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) : ''
+  if (reason.length < 3) return c.json({ error: 'reason_required' }, 400)
+  const u = await c.env.DB.prepare("UPDATE refund_requests SET status='rejected', decided_by=?, decided_at=?, decision_note=? WHERE id=? AND status IN ('requested','approved')").bind(c.get('staffId'), Date.now(), reason, x.q.id).run()
+  if (!u.meta.changes) return c.json({ error: 'not_open' }, 409)
+  return c.json({ ok: true })
+})
+// Execution: money actually leaves (or moves to the customer's credit). Reverses the allocation in the ledger, issues the credit note.
+guarded.post('/refund-requests/:rid/execute', roles(...FIN), async (c) => {
+  const x = await loadRefund(c, c.req.param('rid'))
+  if (!x) return c.json({ error: 'not_found' }, 404)
+  if (x.q.status === 'executed') return c.json({ ok: true, duplicate: true })
+  if (x.q.status !== 'approved') return c.json({ error: 'not_approved' }, 409)
+  const b = await jsonBody(c)
+  const ref = typeof b?.reference === 'string' ? b.reference.trim().slice(0, 60) : ''
+  if (x.q.resolution === 'to_customer' && ref.length < 4) return c.json({ error: 'reference_required' }, 400) // bank transfer / cash voucher reference of the payout
+  const now = Date.now(), cn = newId(), aid = newId()
+  const t = await totalsFor(c.env, x.r.id)
+  const snapshot = { ...reqMeta(x.r), lines: [], totals: { amount: x.q.amount_fils, total: t.total, paid: t.paid, refunded: t.refunded + (x.q.resolution === 'to_customer' ? x.q.amount_fils : 0), remaining: t.remaining + x.q.amount_fils }, extra: { reason: x.q.reason, resolution: x.q.resolution, invoiceNumber: t.invoice?.number } }
+  try {
+    await c.env.DB.batch([
+      c.env.DB.prepare("UPDATE refund_requests SET status='executed', executed_by=?, executed_at=?, execution_ref=?, credit_note_id=? WHERE id=? AND status='approved'").bind(c.get('staffId'), now, ref || null, cn, x.q.id),
+      c.env.DB.prepare("INSERT INTO allocations (id,payment_id,request_id,invoice_id,amount_fils,kind,refund_request_id,reason,created_by,created_at) SELECT ?,payment_id,request_id,invoice_id,?, 'refund',id,reason,?,? FROM refund_requests WHERE id=? AND status='executed'").bind(aid, -x.q.amount_fils, c.get('staffId'), now, x.q.id),
+      ...(await documentStatements(c.env, { id: cn, requestId: x.r.id, type: 'credit_note', relatedId: x.q.id, totalFils: x.q.amount_fils, snapshot, createdBy: c.get('staffId'), now })),
+    ])
+  } catch (e) { return c.json({ error: String((e as Error).message).includes('allocation exceeds') ? 'exceeds_paid' : 'conflict' }, 409) }
+  await visibleEvent(c, x.r.id, x.q.resolution === 'to_customer' ? 'تم رد مبلغ إليك (نسخة تجريبية)' : 'أُضيف مبلغ إلى رصيدك الدائن (نسخة تجريبية)', x.q.resolution === 'to_customer' ? 'A refund was paid to you (test copy)' : 'An amount was added to your credit balance (test copy)')
+  await audit(c, 'finance.refund_executed', null, { requestId: x.r.id, refundRequestId: x.q.id, by: c.get('staffId') })
+  return c.json({ ok: true, duplicate: false, creditNote: await numberOf(c, cn) })
+})
+guarded.get('/refund-requests', roles(...FIN), async (c) => {
+  const st = ['requested', 'approved', 'rejected', 'executed'].includes(c.req.query('status') ?? '') ? (c.req.query('status') as string) : 'requested'
+  return c.json({ refundRequests: (await c.env.DB.prepare('SELECT id,request_id,amount_fils,resolution,reason,status,requested_by,requested_at,decided_by,executed_by FROM refund_requests WHERE status=? ORDER BY requested_at DESC LIMIT 100').bind(st).all()).results })
+})
+
+// ---------- ledger: allocations, credit balance, customer statement ----------
+guarded.post('/payments/:pid/allocate', roles(...FIN), async (c) => {
+  const pid = c.req.param('pid')
+  const p = isUuid(pid) ? await c.env.DB.prepare("SELECT request_id FROM payments WHERE id=? AND kind='payment'").bind(pid).first<{ request_id: string }>() : null
+  if (!p || !(await finRequest(c, p.request_id))) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const target = typeof b?.requestId === 'string' && isUuid(b.requestId) ? b.requestId : null
+  const reason = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) : ''
+  if (!target || !isFils(b?.amountFils) || reason.length < 5 || !(await finRequest(c, target))) return c.json({ error: 'invalid_request' }, 400)
+  const res = await allocateManually(c.env, { paymentId: pid, requestId: target, amount: b.amountFils, reason, by: c.get('staffId'), now: Date.now() })
+  if (!res.ok) return c.json({ error: res.error }, res.error === 'not_found' ? 404 : 409)
+  await audit(c, 'finance.allocation', null, { paymentId: pid, requestId: target, amountFils: b.amountFils, by: c.get('staffId') })
+  return c.json({ ok: true, id: res.id }, 201)
+})
+guarded.post('/allocations/:aid/reverse', roles('owner', 'manager'), async (c) => {
+  const aid = c.req.param('aid')
+  const a = isUuid(aid) ? await c.env.DB.prepare('SELECT request_id FROM allocations WHERE id=?').bind(aid).first<{ request_id: string }>() : null
+  if (!a || !(await finRequest(c, a.request_id))) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const reason = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) : ''
+  if (reason.length < 10) return c.json({ error: 'reason_required' }, 400)
+  const res = await reverseAllocation(c.env, { allocationId: aid, reason, by: c.get('staffId'), now: Date.now() })
+  if (!res.ok) return c.json({ error: res.error }, 409)
+  await audit(c, 'finance.allocation_reversed', null, { allocationId: aid, by: c.get('staffId'), reason })
+  return c.json({ ok: true, id: res.id })
+})
+guarded.get('/customers/:uid/ledger', roles(...FIN), async (c) => {
+  const uid = c.req.param('uid')
+  if (!isUuid(uid)) return c.json({ error: 'not_found' }, 404)
+  const pays = (await c.env.DB.prepare("SELECT p.id,p.request_id,p.amount_fils,p.method,p.reference,p.decided_at at FROM payments p JOIN requests r ON r.id=p.request_id WHERE r.user_id=? AND p.kind='payment' AND p.status='approved'").bind(uid).all<any>()).results
+  const als = (await c.env.DB.prepare("SELECT al.id,al.payment_id,al.request_id,al.amount_fils,al.kind,al.reason,al.created_at at FROM allocations al JOIN requests r ON r.id=al.request_id WHERE r.user_id=?").bind(uid).all<any>()).results
+  const refs = (await c.env.DB.prepare("SELECT rr.id,rr.request_id,rr.amount_fils,rr.executed_at at,rr.execution_ref FROM refund_requests rr JOIN requests r ON r.id=rr.request_id WHERE r.user_id=? AND rr.status='executed' AND rr.resolution='to_customer'").bind(uid).all<any>()).results
+  const entries = [
+    ...pays.map((p) => ({ at: p.at, type: 'payment_received', ref: p.id, requestId: p.request_id, delta: p.amount_fils, note: `${p.method} ${p.reference ?? ''}`.trim() })),
+    ...als.map((a) => ({ at: a.at, type: a.kind === 'allocate' ? 'allocated' : a.kind === 'reverse' ? 'allocation_reversed' : 'allocation_refunded', ref: a.id, requestId: a.request_id, delta: -a.amount_fils, note: a.reason })),
+    ...refs.map((x) => ({ at: x.at, type: 'refund_paid_out', ref: x.id, requestId: x.request_id, delta: -x.amount_fils, note: x.execution_ref })),
+  ].sort((x, y) => x.at - y.at)
+  let run = 0
+  const withBalance = entries.map((e) => ({ ...e, unallocatedAfter: (run += e.delta) }))
+  return c.json({ entries: withBalance, balance: await creditFor(c.env, uid) })
+})
+guarded.get('/requests/:id/ledger', roles(...FIN_VIEW), async (c) => {
+  const r = await finRequest(c, c.req.param('id'))
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  const rows = (await c.env.DB.prepare('SELECT id,payment_id,amount_fils,kind,reverses_id,reason,created_by,created_at FROM allocations WHERE request_id=? ORDER BY created_at,rowid').bind(r.id).all()).results
+  const refunds = (await c.env.DB.prepare('SELECT id,amount_fils,resolution,reason,status,requested_at,executed_at FROM refund_requests WHERE request_id=? ORDER BY requested_at').bind(r.id).all()).results
+  return c.json({ allocations: rows, refundRequests: refunds, credit: await creditFor(c.env, r.user_id) })
+})
+
+// ---------- cancellation: never moves money by itself; shows what is owed, what was paid to the authority and what may be refunded ----------
+guarded.get('/requests/:id/cancellation', roles(...FIN), async (c) => {
+  const r = await finRequest(c, c.req.param('id'))
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  const t = await totalsFor(c.env, r.id), g = await govFor(c.env, r.id)
+  const pol = await c.env.DB.prepare('SELECT retain_pct_before_authority p FROM service_policies WHERE service_id=?').bind(r.service_id).first<{ p: number }>()
+  const pct = ['authority', 'decision', 'completed'].includes(r.status) ? 100 : (pol?.p ?? 0)
+  const earned = Math.floor((t.total * pct) / 100)
+  const refundableNow = t.invoice ? Math.min(await refundable(c.env, t.invoice.id), Math.max(0, t.net - earned)) : 0
+  return c.json({
+    status: r.status,
+    companyFee: { invoiced: t.total, allocated: t.net, retainedPercent: pct, earned, refundable: refundableNow },
+    governmentFee: { total: g.total, paidToAuthorityVerified: g.verified, note: 'paid by the customer directly to the authority; not refundable by the Company' },
+    policyApproved: !!pol, // false = default policy (nothing retained before the authority step); the owner must approve a policy
+    nextStep: refundableNow > 0 ? 'create a refund request for the refundable amount (needs approval)' : 'nothing to refund',
+  })
+})
+
+// ---------- per-service policy ----------
+guarded.get('/policies', roles(...FIN), async (c) => c.json({ policies: (await c.env.DB.prepare('SELECT service_id,pay_gate,retain_pct_before_authority FROM service_policies ORDER BY service_id').all()).results }))
+guarded.put('/policies/:serviceId', roles('owner'), async (c) => {
+  const sid = c.req.param('serviceId')
+  const b = await jsonBody(c)
+  const payGate = String(b?.payGate ?? ''), retainPct = Number(b?.retainPct)
+  if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(sid) || !['none', 'authority', 'delivery'].includes(payGate) || !Number.isInteger(retainPct) || retainPct < 0 || retainPct > 100) return c.json({ error: 'invalid_request' }, 400)
+  await c.env.DB.prepare('INSERT INTO service_policies (service_id,pay_gate,retain_pct_before_authority,updated_by,updated_at) VALUES (?,?,?,?,?) ON CONFLICT(service_id) DO UPDATE SET pay_gate=excluded.pay_gate, retain_pct_before_authority=excluded.retain_pct_before_authority, updated_by=excluded.updated_by, updated_at=excluded.updated_at').bind(sid, payGate, retainPct, c.get('staffId'), Date.now()).run()
+  await audit(c, 'finance.policy', null, { sid, payGate, retainPct, by: c.get('staffId') })
+  return c.json({ ok: true })
+})
+
+// ---------- government fee: beneficiary, expected vs actual, explicit variance settlement ----------
+guarded.post('/requests/:id/government-fee/adjust', roles('owner', 'manager'), async (c) => {
+  const r = await finRequest(c, c.req.param('id'))
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  const g = await govFor(c.env, r.id)
+  const b = await jsonBody(c)
+  const reason = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) : ''
+  const delta = Number(b?.deltaFils)
+  if (!g.quoteId || !Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 100000000 || reason.length < 10) return c.json({ error: 'invalid_request' }, 400)
+  if (g.total + delta < g.verified + g.reported) return c.json({ error: 'below_registered_payments' }, 409)
+  if (g.total + delta < 0) return c.json({ error: 'invalid_request' }, 400)
+  await c.env.DB.prepare('INSERT INTO gov_adjustments (id,request_id,quote_id,delta_fils,reason,created_by,created_at) VALUES (?,?,?,?,?,?,?)').bind(newId(), r.id, g.quoteId, delta, reason, c.get('staffId'), Date.now()).run()
+  await visibleEvent(c, r.id, 'تم تعديل الرسوم الحكومية الرسمية حسب الجهة', 'The official government fee was adjusted by the authority\'s tariff')
+  await audit(c, 'finance.gov_adjustment', null, { requestId: r.id, deltaFils: delta, by: c.get('staffId'), reason })
+  return c.json({ ok: true })
+})
+
+// ---------- daily reconciliation ----------
+guarded.get('/finance/reconciliation', roles(...FIN), async (c) => {
+  const q = c.req.query('date') ?? ''
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(q) ? q : new Date(Date.now() + 4 * 3600000).toISOString().slice(0, 10) // Dubai day
+  const from = Date.parse(day + 'T00:00:00Z') - 4 * 3600000, to = from + 86400000
+  const pays = (await c.env.DB.prepare(
+    `SELECT p.id,p.request_id,p.amount_fils,p.method,p.reference,p.proof_file_id,p.receipt_id,p.decided_by,p.decided_at,r.user_id,
+            COALESCE((SELECT SUM(amount_fils) FROM allocations WHERE payment_id=p.id),0) allocated
+     FROM payments p JOIN requests r ON r.id=p.request_id WHERE p.kind='payment' AND p.status='approved' AND p.decided_at>=? AND p.decided_at<? ORDER BY p.decided_at`).bind(from, to).all<any>()).results
+  const flags: { type: string; paymentId?: string; detail?: string }[] = []
+  const seen = new Map<string, string>()
+  for (const p of pays) {
+    if (p.method === 'bank_transfer' && !p.proof_file_id) flags.push({ type: 'approved_without_proof', paymentId: p.id })
+    if (!p.receipt_id) flags.push({ type: 'approved_without_receipt', paymentId: p.id })
+    const k = `${p.user_id}|${p.amount_fils}|${p.method}`
+    if (seen.has(k)) flags.push({ type: 'possible_duplicate', paymentId: p.id, detail: `same customer, amount and method as ${seen.get(k)}` })
+    else seen.set(k, p.id)
+  }
+  const pending = (await c.env.DB.prepare("SELECT id,amount_fils,created_at FROM payments WHERE kind='payment' AND status='pending_verification' AND created_at<?").bind(Date.now() - 24 * 3600000).all<any>()).results
+  for (const p of pending) flags.push({ type: 'pending_over_24h', paymentId: p.id })
+  // ledger integrity: what the ledger says versus the issued documents
+  const over = (await c.env.DB.prepare("SELECT d.id,d.number,d.total_fils,COALESCE(SUM(al.amount_fils),0) s FROM fin_documents d JOIN allocations al ON al.invoice_id=d.id GROUP BY d.id HAVING s > d.total_fils OR s < 0").all<any>()).results
+  for (const o of over) flags.push({ type: 'invoice_ledger_mismatch', detail: o.number })
+  const rcpt = (await c.env.DB.prepare("SELECT COALESCE(SUM(total_fils),0) s FROM fin_documents WHERE doc_type='receipt' AND status='issued' AND created_at>=? AND created_at<?").bind(from, to).first<{ s: number }>())?.s ?? 0
+  const received = pays.reduce((a, p) => a + p.amount_fils, 0)
+  if (rcpt !== received) flags.push({ type: 'receipts_total_differs', detail: `receipts ${rcpt} vs approved payments ${received}` })
+  const executed = (await c.env.DB.prepare("SELECT COALESCE(SUM(amount_fils),0) s FROM refund_requests WHERE status='executed' AND resolution='to_customer' AND executed_at>=? AND executed_at<?").bind(from, to).first<{ s: number }>())?.s ?? 0
+  return c.json({
+    date: day, test: true,
+    totals: { received, allocated: pays.reduce((a, p) => a + p.allocated, 0), unallocated: received - pays.reduce((a, p) => a + p.allocated, 0), refundsPaidOut: executed, pendingOver24h: pending.length },
+    payments: pays.map((p) => ({ id: p.id, requestId: p.request_id, amount_fils: p.amount_fils, method: p.method, reference: p.reference, hasProof: !!p.proof_file_id, receiptId: p.receipt_id, allocated: p.allocated, unallocated: p.amount_fils - p.allocated, approvedAt: p.decided_at })),
+    flags,
+  })
 })
 
 // The official payment link may need refreshing (links expire); it is not a price term, so it can change without a new quote version.

@@ -26,7 +26,7 @@ const ok=(l,c)=>{console.log((c?'PASS ':'FAIL ')+l);if(!c)process.exitCode=1};
  // customer token for API-side steps comes from a second login of the same number
  // ---- staff prices it in the dashboard UI ----
  const sctx=await b.newContext({viewport:{width:1280,height:1000}});const sp=await sctx.newPage();const serrs=[];sp.on('pageerror',e=>serrs.push(e.message));
- sp.on('dialog',async d=>{const m=d.message();if(d.type()==='prompt')await d.accept(m.includes('الاسترداد')?'استرداد جزئي بسبب تعديل نطاق الخدمة':m.includes('الإلغاء')?'إلغاء الفاتورة لتعديل النطاق':'ملاحظة'); else await d.accept()});
+ sp.on('dialog',async d=>{const m=d.message();if(d.type()==='prompt')await d.accept(m.includes('مرجع الدفع')?'PAYOUT-2026-001':m.includes('الاسترداد')?'استرداد جزئي بسبب تعديل نطاق الخدمة':m.includes('الإلغاء')?'إلغاء الفاتورة لتعديل النطاق':'ملاحظة'); else await d.accept()});
  await sp.goto(B+'/');await sp.waitForTimeout(900);
  await sp.getByRole('tab',{name:'تطبيق المصادقة'}).click();await sp.getByLabel('رقم الجوال').fill('0501234567');await sp.getByLabel('الرمز المكوّن من 6 أرقام').fill(code(st.secret,1));await sp.getByRole('button',{name:'دخول',exact:true}).click();await sp.waitForTimeout(1500);
  await sp.goto(B+'/#/requests/'+rid);await sp.waitForTimeout(1500);
@@ -95,9 +95,12 @@ const ok=(l,c)=>{console.log((c?'PASS ':'FAIL ')+l);if(!c)process.exitCode=1};
  ok('government fee verified; company totals still 650.50 / 250.50',fin.gov.verified===35000&&fin.gov.remaining===0&&fin.totals.total===65050&&fin.totals.remaining===25050);
  // ---- staff refunds part via the UI ----
  await sp.goto(B+'/#/requests/'+rid);await sp.waitForTimeout(1500);
- await sp.getByPlaceholder('100').fill('150');await sp.getByRole('button',{name:'تنفيذ الاسترداد'}).click();await sp.waitForTimeout(1500);
+ await sp.getByPlaceholder('100').fill('150');await sp.getByRole('button',{name:'طلب استرداد'}).click();await sp.waitForTimeout(1500);
+ ok('refund request created, no money moved yet',(await J('GET',`/staff/v1/requests/${rid}/finance`,undefined,owner)).j.totals.refunded===0);
+ await sp.getByRole('button',{name:'اعتماد'}).first().click();await sp.waitForTimeout(1200);
+ await sp.getByRole('button',{name:'تنفيذ'}).first().click();await sp.waitForTimeout(1500);
  fin=(await J('GET',`/staff/v1/requests/${rid}/finance`,undefined,owner)).j;
- ok('refund recorded: net 250, credit note issued',fin.totals.refunded===15000&&fin.totals.net===25000&&fin.documents.some(d=>d.doc_type==='credit_note'));
+ ok('refund executed after approval: net 250, credit note issued',fin.totals.refunded===15000&&fin.totals.net===25000&&fin.documents.some(d=>d.doc_type==='credit_note'));
  await sp.screenshot({path:'s1.png',fullPage:true});
  ok('no page errors (customer app, dashboard)',cerrs.length===0&&serrs.length===0);
  if(cerrs.length||serrs.length)console.log(cerrs.concat(serrs).slice(0,3));

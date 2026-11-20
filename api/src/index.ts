@@ -7,7 +7,7 @@ import { sendOtp } from './sms'
 import { staff } from './staff'
 import { scanBytes, scannerMode, uploadsBlocked } from './scanner'
 import { emailMode, confirmEmail, enqueueInvoiceEmail, flushAll, setCustomerEmail, validEmail } from './mail'
-import { autoInvoice, govFor, insertAuthorityPayment, insertPayment, isFils, renderDocument, totalsFor, type DocRow } from './finance'
+import { autoInvoice, creditFor, govFor, insertAuthorityPayment, insertPayment, isFils, renderDocument, totalsFor, type DocRow } from './finance'
 
 const ACCESS_TTL = 15 * 60 * 1000
 const REFRESH_TTL = 30 * 24 * 3600 * 1000
@@ -383,7 +383,9 @@ async function customerFinance(c: C, requestId: string) {
   const payments = await c.env.DB.prepare('SELECT id,kind,amount_fils,method,status,created_at,decided_at,decision_note,receipt_id FROM payments WHERE request_id=? ORDER BY created_at').bind(requestId).all()
   const documents = await c.env.DB.prepare('SELECT id,doc_type,number,status,total_fils,created_at FROM fin_documents WHERE request_id=? ORDER BY created_at').bind(requestId).all()
   const authority = await c.env.DB.prepare('SELECT id,amount_fils,reference,status,created_at,note FROM authority_payments WHERE request_id=? ORDER BY created_at').bind(requestId).all()
-  return { quotes, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, requestId), gov: await govFor(c.env, requestId), authorityPayments: authority.results, tax: { configured: false }, test: true }
+  return { quotes, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, requestId), gov: await govFor(c.env, requestId), authorityPayments: authority.results,
+    credit: await creditFor(c.env, (await c.env.DB.prepare('SELECT user_id FROM requests WHERE id=?').bind(requestId).first<{ user_id: string }>())?.user_id ?? ''),
+    refundRequests: (await c.env.DB.prepare("SELECT id,amount_fils,resolution,status,requested_at,executed_at FROM refund_requests WHERE request_id=? ORDER BY requested_at").bind(requestId).all()).results, tax: { configured: false }, test: true }
 }
 
 // The customer reports a manual payment with proof. It stays "pending verification" until an authorised staff member approves it.

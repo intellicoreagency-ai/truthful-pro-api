@@ -72,7 +72,8 @@ export type FinQuote = { id: string; version: number; status: 'draft' | 'issued'
 export type FinPayment = { id: string; kind: 'payment' | 'refund'; amount_fils: number; method: string; reference: string | null; status: 'pending_verification' | 'approved' | 'rejected'; created_by_kind: string; created_at: number; decision_note: string | null; reason: string | null; proof_file_id: string | null }
 export type FinDoc = { id: string; doc_type: 'quote' | 'invoice' | 'receipt' | 'credit_note'; number: string; status: 'issued' | 'void'; void_reason: string | null; total_fils: number; created_at: number }
 export type AuthPay = { id: string; amount_fils: number; reference: string; status: 'reported' | 'verified' | 'rejected'; reported_by_kind: string; created_at: number; note: string | null; proof_file_id: string | null }
-export type Finance = { gov: { total: number; payUrl: string | null; verified: number; reported: number; remaining: number; state: string }; authorityPayments: AuthPay[]; quotes: FinQuote[]; payments: FinPayment[]; documents: FinDoc[]; totals: { total: number; paid: number; refunded: number; net: number; pending: number; remaining: number; state: string; invoice: { id: string; number: string } | null }; tax: { configured: boolean }; test: boolean }
+export type RefundReq = { id: string; amount_fils: number; resolution: 'to_customer' | 'to_credit'; reason: string; status: 'requested' | 'approved' | 'rejected' | 'executed'; requested_by: string; requested_at: number; execution_ref: string | null }
+export type Finance = { credit: { received: number; allocated: number; refundedOut: number; unallocated: number }; refundRequests: RefundReq[]; gov: { total: number; payUrl: string | null; verified: number; reported: number; remaining: number; state: string }; authorityPayments: AuthPay[]; quotes: FinQuote[]; payments: FinPayment[]; documents: FinDoc[]; totals: { total: number; paid: number; refunded: number; net: number; pending: number; remaining: number; state: string; invoice: { id: string; number: string } | null }; tax: { configured: boolean }; test: boolean }
 export type QueuePayment = { id: string; requestId: string; amount_fils: number; method: string; reference: string | null; createdBy: string; createdAt: number; hasProof: boolean; title: Bi | null; customer: string }
 export type QuoteLine = { kind: 'government_fee' | 'service_fee'; descriptionAr: string; descriptionEn: string; amountFils: number }
 export type WaStart = { challengeId: string; pollToken: string; code: string; link: string; expiresIn: number }
@@ -151,7 +152,12 @@ export const api = {
   recordPayment: (id: string, body: { amountFils: number; method: string; reference?: string }) => call('POST', `/staff/v1/requests/${id}/payments`, { body }),
   approvePayment: (pid: string) => call('POST', `/staff/v1/payments/${pid}/approve`, { body: {} }),
   rejectPayment: (pid: string, reason: string) => call('POST', `/staff/v1/payments/${pid}/reject`, { body: { reason } }),
-  refund: (id: string, body: { amountFils: number; reason: string; paymentId?: string }) => call('POST', `/staff/v1/requests/${id}/refunds`, { body }),
+  requestRefund: (id: string, body: { amountFils: number; reason: string; resolution: 'to_customer' | 'to_credit'; paymentId?: string }) => call('POST', `/staff/v1/requests/${id}/refund-requests`, { body }),
+  approveRefund: (rid: string) => call('POST', `/staff/v1/refund-requests/${rid}/approve`, { body: {} }),
+  rejectRefund: (rid: string, reason: string) => call('POST', `/staff/v1/refund-requests/${rid}/reject`, { body: { reason } }),
+  executeRefund: (rid: string, reference: string) => call('POST', `/staff/v1/refund-requests/${rid}/execute`, { body: { reference } }),
+  cancellation: async (id: string) => j<{ companyFee: { invoiced: number; allocated: number; retainedPercent: number; earned: number; refundable: number }; governmentFee: { total: number; paidToAuthorityVerified: number }; policyApproved: boolean }>(await call('GET', `/staff/v1/requests/${id}/cancellation`)),
+  reconciliation: async (date?: string) => j<Reconciliation>(await call('GET', `/staff/v1/finance/reconciliation${date ? `?date=${date}` : ''}`)),
   paymentQueue: async (status = 'pending_verification') => (await j<{ payments: QueuePayment[] }>(await call('GET', `/staff/v1/payments?status=${status}`))).payments,
   docBlob: async (docId: string) => (await call('GET', `/staff/v1/documents/${docId}`)).blob(),
   proofBlob: async (pid: string) => (await call('GET', `/staff/v1/payments/${pid}/proof`)).blob(),
@@ -160,3 +166,5 @@ export const api = {
   addMember: async (phone: string, name: string, role: Role) => j<{ id: string; enrollKey: string; enrollExpiresInHours: number }>(await call('POST', '/staff/v1/team', { body: { phone, name, role } })),
   setMember: (id: string, patch: { role?: Role; active?: boolean }) => call('PATCH', `/staff/v1/team/${id}`, { body: patch }),
 }
+
+export type Reconciliation = { date: string; totals: { received: number; allocated: number; unallocated: number; refundsPaidOut: number; pendingOver24h: number }; payments: { id: string; requestId: string; amount_fils: number; method: string; reference: string | null; hasProof: boolean; receiptId: string | null; allocated: number; unallocated: number }[]; flags: { type: string; paymentId?: string; detail?: string }[] }

@@ -1262,6 +1262,83 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect(mailbox).toHaveLength(0)
     await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: null }, owner)
   })
+  it('cancellation after the government fee was paid: shows authority fee, earned fee and refundable amount; moves no money by itself', async () => {
+    await hit('PUT', '/staff/v1/policies/emirates-id', { payGate: 'authority', retainPct: 30 }, owner)
+    const id = await submit(); await issueQuote(id, [ITEMS[1], ITEMS[2]]) // company fee 1000.00, no government line yet
+    expect((await hit('POST', `/staff/v1/requests/${id}/government-fee`, { amountFils: 35000, url: 'https://mol.gov.ae/pay', beneficiary: 'MOHRE' }, owner)).status).toBe(200)
+    const p = (await (await pay(id, 100000)).json() as { id: string }).id; await approve(p)
+    const a = (await (await hit('POST', `/v1/requests/${id}/authority-payments`, { amountFils: 35000, reference: 'GOV-CXL-1', clientKey: 'cxl-key-0001' }, cust)).json()) as { id: string }
+    await hit('POST', `/staff/v1/authority-payments/${a.id}/verify`, {}, owner)
+    const c1 = await (await hit('GET', `/staff/v1/requests/${id}/cancellation`, undefined, owner)).json() as { companyFee: { invoiced: number; allocated: number; retainedPercent: number; earned: number; refundable: number }; governmentFee: { total: number; paidToAuthorityVerified: number }; policyApproved: boolean }
+    expect(c1.governmentFee).toMatchObject({ total: 35000, paidToAuthorityVerified: 35000 }) // paid to the authority: not ours to refund
+    expect(c1.companyFee).toMatchObject({ invoiced: 100000, allocated: 100000, retainedPercent: 30, earned: 30000, refundable: 70000 })
+    expect(c1.policyApproved).toBe(true)
+    expect((await hit('GET', `/staff/v1/requests/${id}/cancellation`, undefined, await staffToken('agent'))).status).toBe(403)
+    // the customer cancels: nothing moves automatically
+    await hit('PATCH', `/v1/requests/${id}`, { status: 'cancelled' }, cust)
+    expect((await fin(id)).totals).toMatchObject({ paid: 100000, net: 100000 })
+    // a refund request for exactly the refundable amount goes through approval; an amount above it is still capped only by the ledger, the policy figure is advice
+    expect((await refundReq(id, 70000)).status).toBe(201)
+    await hit('PUT', '/staff/v1/policies/emirates-id', { payGate: 'authority', retainPct: 0 }, owner)
+  })
+  it('government fee: beneficiary, expected vs actual, explicit variance adjustment (owner/manager, reason, never revenue)', async () => {
+    const id = await submit(); await issueQuote(id, [ITEMS[1], ITEMS[2]])
+    expect((await hit('POST', `/staff/v1/requests/${id}/government-fee`, { amountFils: 35000, url: 'https://mol.gov.ae/pay', beneficiary: 'MOHRE' }, owner)).status).toBe(200)
+    const a = (await (await hit('POST', `/v1/requests/${id}/authority-payments`, { amountFils: 35000, reference: 'GOV-VAR-1', clientKey: 'var-key-0001' }, cust)).json()) as { id: string }
+    await hit('POST', `/staff/v1/authority-payments/${a.id}/verify`, {}, owner)
+    const adj = (delta: number, reason = 'The authority changed the official fee', token = owner) => hit('POST', `/staff/v1/requests/${id}/government-fee/adjust`, { deltaFils: delta, reason }, token)
+    expect((await adj(500, undefined, await staffToken('accountant'))).status).toBe(403)
+    expect((await adj(500, 'short')).status).toBe(400)
+    expect((await adj(-1)).status).toBe(409) // below what the customer already paid to the authority
+    expect((await adj(1500)).status).toBe(200)
+    const g = (await (await hit('GET', `/staff/v1/requests/${id}/finance`, undefined, owner)).json()) as { gov: { beneficiary: string; expected: number; adjustments: number; total: number; verified: number; remaining: number; state: string }; totals: { total: number } }
+    expect(g.gov).toMatchObject({ beneficiary: 'MOHRE', expected: 35000, adjustments: 1500, total: 36500, verified: 35000, remaining: 1500, state: 'reported' })
+    expect(g.totals.total).toBe(100000) // the Company's invoice never absorbs a government difference
+    expect(env.DB.prepare('DELETE FROM gov_adjustments').run()).rejects.toThrow()
+  })
+  it('payment policy per service: required before the authority step by default, before delivery when configured, never when "none"; the customer cannot mark anything paid', async () => {
+    const id = await submit(); await issueQuote(id, [ITEMS[1], ITEMS[2]])
+    for (const body of [{ status: 'review' }, { status: 'ready_for_authority' }]) await hit('POST', `/staff/v1/requests/${id}/status`, body, owner)
+    await hit('PUT', '/staff/v1/policies/emirates-id', { payGate: 'authority', retainPct: 0 }, owner)
+    expect((await hit('PUT', '/staff/v1/policies/emirates-id', { payGate: 'authority', retainPct: 0 }, await staffToken('manager'))).status).toBe(403) // owner only
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'POL-1' }, owner)).status).toBe(409)
+    await hit('PUT', '/staff/v1/policies/emirates-id', { payGate: 'none', retainPct: 0 }, owner)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'POL-1' }, owner)).status).toBe(200) // policy says no payment needed
+    // delivery policy: files cannot be published while unpaid
+    await hit('PUT', '/staff/v1/policies/emirates-id', { payGate: 'delivery', retainPct: 0 }, owner)
+    await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'decision' }, owner)
+    await stage(id, 'out.pdf')
+    expect((await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, {}, owner)).status).toBe(409)
+    const p = (await (await pay(id, 100000)).json() as { id: string }).id; await approve(p)
+    expect((await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, {}, owner)).status).toBe(201)
+    // the customer has no way to change amounts or mark a request paid
+    for (const body of [{ data: { paid: true, totalFils: 1 } }, { money: { paid: 999999 } }, { status: 'paid' }]) await hit('PATCH', `/v1/requests/${id}`, body, cust)
+    expect((await fin(id)).totals).toMatchObject({ total: 100000, paid: 100000 })
+    expect((await hit('POST', `/v1/requests/${id}/payments`, { amountFils: 1000, method: 'bank_transfer', reference: 'TRX-CUST-1', clientKey: 'cust-key-0001', status: 'approved' }, cust)).status).toBe(400) // needs proof; and a status field is ignored
+    await hit('PUT', '/staff/v1/policies/emirates-id', { payGate: 'authority', retainPct: 0 }, owner)
+  })
+  it('re-pricing after the customer saw the invoice keeps the previous version; reconciliation lists approved payments, flags duplicates, pending items and missing proof', async () => {
+    const id = await submit(); const { inv } = await priced(id)
+    const v1 = (await fin(id)).quotes[0]!
+    expect((await hit('POST', `/staff/v1/invoices/${inv.documentId}/cancel`, { reason: 'Re-priced after the customer agreed another scope' }, owner)).status).toBe(200)
+    const again = await issueQuote(id, [ITEMS[1]]); expect(again.r.status).toBe(201)
+    const f = await fin(id)
+    expect(f.quotes.map((q) => [q.version, q.status])).toEqual([[1, 'superseded'], [2, 'accepted']]) // the earlier version is kept
+    expect(f.quotes[0]!.id).toBe(v1.id); expect(f.documents.filter((d) => d.doc_type === 'invoice' && d.status === 'void')).toHaveLength(1)
+    // reconciliation
+    const mk = async (amt: number, ref: string, withProof = true) => { const r = await pay(id, amt, { ref }); const x = (await r.json() as { id: string }).id; return x }
+    const a = await mk(10000, 'REC-AAA-1'); const b = await mk(10000, 'REC-BBB-2')
+    await approve(a); await approve(b)
+    await env.DB.prepare("UPDATE payments SET proof_file_id=NULL WHERE id=?").bind(b).run().catch(() => null) // approved payments are immutable in amount/status only; proof can be absent for cash
+    const day = new Date(Date.now() + 4 * 3600000).toISOString().slice(0, 10)
+    const rec = await (await hit('GET', `/staff/v1/finance/reconciliation?date=${day}`, undefined, owner)).json() as { totals: { received: number; allocated: number; unallocated: number }; payments: { id: string; reference: string; allocated: number }[]; flags: { type: string; paymentId?: string }[] }
+    expect(rec.payments.map((x) => x.id)).toEqual(expect.arrayContaining([a, b]))
+    expect(rec.totals.received).toBeGreaterThan(0); expect(rec.totals.received).toBe(rec.totals.allocated + rec.totals.unallocated)
+    expect(rec.flags.some((x) => x.type === 'possible_duplicate' && x.paymentId === b)).toBe(true) // same customer, amount and method
+    expect(rec.flags.some((x) => x.type === 'approved_without_proof' && x.paymentId === b)).toBe(true)
+    expect(rec.flags.some((x) => x.type === 'invoice_ledger_mismatch')).toBe(false)
+    expect((await hit('GET', `/staff/v1/finance/reconciliation?date=${day}`, undefined, await staffToken('agent'))).status).toBe(403)
+  })
   it('permissions: agents may draft but not issue; accountants issue; customers and other customers are kept out', async () => {
     const id = await submit()
     const agent = await staffToken('agent'), accountant = await staffToken('accountant')
@@ -1333,8 +1410,6 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     const b = await pay(id, 10000, { key, ref }); expect((await b.json() as { replay: boolean }).replay).toBe(true)
     expect((await pay(id, 20000, { key, ref })).status).toBe(422)
     expect((await pay(id, 5000, { ref })).status).toBe(409) // reference already used
-    // cannot exceed the invoice together with what is already pending/approved: 60000+10000 pending, only 30000 left
-    expect((await pay(id, 30001)).status).toBe(409)
     expect((await pay(id, 30000)).status).toBe(201)
     expect((await hit('POST', `/v1/requests/${id}/payments`, { amountFils: 1.5, method: 'bank_transfer', reference: 'TRX-9999', proofFileId: await proof(id), clientKey: 'k-float-0001' }, cust)).status).toBe(400)
     // only an authorised member approves; an agent or the customer cannot
@@ -1354,24 +1429,55 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     // pay the rest, get to "paid"; then nothing more can be registered
     for (const p of (await fin(id)).payments.filter((q) => q.status === 'pending_verification')) expect((await approve(p.id)).status).toBe(200)
     t = (await fin(id)).totals; expect(t).toMatchObject({ paid: 100000, remaining: 0, state: 'paid', pending: 0 })
-    expect((await pay(id, 1)).status).toBe(409)
+    // an extra payment is accepted and approved: it does NOT change the invoice, it becomes the customer's unallocated credit
+    const extra = await (await pay(id, 2500)).json() as { id: string }; expect((await approve(extra.id)).status).toBe(200)
+    t = (await fin(id)).totals; expect(t).toMatchObject({ paid: 100000, remaining: 0, state: 'paid' })
+    expect(((await (await hit('GET', `/staff/v1/requests/${id}/ledger`, undefined, owner)).json()) as { credit: { unallocated: number } }).credit.unallocated).toBe(2500)
     // approved payments cannot be altered in the database
     expect(env.DB.prepare('UPDATE payments SET amount_fils=1 WHERE id=?').bind(pid1).run()).rejects.toThrow()
     expect(env.DB.prepare('DELETE FROM payments WHERE id=?').bind(pid1).run()).rejects.toThrow()
   })
-  it('a payment cannot be approved beyond the invoice even if pending ones were registered earlier', async () => {
-    const id = await submit(); const { } = await priced(id)
+  it('overpayment is never hidden: the excess is kept as unallocated credit, the ledger shows it, and the invoice stays at its total', async () => {
+    const id = await submit(); await priced(id)
+    const c0 = await creditOf(id) // the customer-wide credit may already hold money from other tests: compare deltas
     const pids: string[] = []
-    for (const amt of [70000, 30000]) pids.push((await (await pay(id, amt)).json() as { id: string }).id)
-    // sneak an over-cap pending row in directly (as if registered before a refund reduced headroom), approval must still be blocked
-    const { newId } = await import('../src/crypto')
-    const inv = (await fin(id)).documents.find((d) => d.doc_type === 'invoice')!
-    const over = newId()
-    await env.DB.prepare("INSERT INTO payments (id,request_id,invoice_id,kind,amount_fils,method,reference,status,created_by_kind,created_by,created_at) VALUES (?,?,?,'payment',20000,'bank_transfer','OVER-0001','pending_verification','customer','x',1)").bind(over, id, inv.id).run()
-    expect((await approve(pids[0]!)).status).toBe(200); expect((await approve(pids[1]!)).status).toBe(200)
-    const r = await approve(over)
-    expect(r.status).toBe(409); expect((await r.json() as { error: string }).error).toBe('exceeds_balance')
-    expect((await fin(id)).totals.paid).toBe(100000)
+    for (const amt of [70000, 30000, 20000]) { const p = (await (await pay(id, amt)).json() as { id: string }).id; expect((await approve(p)).status).toBe(200); pids.push(p) }
+    const t = (await fin(id)).totals; expect(t).toMatchObject({ total: 100000, paid: 100000, remaining: 0, state: 'paid' })
+    const l = await (await hit('GET', `/staff/v1/requests/${id}/ledger`, undefined, owner)).json() as { credit: { received: number; allocated: number; unallocated: number }; allocations: { payment_id: string; amount_fils: number }[] }
+    expect([l.credit.received - c0.received, l.credit.allocated - c0.allocated, l.credit.unallocated - c0.unallocated]).toEqual([120000, 100000, 20000])
+    expect(l.allocations.find((x) => x.payment_id === pids[2])).toBeUndefined() // the 3rd payment got nothing allocated: it is all credit
+    const cd = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { finance: { credit: { unallocated: number } } }
+    expect(cd.finance.credit.unallocated - c0.unallocated).toBe(20000) // the customer sees it too
+    // the database itself refuses allocating money twice
+    expect(env.DB.prepare("INSERT INTO allocations (id,payment_id,request_id,invoice_id,amount_fils,kind,reason,created_by,created_at) VALUES ('11111111-1111-4111-8111-111111111111',?,?,?,1,'allocate','x','x',1)").bind(pids[0], id, (await fin(id)).documents.find((d) => d.doc_type === 'invoice')!.id).run()).rejects.toThrow()
+    expect(env.DB.prepare('DELETE FROM allocations').run()).rejects.toThrow()
+    expect(env.DB.prepare('UPDATE allocations SET amount_fils=1').run()).rejects.toThrow()
+  })
+  it('one payment can cover two transactions; the same money cannot be allocated twice; reversal is a linked entry; other customers are kept out', async () => {
+    const id1 = await submit(); await priced(id1)
+    const id2 = await submit(); await priced(id2)
+    const c0 = await creditOf(id1)
+    const p = (await (await pay(id1, 150000)).json() as { id: string }).id; await approve(p)
+    expect((await fin(id1)).totals).toMatchObject({ paid: 100000, remaining: 0 })
+    expect((await fin(id2)).totals).toMatchObject({ paid: 0, remaining: 100000 })
+    const alloc = (rid: string, amt: number, token = owner) => hit('POST', `/staff/v1/payments/${p}/allocate`, { requestId: rid, amountFils: amt, reason: 'One transfer for two transactions' }, token)
+    expect((await alloc(id2, 50001)).status).toBe(409) // only 50000 is unallocated
+    expect((await alloc(id2, 50000, await staffToken('agent'))).status).toBe(403)
+    const ok = await alloc(id2, 50000); expect(ok.status).toBe(201)
+    expect((await fin(id2)).totals).toMatchObject({ paid: 50000, remaining: 50000, state: 'partial' })
+    expect((await alloc(id2, 1)).status).toBe(409) // nothing left to allocate: the same money is not allocated twice
+    const other = await login('+971521190055'); const idOther = await submit(other); await priced(idOther)
+    expect((await alloc(idOther, 1)).status).toBe(404) // a different customer's invoice
+    // reversal: new negative entry, original untouched, only once
+    const aid = (await ok.json() as { id: string }).id
+    expect((await hit('POST', `/staff/v1/allocations/${aid}/reverse`, { reason: 'Allocated to the wrong transaction' }, await staffToken('accountant'))).status).toBe(403)
+    expect((await hit('POST', `/staff/v1/allocations/${aid}/reverse`, { reason: 'short' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/allocations/${aid}/reverse`, { reason: 'Allocated to the wrong transaction' }, owner)).status).toBe(200)
+    expect((await hit('POST', `/staff/v1/allocations/${aid}/reverse`, { reason: 'Allocated to the wrong transaction' }, owner)).status).toBe(409)
+    expect((await fin(id2)).totals).toMatchObject({ paid: 50000, net: 0, remaining: 100000 })
+    const led = await (await hit('GET', `/staff/v1/requests/${id2}/ledger`, undefined, owner)).json() as { allocations: { kind: string; reverses_id: string | null; amount_fils: number }[]; credit: { unallocated: number } }
+    expect(led.allocations.map((x) => x.kind)).toEqual(['allocate', 'reverse']); expect(led.allocations[1]!.reverses_id).toBe(aid)
+    expect(led.credit.unallocated - c0.unallocated).toBe(50000)
   })
   it('proof must be scanned before approval; staff-recorded payments need a second approver (owner excepted); rejection frees the reference', async () => {
     const id = await submit(); await priced(id)
@@ -1399,30 +1505,50 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect((await hit('GET', `/staff/v1/payments/${p2}/proof`, undefined, owner)).status).toBe(200)
     expect((await hit('GET', `/staff/v1/payments/${p2}/proof`, undefined, await staffToken('agent'))).status).toBe(403)
   })
-  it('refunds: owner/manager only, never above what is paid or what that payment received, linked credit notes, originals untouched', async () => {
+  const creditOf = async (id: string) => ((await (await hit('GET', `/staff/v1/requests/${id}/ledger`, undefined, owner)).json()) as { credit: { received: number; allocated: number; unallocated: number } }).credit // customer-wide
+  const refundReq = (id: string, amt: number, body: Record<string, unknown> = {}, token = owner) => hit('POST', `/staff/v1/requests/${id}/refund-requests`, { amountFils: amt, reason: 'Service not delivered as agreed', ...body }, token)
+  it('refunds: a request is not an execution; separate approval and execution; capped by what is allocated; credit notes; originals untouched', async () => {
     const id = await submit(); await priced(id)
+    const c0 = await creditOf(id)
     const pids: string[] = []
     for (const amt of [60000, 40000]) { const p = (await (await pay(id, amt)).json() as { id: string }).id; await approve(p); pids.push(p) }
     const before = await env.DB.prepare("SELECT number,snapshot_hash,status FROM fin_documents WHERE related_id=? AND doc_type='receipt'").bind(pids[0]).first<{ number: string; snapshot_hash: string; status: string }>()
-    const refund = (amt: number, body: Record<string, unknown> = {}, token = owner) => hit('POST', `/staff/v1/requests/${id}/refunds`, { amountFils: amt, reason: 'Service not delivered as agreed', ...body }, token)
-    expect((await refund(1000, {}, await staffToken('accountant'))).status).toBe(403)
-    expect((await refund(1000, {}, await staffToken('agent'))).status).toBe(403)
-    expect((await refund(1000, {}, cust)).status).toBe(401)
-    expect((await refund(1000, { reason: 'short' })).status).toBe(400)
-    expect((await refund(100001)).status).toBe(409) // more than was paid
-    expect((await refund(40001, { paymentId: pids[1] })).status).toBe(409) // more than that payment received
-    const ok = await refund(25000, { paymentId: pids[1] }); expect(ok.status).toBe(201)
-    expect((await ok.json() as { creditNote: string }).creditNote).toMatch(/^T-CRN-\d{4}-\d{6}$/)
-    expect((await refund(15001, { paymentId: pids[1] })).status).toBe(409) // 25000 already refunded from that payment
-    expect((await refund(15000, { paymentId: pids[1] })).status).toBe(201)
-    let t = (await fin(id)).totals; expect(t).toMatchObject({ paid: 100000, refunded: 40000, net: 60000, remaining: 40000, state: 'partial' })
+    const accountant = await staffToken('accountant'), manager = await staffToken('manager')
+    expect((await refundReq(id, 1000, {}, await staffToken('agent'))).status).toBe(403)
+    expect((await refundReq(id, 1000, {}, cust)).status).toBe(401)
+    expect((await refundReq(id, 1000, { reason: 'short' })).status).toBe(400)
+    expect((await refundReq(id, 100001)).status).toBe(409) // more than was paid
+    expect((await refundReq(id, 40001, { paymentId: pids[1] })).status).toBe(409) // more than that payment received
+    const r1 = await refundReq(id, 25000, { paymentId: pids[1] }, accountant); expect(r1.status).toBe(201) // an accountant may REQUEST
+    const rid = (await r1.json() as { id: string }).id
+    expect((await fin(id)).totals).toMatchObject({ net: 100000, refunded: 0 }) // a request moves no money
+    expect((await hit('POST', `/staff/v1/refund-requests/${rid}/execute`, { reference: 'PAYOUT-0001' }, accountant)).status).toBe(409) // not approved yet
+    expect((await hit('POST', `/staff/v1/refund-requests/${rid}/approve`, {}, accountant)).status).toBe(403) // an accountant cannot approve
+    expect((await hit('POST', `/staff/v1/refund-requests/${rid}/approve`, {}, manager)).status).toBe(200)
+    expect((await hit('POST', `/staff/v1/refund-requests/${rid}/execute`, {}, accountant)).status).toBe(400) // payout reference required
+    const ex = await hit('POST', `/staff/v1/refund-requests/${rid}/execute`, { reference: 'PAYOUT-0001' }, accountant); expect(ex.status).toBe(200)
+    expect((await ex.json() as { creditNote: string }).creditNote).toMatch(/^T-CRN-\d{4}-\d{6}$/)
+    expect(((await (await hit('POST', `/staff/v1/refund-requests/${rid}/execute`, { reference: 'PAYOUT-0001' }, accountant)).json()) as { duplicate: boolean }).duplicate).toBe(true) // repeating is harmless
+    let t = (await fin(id)).totals; expect(t).toMatchObject({ paid: 100000, refunded: 25000, net: 75000, remaining: 25000, state: 'partial' })
+    // a manager cannot approve their own request; the owner can
+    const r2 = await refundReq(id, 15000, { paymentId: pids[1] }, manager); const rid2 = (await r2.json() as { id: string }).id
+    expect((await hit('POST', `/staff/v1/refund-requests/${rid2}/approve`, {}, manager)).status).toBe(403)
+    expect((await hit('POST', `/staff/v1/refund-requests/${rid2}/reject`, { reason: 'x' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/refund-requests/${rid2}/reject`, { reason: 'Customer withdrew the request' }, owner)).status).toBe(200)
+    expect((await hit('POST', `/staff/v1/refund-requests/${rid2}/approve`, {}, owner)).status).toBe(409) // a rejected request is final
+    // open requests reserve the amount: 75000 is allocated, 10000 is held by this request
+    const r3 = await refundReq(id, 10000, { paymentId: pids[0] }); expect(r3.status).toBe(201)
+    expect((await refundReq(id, 65001)).status).toBe(409); expect((await refundReq(id, 65000, { paymentId: pids[0] })).status).toBe(409) // pids[0] only has 50000 left net
+    // to_credit: money stays with us as the customer's credit
+    const r4 = await refundReq(id, 20000, { resolution: 'to_credit', paymentId: pids[0] }); const rid4 = (await r4.json() as { id: string }).id
+    await hit('POST', `/staff/v1/refund-requests/${rid4}/approve`, {}, owner)
+    expect((await hit('POST', `/staff/v1/refund-requests/${rid4}/execute`, {}, accountant)).status).toBe(200) // no payout reference needed for a credit
+    const led = await (await hit('GET', `/staff/v1/requests/${id}/ledger`, undefined, owner)).json() as { credit: { unallocated: number } }
+    expect(led.credit.unallocated - c0.unallocated).toBe(20000) // credit kept, not hidden by zeroing the balance
+    expect((await fin(id)).totals).toMatchObject({ net: 55000, remaining: 45000 })
     const after = await env.DB.prepare("SELECT number,snapshot_hash,status FROM fin_documents WHERE related_id=? AND doc_type='receipt'").bind(pids[0]).first<{ number: string; snapshot_hash: string; status: string }>()
     expect(after).toEqual(before) // the original receipt is exactly as it was
-    expect((await fin(id)).payments.filter((p) => p.kind === 'refund').every((p) => p.refund_of === pids[1] && p.receipt_id)).toBe(true)
-    // refund the rest -> state "refunded"
-    expect((await refund(60000)).status).toBe(201)
-    t = (await fin(id)).totals; expect(t).toMatchObject({ net: 0, state: 'refunded' })
-    expect((await refund(1)).status).toBe(409)
+    expect(env.DB.prepare('DELETE FROM refund_requests').run()).rejects.toThrow()
   })
   it('cancelling an invoice voids it with a reason and a linked credit note; impossible while money is held; a new invoice can follow', async () => {
     const id = await submit(); const { inv } = await priced(id)
@@ -1431,7 +1557,8 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect((await cancel()).status).toBe(409) // pending payment
     await approve(p)
     const held = await cancel(); expect((await held.json() as { error: string }).error).toBe('refund_first')
-    await hit('POST', `/staff/v1/requests/${id}/refunds`, { amountFils: 50000, reason: 'Refund before cancelling the invoice' }, owner)
+    const rr = (await (await refundReq(id, 50000, { reason: 'Refund before cancelling the invoice' })).json() as { id: string }).id
+    await hit('POST', `/staff/v1/refund-requests/${rr}/approve`, {}, owner); await hit('POST', `/staff/v1/refund-requests/${rr}/execute`, { reference: 'PAYOUT-0002' }, owner)
     expect((await cancel('short')).status).toBe(400)
     expect((await cancel('x'.repeat(12), await staffToken('agent'))).status).toBe(403)
     const done = await cancel(); expect(done.status).toBe(200)

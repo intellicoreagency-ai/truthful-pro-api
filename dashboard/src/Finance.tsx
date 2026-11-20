@@ -28,7 +28,7 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [lines, setLines] = useState<{ kind: QuoteLine['kind']; ar: string; en: string; amount: string }[]>([{ kind: 'service_fee', ar: '', en: '', amount: '' }])
   const [payAmt, setPayAmt] = useState(''); const [payMethod, setPayMethod] = useState('cash'); const [payRef, setPayRef] = useState('')
-  const [refAmt, setRefAmt] = useState(''); const [payUrl, setPayUrl] = useState(''); const [govAmt, setGovAmt] = useState(''); const [govUrl, setGovUrl] = useState('')
+  const [refAmt, setRefAmt] = useState(''); const [refRes, setRefRes] = useState<'to_customer' | 'to_credit'>('to_customer'); const [payUrl, setPayUrl] = useState(''); const [govAmt, setGovAmt] = useState(''); const [govUrl, setGovUrl] = useState('')
   const canFin = role === 'owner' || role === 'manager' || role === 'accountant'
   const canRefund = role === 'owner' || role === 'manager'
   const run = async (fn: () => Promise<unknown>, ok?: string) => {
@@ -144,12 +144,26 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
               <button className="btn sm" disabled={!aedToFils(payAmt)} onClick={() => run(async () => { await api.recordPayment(requestId, { amountFils: aedToFils(payAmt) as number, method: payMethod, reference: payRef.trim() || undefined }); setPayAmt(''); setPayRef('') })}>{t('recordPay')}</button>
             </div>
           )}
-          {canRefund && paymentsOnly.some((p) => p.status === 'approved') && (
+          {f.credit.unallocated !== 0 && <p className="small"><b>{t('creditBal')}:</b> <span dir="ltr">{fmtFils(f.credit.unallocated)}</span> <span className="muted">({t('creditNote2')})</span></p>}
+          {canFin && paymentsOnly.some((p) => p.status === 'approved') && (
             <div style={{ marginTop: 10 }}>
               <b className="small">{t('refundTitle')}</b>
               <div className="row"><input dir="ltr" inputMode="decimal" placeholder="100" aria-label={t('amountAed')} value={refAmt} onChange={(e) => setRefAmt(e.target.value)} />
-                <button className="btn sm danger" disabled={!aedToFils(refAmt)} onClick={() => { const r = window.prompt(t('refundReason'))?.trim(); if (r && r.length >= 10) void run(async () => { await api.refund(requestId, { amountFils: aedToFils(refAmt) as number, reason: r }); setRefAmt('') }) }}>{t('refundBtn')}</button></div>
+                <select aria-label={t('resolution')} value={refRes} onChange={(e) => setRefRes(e.target.value as 'to_customer' | 'to_credit')}><option value="to_customer">{t('toCustomer')}</option><option value="to_credit">{t('toCredit')}</option></select>
+                <button className="btn sm" disabled={!aedToFils(refAmt)} onClick={() => { const r = window.prompt(t('refundReason'))?.trim(); if (r && r.length >= 10) void run(async () => { await api.requestRefund(requestId, { amountFils: aedToFils(refAmt) as number, reason: r, resolution: refRes }); setRefAmt('') }) }}>{t('refundBtn')}</button></div>
             </div>
+          )}
+          {f.refundRequests.map((q) => (
+            <div className="file" key={q.id}>
+              <span><b dir="ltr">{fmtFils(q.amount_fils)}</b> · {t(q.resolution === 'to_credit' ? 'toCredit' : 'toCustomer')} · <span className="badge">{t(('rr_' + q.status) as Key)}</span><br /><span className="muted small">{q.reason}{q.execution_ref ? ` · ${q.execution_ref}` : ''}</span></span>
+              <span className="row">
+                {canRefund && q.status === 'requested' && <><button className="btn primary sm" onClick={() => run(() => api.approveRefund(q.id))}>{t('approveP')}</button><button className="btn sm danger" onClick={() => { const r = window.prompt(t('rejectPrompt'))?.trim(); if (r) void run(() => api.rejectRefund(q.id, r)) }}>{t('rejectP')}</button></>}
+                {canFin && q.status === 'approved' && <button className="btn primary sm" onClick={() => { const r = q.resolution === 'to_customer' ? window.prompt(t('payoutRef'))?.trim() : ''; if (r !== undefined && (q.resolution === 'to_credit' || (r && r.length >= 4))) void run(() => api.executeRefund(q.id, r ?? '')) }}>{t('executeRefund')}</button>}
+              </span>
+            </div>
+          ))}
+          {canFin && (
+            <button className="btn sm" style={{ marginTop: 8 }} onClick={async () => { try { const c = await api.cancellation(requestId); setMsg({ ok: true, text: `${t('cxlCompany')}: ${fmtFils(c.companyFee.allocated)} · ${t('cxlEarned')}: ${fmtFils(c.companyFee.earned)} (${c.companyFee.retainedPercent}%) · ${t('cxlRefundable')}: ${fmtFils(c.companyFee.refundable)} · ${t('cxlGov')}: ${fmtFils(c.governmentFee.paidToAuthorityVerified)}${c.policyApproved ? '' : ' · ' + t('cxlNoPolicy')}` }) } catch (e) { setMsg({ ok: false, text: t(errKey(e)) }) } }}>{t('cxlBtn')}</button>
           )}
         </>
       )}

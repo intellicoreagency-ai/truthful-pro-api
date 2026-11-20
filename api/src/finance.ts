@@ -61,7 +61,9 @@ export const dubaiYear = (ms: number) => new Date(ms + 4 * 3600_000).getUTCFullY
  * Numbers carry a T- prefix: every document is a TEST copy.
  */
 export async function documentStatements(env: Env, p: { id: string; requestId: string; type: DocType; relatedId: string | null; totalFils: number; snapshot: object; createdBy: string; now: number }) {
-  const year = dubaiYear(p.now), snap = JSON.stringify(p.snapshot)
+  const year = dubaiYear(p.now)
+  // the establishment's details are frozen into the document as they were when it was issued
+  const snap = JSON.stringify({ ...p.snapshot, company: { nameAr: env.COMPANY_NAME_AR ?? 'تروثفل لخدمات التخليص ذ.م.م', nameEn: env.COMPANY_NAME_EN ?? 'Truthful Clearance Services LLC', taxConfigured: false } })
   return [
     env.DB.prepare('INSERT OR IGNORE INTO doc_counters (doc_type,year,next) VALUES (?,?,0)').bind(p.type, year),
     env.DB.prepare('UPDATE doc_counters SET next=next+1 WHERE doc_type=? AND year=?').bind(p.type, year),
@@ -72,15 +74,30 @@ export async function documentStatements(env: Env, p: { id: string; requestId: s
 }
 
 export type Totals = { invoice: { id: string; number: string; total: number } | null; total: number; paid: number; refunded: number; net: number; pending: number; remaining: number; state: 'unpriced' | 'awaiting_payment' | 'partial' | 'paid' | 'refunded' }
+/** Everything here is computed from the ledger (allocations) and the refund records; no stored "paid" figure exists to be edited. */
 export async function totalsFor(env: Env, requestId: string): Promise<Totals> {
   const inv = await env.DB.prepare("SELECT id,number,total_fils FROM fin_documents WHERE request_id=? AND doc_type='invoice' AND status='issued'").bind(requestId).first<{ id: string; number: string; total_fils: number }>()
   if (!inv) return { invoice: null, total: 0, paid: 0, refunded: 0, net: 0, pending: 0, remaining: 0, state: 'unpriced' }
   const a = await env.DB.prepare(
-    "SELECT COALESCE(SUM(CASE WHEN kind='payment' AND status='approved' THEN amount_fils END),0) paid, COALESCE(SUM(CASE WHEN kind='refund' AND status='approved' THEN amount_fils END),0) refunded, COALESCE(SUM(CASE WHEN kind='payment' AND status='pending_verification' THEN amount_fils END),0) pending FROM payments WHERE invoice_id=?"
-  ).bind(inv.id).first<{ paid: number; refunded: number; pending: number }>()
-  const paid = a?.paid ?? 0, refunded = a?.refunded ?? 0, net = paid - refunded
-  const state = net <= 0 ? (refunded > 0 ? 'refunded' : 'awaiting_payment') : net < inv.total_fils ? 'partial' : 'paid'
-  return { invoice: { id: inv.id, number: inv.number, total: inv.total_fils }, total: inv.total_fils, paid, refunded, net, pending: a?.pending ?? 0, remaining: inv.total_fils - net, state }
+    `SELECT COALESCE((SELECT SUM(CASE WHEN amount_fils>0 THEN amount_fils END) FROM allocations WHERE invoice_id=?1),0) gross,
+            COALESCE((SELECT SUM(amount_fils) FROM allocations WHERE invoice_id=?1),0) net,
+            COALESCE((SELECT SUM(amount_fils) FROM refund_requests WHERE invoice_id=?1 AND status='executed'),0) refunded,
+            COALESCE((SELECT SUM(amount_fils) FROM payments WHERE request_id=?2 AND kind='payment' AND status='pending_verification'),0) pending`
+  ).bind(inv.id, requestId).first<{ gross: number; net: number; refunded: number; pending: number }>()
+  const net = a?.net ?? 0, refunded = a?.refunded ?? 0, gross = a?.gross ?? 0
+  const state = net <= 0 ? (gross > 0 ? 'refunded' : 'awaiting_payment') : net < inv.total_fils ? 'partial' : 'paid'
+  return { invoice: { id: inv.id, number: inv.number, total: inv.total_fils }, total: inv.total_fils, paid: gross, refunded, net, pending: a?.pending ?? 0, remaining: inv.total_fils - net, state }
+}
+
+/** The customer's money position, from the ledger: approved payments received, minus what is allocated to invoices, minus refunds paid out. */
+export async function creditFor(env: Env, userId: string): Promise<{ received: number; allocated: number; refundedOut: number; unallocated: number }> {
+  const a = await env.DB.prepare(
+    `SELECT COALESCE((SELECT SUM(p.amount_fils) FROM payments p JOIN requests r ON r.id=p.request_id WHERE r.user_id=?1 AND p.kind='payment' AND p.status='approved'),0) received,
+            COALESCE((SELECT SUM(al.amount_fils) FROM allocations al JOIN requests r ON r.id=al.request_id WHERE r.user_id=?1),0) allocated,
+            COALESCE((SELECT SUM(rr.amount_fils) FROM refund_requests rr JOIN requests r ON r.id=rr.request_id WHERE r.user_id=?1 AND rr.status='executed' AND rr.resolution='to_customer'),0) refundedOut`
+  ).bind(userId).first<{ received: number; allocated: number; refundedOut: number }>()
+  const received = a?.received ?? 0, allocated = a?.allocated ?? 0, refundedOut = a?.refundedOut ?? 0
+  return { received, allocated, refundedOut, unallocated: received - allocated - refundedOut }
 }
 
 // ---------- rendering (self-contained HTML; every value is escaped) ----------
@@ -108,7 +125,7 @@ export function renderDocument(env: Env, row: DocRow): string {
     x.originalNumber ? ['المستند الأصلي', 'Original document', x.originalNumber] : null, x.paymentMethod ? ['طريقة الدفع', 'Method', x.paymentMethod] : null,
     x.paymentRef ? ['المرجع', 'Reference', x.paymentRef] : null, x.reason ? ['السبب', 'Reason', x.reason] : null,
   ].filter(Boolean) as string[][]
-  const co = [env.COMPANY_NAME_AR ?? 'تروثفل لخدمات التخليص ذ.م.م', env.COMPANY_NAME_EN ?? 'Truthful Clearance Services LLC']
+  const co = [s.company?.nameAr ?? env.COMPANY_NAME_AR ?? 'تروثفل لخدمات التخليص ذ.م.م', s.company?.nameEn ?? env.COMPANY_NAME_EN ?? 'Truthful Clearance Services LLC']
   return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(tEn)} ${esc(row.number)}</title><style>
 body{font-family:'IBM Plex Sans Arabic','Segoe UI',Tahoma,Arial,sans-serif;background:#fff8ee;color:#3c281b;margin:0;padding:16px;line-height:1.6}
 .page{max-width:780px;margin:0 auto;background:#fffdf8;border:1px solid #ead9bf;border-radius:14px;padding:22px;position:relative;overflow:hidden}
@@ -135,20 +152,16 @@ ${govRows ? `<table><tr><td colspan="2"><b>الرسوم الحكومية حسب 
 }
 
 // ---------- payments: atomic, idempotent writes ----------
-const NET_APPROVED = "COALESCE((SELECT SUM(CASE kind WHEN 'payment' THEN amount_fils ELSE -amount_fils END) FROM payments WHERE invoice_id=? AND status='approved'),0)"
-const COMMITTED = "COALESCE((SELECT SUM(CASE kind WHEN 'payment' THEN amount_fils ELSE -amount_fils END) FROM payments WHERE invoice_id=? AND ((kind='payment' AND status IN ('approved','pending_verification')) OR (kind='refund' AND status='approved'))),0)"
-
 export type PayInput = { id: string; requestId: string; invoiceId: string; amount: number; method: 'bank_transfer' | 'cash' | 'other'; reference: string | null; proofFileId: string | null; clientKey: string | null; byKind: 'customer' | 'staff'; by: string; now: number }
-/** A payment is only accepted if, together with everything already approved or awaiting verification, it does not exceed the invoice. One statement, so two requests cannot both squeeze in. */
-export async function insertPayment(env: Env, p: PayInput): Promise<{ ok: true } | { ok: false; error: 'exceeds_balance' | 'client_key_conflict' | 'reference_used' }> {
+/** Reporting a payment never touches any balance. An amount above the invoice is allowed: the excess becomes the customer's unallocated credit once approved. */
+export async function insertPayment(env: Env, p: PayInput): Promise<{ ok: true } | { ok: false; error: 'invoice_not_active' | 'client_key_conflict' | 'reference_used' }> {
   try {
     const r = await env.DB.prepare(
       `INSERT INTO payments (id,request_id,invoice_id,kind,amount_fils,method,reference,proof_file_id,status,client_key,created_by_kind,created_by,created_at)
        SELECT ?,?,?,'payment',?,?,?,?,'pending_verification',?,?,?,?
-       WHERE EXISTS (SELECT 1 FROM fin_documents WHERE id=? AND status='issued' AND request_id=?)
-         AND ? <= (SELECT total_fils FROM fin_documents WHERE id=?) - ${COMMITTED}`
-    ).bind(p.id, p.requestId, p.invoiceId, p.amount, p.method, p.reference, p.proofFileId, p.clientKey, p.byKind, p.by, p.now, p.invoiceId, p.requestId, p.amount, p.invoiceId, p.invoiceId).run()
-    return r.meta.changes ? { ok: true } : { ok: false, error: 'exceeds_balance' }
+       WHERE EXISTS (SELECT 1 FROM fin_documents WHERE id=? AND status='issued' AND request_id=?)`
+    ).bind(p.id, p.requestId, p.invoiceId, p.amount, p.method, p.reference, p.proofFileId, p.clientKey, p.byKind, p.by, p.now, p.invoiceId, p.requestId).run()
+    return r.meta.changes ? { ok: true } : { ok: false, error: 'invoice_not_active' }
   } catch (e) {
     const m = String((e as Error).message)
     if (m.includes('client_key')) return { ok: false, error: 'client_key_conflict' }
@@ -157,36 +170,60 @@ export async function insertPayment(env: Env, p: PayInput): Promise<{ ok: true }
   }
 }
 
-/** Approval is one conditional UPDATE: it succeeds only while the payment is pending AND still fits the invoice. */
+/** Approval = one transaction: the payment becomes approved AND is allocated to its invoice (up to what the invoice still needs); anything above stays as unallocated credit. */
 export async function approvePayment(env: Env, paymentId: string, by: string, note: string | null, now: number): Promise<boolean> {
-  const r = await env.DB.prepare(
-    `UPDATE payments SET status='approved', decided_by=?, decided_at=?, decision_note=?
-     WHERE id=? AND kind='payment' AND status='pending_verification'
-       AND amount_fils <= (SELECT total_fils FROM fin_documents WHERE id=payments.invoice_id) - COALESCE((SELECT SUM(CASE kind WHEN 'payment' THEN amount_fils ELSE -amount_fils END) FROM payments p2 WHERE p2.invoice_id=payments.invoice_id AND p2.status='approved'),0)`
-  ).bind(by, now, note, paymentId).run()
-  return r.meta.changes > 0
+  const [r] = await env.DB.batch([
+    env.DB.prepare("UPDATE payments SET status='approved', decided_by=?, decided_at=?, decision_note=? WHERE id=? AND kind='payment' AND status='pending_verification'").bind(by, now, note, paymentId),
+    env.DB.prepare(
+      `INSERT INTO allocations (id,payment_id,request_id,invoice_id,amount_fils,kind,reason,created_by,created_at)
+       SELECT ?, p.id, p.request_id, p.invoice_id, MIN(p.amount_fils, d.total_fils - COALESCE((SELECT SUM(amount_fils) FROM allocations WHERE invoice_id=p.invoice_id),0)), 'allocate','auto', ?, ?
+       FROM payments p JOIN fin_documents d ON d.id=p.invoice_id
+       WHERE p.id=? AND p.status='approved' AND d.status='issued' AND NOT EXISTS (SELECT 1 FROM allocations WHERE payment_id=p.id)
+         AND d.total_fils - COALESCE((SELECT SUM(amount_fils) FROM allocations WHERE invoice_id=p.invoice_id),0) > 0`
+    ).bind(crypto.randomUUID(), by, now, paymentId),
+  ])
+  return r!.meta.changes > 0
 }
 
-/** A refund cannot exceed what is currently paid, nor what that specific payment received. */
-export async function insertRefund(env: Env, p: { id: string; requestId: string; invoiceId: string; amount: number; reason: string; refundOf: string | null; by: string; now: number }): Promise<boolean> {
-  const r = await env.DB.prepare(
-    `INSERT INTO payments (id,request_id,invoice_id,kind,amount_fils,method,status,created_by_kind,created_by,created_at,decided_by,decided_at,reason,refund_of)
-     SELECT ?,?,?,'refund',?,'other','approved','staff',?,?,?,?,?,?
-     WHERE EXISTS (SELECT 1 FROM fin_documents WHERE id=? AND status='issued' AND request_id=?)
-       AND ? <= ${NET_APPROVED}
-       AND (? IS NULL OR ? <= COALESCE((SELECT amount_fils FROM payments WHERE id=? AND kind='payment' AND status='approved' AND invoice_id=?),0) - COALESCE((SELECT SUM(amount_fils) FROM payments WHERE refund_of=? AND kind='refund' AND status='approved'),0))`
-  ).bind(p.id, p.requestId, p.invoiceId, p.amount, p.by, p.now, p.by, p.now, p.reason, p.refundOf, p.invoiceId, p.requestId, p.amount, p.invoiceId, p.refundOf, p.amount, p.refundOf, p.invoiceId, p.refundOf).run()
-  return r.meta.changes > 0
+/** Allocates part of an approved payment's unallocated balance to an invoice of the same customer. The database refuses double allocation. */
+export async function allocateManually(env: Env, p: { paymentId: string; requestId: string; amount: number; reason: string; by: string; now: number }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const pay = await env.DB.prepare("SELECT p.id,p.amount_fils,r.user_id FROM payments p JOIN requests r ON r.id=p.request_id WHERE p.id=? AND p.kind='payment' AND p.status='approved'").bind(p.paymentId).first<{ id: string; amount_fils: number; user_id: string }>()
+  const inv = await env.DB.prepare("SELECT d.id FROM fin_documents d JOIN requests r ON r.id=d.request_id WHERE d.request_id=? AND d.doc_type='invoice' AND d.status='issued' AND r.user_id=?").bind(p.requestId, pay?.user_id ?? '').first<{ id: string }>()
+  if (!pay || !inv) return { ok: false, error: 'not_found' }
+  const id = crypto.randomUUID()
+  try {
+    await env.DB.prepare("INSERT INTO allocations (id,payment_id,request_id,invoice_id,amount_fils,kind,reason,created_by,created_at) VALUES (?,?,?,?,?,'allocate',?,?,?)").bind(id, pay.id, p.requestId, inv.id, p.amount, p.reason, p.by, p.now).run()
+    return { ok: true, id }
+  } catch (e) { return String((e as Error).message).includes('allocation exceeds') ? { ok: false, error: 'exceeds_available' } : (() => { throw e })() }
+}
+
+/** Reverses a ledger entry with a new, linked, negative entry (never an edit or delete). */
+export async function reverseAllocation(env: Env, p: { allocationId: string; reason: string; by: string; now: number }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const a = await env.DB.prepare("SELECT id,payment_id,request_id,invoice_id,amount_fils,kind FROM allocations WHERE id=?").bind(p.allocationId).first<{ id: string; payment_id: string; request_id: string; invoice_id: string; amount_fils: number; kind: string }>()
+  if (!a || a.amount_fils <= 0 || a.kind !== 'allocate') return { ok: false, error: 'not_reversible' }
+  const id = crypto.randomUUID()
+  try {
+    await env.DB.prepare("INSERT INTO allocations (id,payment_id,request_id,invoice_id,amount_fils,kind,reverses_id,reason,created_by,created_at) VALUES (?,?,?,?,?,'reverse',?,?,?,?)").bind(id, a.payment_id, a.request_id, a.invoice_id, -a.amount_fils, a.id, p.reason, p.by, p.now).run()
+    return { ok: true, id }
+  } catch (e) { const m = String((e as Error).message); return m.includes('UNIQUE') || m.includes('allocation exceeds') ? { ok: false, error: 'already_reversed' } : (() => { throw e })() }
+}
+
+/** What can still be refunded for this invoice: net allocated minus open (requested/approved) refund requests. */
+export async function refundable(env: Env, invoiceId: string): Promise<number> {
+  const a = await env.DB.prepare("SELECT COALESCE((SELECT SUM(amount_fils) FROM allocations WHERE invoice_id=?1),0) - COALESCE((SELECT SUM(amount_fils) FROM refund_requests WHERE invoice_id=?1 AND status IN ('requested','approved')),0) v").bind(invoiceId).first<{ v: number }>()
+  return Math.max(0, a?.v ?? 0)
 }
 
 // ---------- the customer's own payment to the authority (tracked; never part of the company's balance) ----------
 export type GovState = 'none' | 'unpaid' | 'reported' | 'paid'
 export async function govFor(env: Env, requestId: string) {
-  const q = await env.DB.prepare("SELECT id,version,gov_fils,gov_pay_url FROM quotes WHERE request_id=? AND status IN ('issued','accepted') ORDER BY version DESC LIMIT 1").bind(requestId).first<{ id: string; version: number; gov_fils: number; gov_pay_url: string | null }>()
-  if (!q || q.gov_fils <= 0) return { quoteId: q?.id ?? null, total: 0, payUrl: null as string | null, verified: 0, reported: 0, remaining: 0, state: 'none' as GovState }
+  const q0 = await env.DB.prepare("SELECT id,version,gov_fils,gov_pay_url,gov_beneficiary FROM quotes WHERE request_id=? AND status IN ('issued','accepted') ORDER BY version DESC LIMIT 1").bind(requestId).first<{ id: string; version: number; gov_fils: number; gov_pay_url: string | null; gov_beneficiary: string | null }>()
+  const adj = q0 ? (await env.DB.prepare('SELECT COALESCE(SUM(delta_fils),0) d FROM gov_adjustments WHERE quote_id=?').bind(q0.id).first<{ d: number }>())?.d ?? 0 : 0
+  const q = q0 ? { ...q0, expected: q0.gov_fils, adjustments: adj, gov_fils: q0.gov_fils + adj } : null
+  if (!q || q.gov_fils <= 0) return { quoteId: q?.id ?? null, beneficiary: null as string | null, expected: 0, adjustments: 0, total: 0, payUrl: null as string | null, verified: 0, reported: 0, remaining: 0, state: 'none' as GovState }
   const a = await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN status='verified' THEN amount_fils END),0) v, COALESCE(SUM(CASE WHEN status='reported' THEN amount_fils END),0) r FROM authority_payments WHERE quote_id=?").bind(q.id).first<{ v: number; r: number }>()
   const v = a?.v ?? 0, r = a?.r ?? 0
-  return { quoteId: q.id, total: q.gov_fils, payUrl: q.gov_pay_url, verified: v, reported: r, remaining: Math.max(0, q.gov_fils - v - r), state: (v >= q.gov_fils ? 'paid' : v + r > 0 ? 'reported' : 'unpaid') as GovState }
+  return { quoteId: q.id, beneficiary: q.gov_beneficiary, expected: q.expected, adjustments: q.adjustments, total: q.gov_fils, payUrl: q.gov_pay_url, verified: v, reported: r, remaining: Math.max(0, q.gov_fils - v - r), state: (v >= q.gov_fils ? 'paid' : v + r > 0 ? 'reported' : 'unpaid') as GovState }
 }
 
 /** Registers a payment made to the authority. It cannot exceed the official total of the live statement together with what is already registered. */
@@ -196,8 +233,8 @@ export async function insertAuthorityPayment(env: Env, p: { id: string; requestI
       `INSERT INTO authority_payments (id,request_id,quote_id,amount_fils,reference,proof_file_id,status,client_key,reported_by_kind,reported_by,created_at)
        SELECT ?,?,?,?,?,?,'reported',?,?,?,?
        WHERE EXISTS (SELECT 1 FROM quotes WHERE id=? AND request_id=? AND status IN ('issued','accepted') AND gov_fils>0)
-         AND ? <= (SELECT gov_fils FROM quotes WHERE id=?) - COALESCE((SELECT SUM(amount_fils) FROM authority_payments WHERE quote_id=? AND status IN ('reported','verified')),0)`
-    ).bind(p.id, p.requestId, p.quoteId, p.amount, p.reference, p.proofFileId, p.clientKey, p.byKind, p.by, p.now, p.quoteId, p.requestId, p.amount, p.quoteId, p.quoteId).run()
+         AND ? <= (SELECT gov_fils FROM quotes WHERE id=?) + COALESCE((SELECT SUM(delta_fils) FROM gov_adjustments WHERE quote_id=?),0) - COALESCE((SELECT SUM(amount_fils) FROM authority_payments WHERE quote_id=? AND status IN ('reported','verified')),0)`
+    ).bind(p.id, p.requestId, p.quoteId, p.amount, p.reference, p.proofFileId, p.clientKey, p.byKind, p.by, p.now, p.quoteId, p.requestId, p.amount, p.quoteId, p.quoteId, p.quoteId).run()
     return r.meta.changes ? { ok: true } : { ok: false, error: 'exceeds_government_total' }
   } catch (e) {
     const m = String((e as Error).message)
