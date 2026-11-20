@@ -28,7 +28,7 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [lines, setLines] = useState<{ kind: QuoteLine['kind']; ar: string; en: string; amount: string }[]>([{ kind: 'service_fee', ar: '', en: '', amount: '' }])
   const [payAmt, setPayAmt] = useState(''); const [payMethod, setPayMethod] = useState('cash'); const [payRef, setPayRef] = useState('')
-  const [refAmt, setRefAmt] = useState(''); const [payUrl, setPayUrl] = useState('')
+  const [refAmt, setRefAmt] = useState(''); const [payUrl, setPayUrl] = useState(''); const [govAmt, setGovAmt] = useState(''); const [govUrl, setGovUrl] = useState('')
   const canFin = role === 'owner' || role === 'manager' || role === 'accountant'
   const canRefund = role === 'owner' || role === 'manager'
   const run = async (fn: () => Promise<unknown>, ok?: string) => {
@@ -83,6 +83,16 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
             {canFin && draft && <button className="btn primary sm" onClick={() => run(() => api.issueQuote(draft.id))}>{t('issueInvoice')}</button>}
           </div>
           {draft && <p className="muted small">{draft.items.map((i) => `${t(kLabel[i.kind] ?? 'kSvc')}: ${fmtFils(i.amount_fils)}`).join(' · ')}</p>}
+        </div>
+      )}
+      {canFin && inv && f.gov.total === 0 && (
+        <div style={{ marginTop: 8 }}>
+          <b className="small">{t('govFeeTitle')}</b> <span className="muted small">{t('govFeeNote')}</span>
+          <div className="grid" style={{ gridTemplateColumns: '1fr 2fr', gap: 8 }}>
+            <Field label={t('amountAed')}><input dir="ltr" inputMode="decimal" placeholder="350" value={govAmt} onChange={(e) => setGovAmt(e.target.value)} /></Field>
+            <Field label={t('payLink')}><input dir="ltr" placeholder="https://…gov.ae/…" value={govUrl} onChange={(e) => setGovUrl(e.target.value)} /></Field>
+          </div>
+          <button className="btn sm" disabled={!aedToFils(govAmt)} onClick={() => run(() => api.setGovFee(requestId, aedToFils(govAmt) as number, govUrl.trim()))}>{t('addGovFee')}</button>
         </div>
       )}
       {f.gov.total > 0 && (

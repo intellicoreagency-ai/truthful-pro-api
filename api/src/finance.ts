@@ -205,3 +205,29 @@ export async function insertAuthorityPayment(env: Env, p: { id: string; requestI
     throw e
   }
 }
+
+/** Issues the invoice for the Company's own fee for this service, once, when a request is submitted. No fee configured for the service -> nothing happens (staff price it manually). */
+export async function autoInvoice(env: Env, requestId: string): Promise<{ documentId: string } | null> {
+  const r = await env.DB.prepare("SELECT r.id,r.service_id,r.data,u.display_name FROM requests r JOIN users u ON u.id=r.user_id WHERE r.id=? AND r.deleted_at IS NULL AND r.status!='draft'").bind(requestId).first<{ id: string; service_id: string; data: string; display_name: string | null }>()
+  if (!r) return null
+  const fee = await env.DB.prepare('SELECT fee_fils FROM service_fees WHERE service_id=?').bind(r.service_id).first<{ fee_fils: number }>()
+  if (!fee) return null
+  if (await env.DB.prepare("SELECT 1 x FROM fin_documents WHERE request_id=? AND doc_type='invoice' AND status='issued'").bind(requestId).first()) return null
+  let d: any = {}; try { d = JSON.parse(r.data) } catch { /* */ }
+  const now = Date.now(), qid = crypto.randomUUID(), docId = crypto.randomUUID()
+  const ar = 'أتعاب الشركة', en = 'Company fee'
+  const snapshot = { customerName: d.name || r.display_name || '', requestTitle: d.title ?? null, requestRef: r.id.slice(0, 8), lines: [{ kind: 'service_fee', ar, en, amount: fee.fee_fils }], totals: { total: fee.fee_fils, paid: 0, refunded: 0, remaining: fee.fee_fils }, govTotal: 0, extra: { version: 1, auto: true } }
+  try {
+    const mx = await env.DB.prepare('SELECT MAX(version) v FROM quotes WHERE request_id=?').bind(requestId).first<{ v: number | null }>()
+    const version = (mx?.v ?? 0) + 1
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO quotes (id,request_id,version,status,total_fils,gov_fils,created_by,created_at) VALUES (?,?,?,'draft',?,0,'system',?)").bind(qid, requestId, version, fee.fee_fils, now),
+      env.DB.prepare('INSERT INTO quote_items (id,quote_id,kind,description_ar,description_en,amount_fils,position) VALUES (?,?,?,?,?,?,0)').bind(crypto.randomUUID(), qid, 'service_fee', ar, en, fee.fee_fils),
+      env.DB.prepare("UPDATE quotes SET status='superseded' WHERE request_id=? AND status IN ('issued','accepted')").bind(requestId),
+      env.DB.prepare("UPDATE quotes SET status='accepted', issued_at=?, issued_by='system', accepted_at=?, document_id=? WHERE id=? AND status='draft'").bind(now, now, docId, qid),
+      ...(await documentStatements(env, { id: docId, requestId, type: 'invoice', relatedId: qid, totalFils: fee.fee_fils, snapshot, createdBy: 'system', now })),
+      env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'staff','status',?,?,1,?)").bind(crypto.randomUUID(), requestId, 'صدرت فاتورة أتعاب الشركة تلقائياً (نسخة تجريبية)', 'The invoice for the Company fee was issued automatically (test copy)', now),
+    ])
+    return { documentId: docId }
+  } catch { return null }
+}

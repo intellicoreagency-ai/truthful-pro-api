@@ -6,7 +6,7 @@ import { allow, audit, clientIp, jsonBody, requireAuth, securityHeaders, type C 
 import { sendOtp } from './sms'
 import { staff } from './staff'
 import { scanBytes, scannerMode, uploadsBlocked } from './scanner'
-import { govFor, insertAuthorityPayment, insertPayment, isFils, renderDocument, totalsFor, type DocRow } from './finance'
+import { autoInvoice, govFor, insertAuthorityPayment, insertPayment, isFils, renderDocument, totalsFor, type DocRow } from './finance'
 
 const ACCESS_TTL = 15 * 60 * 1000
 const REFRESH_TTL = 30 * 24 * 3600 * 1000
@@ -341,6 +341,7 @@ authed.patch('/requests/:id', async (c) => {
   if (status) {
     const [ar, en] = status === 'submitted' ? ['تم إرسال الطلب', 'Request submitted'] : ['أُلغي الطلب', 'Request cancelled']
     await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, ar, en, Date.now()).run()
+    if (status === 'submitted') await autoInvoice(c.env, id).catch(() => null) // the fee invoice appears in the app straight away; a failure here never blocks submission
   }
   return c.json({ ok: true, applied: true, status: status ?? cur.status })
 })

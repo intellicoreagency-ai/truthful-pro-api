@@ -890,6 +890,37 @@ guarded.post('/quotes/:qid/issue', roles(...FIN), async (c) => {
   return c.json({ ok: true, documentId: docId, number: await numberOf(c, docId), version: q.version }, 201)
 })
 
+// The Company's fee per service (owner/manager). It drives the automatic invoice at submission.
+guarded.get('/fees', roles('owner', 'manager', 'accountant'), async (c) => c.json({ fees: (await c.env.DB.prepare('SELECT service_id,fee_fils,updated_at FROM service_fees ORDER BY service_id').all()).results }))
+guarded.put('/fees/:serviceId', roles('owner', 'manager'), async (c) => {
+  const sid = c.req.param('serviceId')
+  if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(sid)) return c.json({ error: 'invalid_request' }, 400)
+  const b = await jsonBody(c)
+  if (b?.feeFils === null) { await c.env.DB.prepare('DELETE FROM service_fees WHERE service_id=?').bind(sid).run(); await audit(c, 'finance.fee_removed', null, { sid, by: c.get('staffId') }); return c.json({ ok: true }) }
+  if (!isFils(b?.feeFils) || b.feeFils > 100000000) return c.json({ error: 'invalid_request' }, 400)
+  await c.env.DB.prepare('INSERT INTO service_fees (service_id,fee_fils,updated_by,updated_at) VALUES (?,?,?,?) ON CONFLICT(service_id) DO UPDATE SET fee_fils=excluded.fee_fils, updated_by=excluded.updated_by, updated_at=excluded.updated_at').bind(sid, b.feeFils, c.get('staffId'), Date.now()).run()
+  await audit(c, 'finance.fee_set', null, { sid, feeFils: b.feeFils, by: c.get('staffId') })
+  return c.json({ ok: true })
+})
+
+// The official government fee, looked up on the authority's portal, is attached once to the issued statement (with the official pay link).
+guarded.post('/requests/:id/government-fee', roles(...FIN), async (c) => {
+  const r = await finRequest(c, c.req.param('id'))
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  const q = await c.env.DB.prepare("SELECT id,gov_fils FROM quotes WHERE request_id=? AND status='accepted' ORDER BY version DESC LIMIT 1").bind(r.id).first<{ id: string; gov_fils: number }>()
+  if (!q) return c.json({ error: 'no_invoice' }, 409)
+  if (q.gov_fils > 0) return c.json({ error: 'government_fee_set' }, 409)
+  const b = await jsonBody(c)
+  if (!isFils(b?.amountFils) || b.amountFils > 100000000) return c.json({ error: 'invalid_request' }, 400)
+  const url = parseGovUrl(c.env, b?.url)
+  if (url === undefined) return c.json({ error: 'invalid_pay_url' }, 400)
+  const u = await c.env.DB.prepare("UPDATE quotes SET gov_fils=?, gov_pay_url=? WHERE id=? AND gov_fils=0").bind(b.amountFils, url, q.id).run()
+  if (!u.meta.changes) return c.json({ error: 'government_fee_set' }, 409)
+  await visibleEvent(c, r.id, 'أُضيفت الرسوم الحكومية الرسمية ورابط الدفع للجهة', 'The official government fee and its payment link were added')
+  await audit(c, 'finance.government_fee', null, { requestId: r.id, amountFils: b.amountFils, by: c.get('staffId') })
+  return c.json({ ok: true })
+})
+
 // Cancelling an invoice never deletes it: it is voided with a reason and a linked credit note. Impossible while money is held.
 guarded.post('/invoices/:docId/cancel', roles(...FIN), async (c) => {
   const did = c.req.param('docId')

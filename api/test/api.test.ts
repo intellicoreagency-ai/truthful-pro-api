@@ -1151,6 +1151,31 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     await hit('POST', `/staff/v1/authority-payments/${a.id}/verify`, {}, owner)
     expect((await go()).status).toBe(200)
   })
+  it('the invoice for the Company fee is issued automatically at submission when the service has a fee; the government fee is attached once afterwards', async () => {
+    const agent = await staffToken('agent')
+    expect((await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: 25000 }, agent)).status).toBe(403)
+    expect((await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: 0 }, owner)).status).toBe(400)
+    expect((await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: 25000 }, owner)).status).toBe(200)
+    const id = await submit() // creates + submits an emirates-id request
+    const f = await fin(id)
+    expect(f.documents.map((d) => d.doc_type)).toEqual(['invoice']); expect(f.documents[0]!.number).toMatch(/^T-INV-/)
+    expect(f.totals).toMatchObject({ total: 25000, remaining: 25000, state: 'awaiting_payment' })
+    const cd = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { finance: { totals: { total: number }; documents: unknown[] }; events: { text_en: string }[] }
+    expect(cd.finance.totals.total).toBe(25000); expect(cd.finance.documents).toHaveLength(1) // the customer sees it at once
+    // submitting again changes nothing: still one invoice
+    await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, cust)
+    expect((await fin(id)).documents.filter((d) => d.doc_type === 'invoice')).toHaveLength(1)
+    // government fee: attached once, official host only
+    expect((await hit('POST', `/staff/v1/requests/${id}/government-fee`, { amountFils: 35000, url: 'https://evil.example.com/x' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/requests/${id}/government-fee`, { amountFils: 35000, url: 'https://mol.gov.ae/pay' }, owner)).status).toBe(200)
+    expect((await hit('POST', `/staff/v1/requests/${id}/government-fee`, { amountFils: 99999 }, owner)).status).toBe(409) // cannot be changed afterwards
+    expect(env.DB.prepare('UPDATE quotes SET gov_fils=1 WHERE request_id=?').bind(id).run()).rejects.toThrow()
+    const g = (await (await hit('GET', `/staff/v1/requests/${id}/finance`, undefined, owner)).json()) as { gov: { total: number; payUrl: string }; totals: { total: number } }
+    expect(g.gov).toMatchObject({ total: 35000, payUrl: 'https://mol.gov.ae/pay' }); expect(g.totals.total).toBe(25000)
+    // a service without a configured fee is not invoiced automatically
+    await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: null }, owner)
+    const id2 = await submit(); expect((await fin(id2)).documents).toHaveLength(0)
+  })
   it('permissions: agents may draft but not issue; accountants issue; customers and other customers are kept out', async () => {
     const id = await submit()
     const agent = await staffToken('agent'), accountant = await staffToken('accountant')

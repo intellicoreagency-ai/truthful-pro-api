@@ -5,6 +5,7 @@ import { Overview } from './Overview'
 import { RequestDetail } from './RequestDetail'
 import { Requests } from './Requests'
 import { Team } from './Team'
+import { Fees } from './Fees'
 import { Security } from './Security'
 import { PaymentsQueue } from './Finance'
 import { CustomerDetail, Customers } from './Customers'
@@ -49,6 +50,7 @@ export default function App() {
             <a href="#/requests" aria-current={cur('requests')}>{t('requests')}</a>
             {canTeam && <a href="#/customers" aria-current={cur('customers')}>{t('customers')}</a>}
             {canFin && <a href="#/payments" aria-current={cur('payments')}>{t('paymentsQueue')}</a>}
+            {canFin && <a href="#/fees" aria-current={cur('fees')}>{t('feesTitle')}</a>}
             {canTeam && <a href="#/team" aria-current={cur('team')}>{t('members')}</a>}
             <a href="#/security" aria-current={cur('security')}>{t('security')}</a>
           </nav>
@@ -68,6 +70,7 @@ export default function App() {
         {section === 'customers' && canTeam ? (parts[1] ? <CustomerDetail key={parts[1]} id={parts[1]} go={go} /> : <Customers go={go} />)
           : section === 'requests' && parts[1] ? <RequestDetail key={parts[1]} id={parts[1]} me={me} back={() => go('#/requests')} />
           : section === 'requests' ? <Requests params={params} go={go} />
+          : section === 'fees' && canFin ? <Fees canEdit={canTeam} />
           : section === 'team' && canTeam ? <Team meId={me.id} />
           : section === 'payments' && canFin ? <PaymentsQueue go={go} />
           : section === 'security' ? <Security />
