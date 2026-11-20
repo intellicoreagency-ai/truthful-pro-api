@@ -32,7 +32,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   return <label className="field"><span>{label}</span>{children}</label>
 }
 
-export const NEXT: Partial<Record<Status, Status>> = { submitted: 'review', review: 'authority', needs_documents: 'review', authority: 'decision', decision: 'completed' }
+export const NEXT: Partial<Record<Status, Status>> = { submitted: 'review', review: 'ready_for_authority', needs_documents: 'review', ready_for_authority: 'authority', authority: 'decision', decision: 'completed' }
 export const ago = (ms: number, lang: 'ar' | 'en') => {
   const m = Math.max(0, Math.round((Date.now() - ms) / 60000))
   const rtf = new Intl.RelativeTimeFormat(lang === 'ar' ? 'ar' : 'en', { numeric: 'auto' })

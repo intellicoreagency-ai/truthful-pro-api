@@ -3,7 +3,7 @@ import { api, type ListItem, type Status } from './api'
 import { STATUS_LABEL, useI18n } from './i18n'
 import { Badge, NEXT, ago, shortId, useAsync } from './ui'
 
-const COLUMNS: Status[] = ['submitted', 'review', 'needs_documents', 'authority', 'decision', 'completed']
+const COLUMNS: Status[] = ['submitted', 'review', 'needs_documents', 'ready_for_authority', 'authority', 'decision', 'completed']
 
 export function Requests({ params, go }: { params: URLSearchParams; go: (hash: string) => void }) {
   const { t, lang, fmt } = useI18n()
@@ -17,7 +17,7 @@ export function Requests({ params, go }: { params: URLSearchParams; go: (hash: s
   const pick = (v: 'list' | 'board') => { setView(v); try { localStorage.setItem('tp.view', v) } catch { /* */ } }
   const { data, loading, error, reload } = useAsync(() => api.requests({ status: view === 'board' ? '' : status, assignee, q: dq }), [status, assignee, dq, view])
   const [err, setErr] = useState(false)
-  const statuses: Status[] = ['submitted', 'review', 'needs_documents', 'authority', 'decision', 'completed', 'rejected', 'cancelled']
+  const statuses: Status[] = ['submitted', 'review', 'needs_documents', 'ready_for_authority', 'authority', 'decision', 'completed', 'rejected', 'cancelled']
   const move = async (r: ListItem, to: Status) => {
     setErr(false)
     const reference = to === 'authority' ? window.prompt(t('refNeeded'))?.trim() : undefined

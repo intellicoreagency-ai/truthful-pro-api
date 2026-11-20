@@ -64,5 +64,13 @@ assert.ok(a.acknowledgedAt&&a.acknowledgedAt.startsWith('2023-11-14'));
 a=toClientRequest(dRow({delivery_version:2,acknowledged_version:1,acknowledged_at:1_700_000_200_000}),dFiles,a);
 assert.equal(a.acknowledgedAt,undefined,'a replacement delivery asks for a new confirmation; the old one is not carried over');assert.equal(a.deliveryVersion,2);
 
+// 8. "Ready to submit" is internal: the customer's five-stage bar stays on Review.
+const rfa=toClientRequest(row({status:'ready_for_authority'}),{files:[file(F1)]});
+assert.equal(rfa.status,'ready_for_authority');assert.equal(rfa.stage,2);
+
+// 9. Only the published delivery arrives from the server; a superseded one is simply absent, and the app never invents one.
+const v2=toClientRequest(dRow({delivery_version:2,acknowledged_version:2,acknowledged_at:1_700_000_300_000}),{files:[file(F1),file(F2,{kind:'final',label:'v2'})]});
+assert.equal(v2.files.filter(f=>f.kind==='final').length,1);assert.equal(v2.deliveryVersion,2);assert.ok(v2.acknowledgedAt);
+
 assert.ok(isServerId(U));assert.ok(!isServerId('abc-123'));
 console.log('PASS: server-to-app mapping (status, timeline, requested documents, delivery, dates, pending uploads).');

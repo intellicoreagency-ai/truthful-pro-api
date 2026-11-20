@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { ApiError, api, type Detail, type FileRow, type Role, type Status } from './api'
+import { ApiError, api, type CheckRow, type Detail, type FileRow, type Role, type Status } from './api'
 import { STATUS_LABEL, useI18n } from './i18n'
 import { Field, Badge, Card, NEXT, shortId, useAsync } from './ui'
 
@@ -14,7 +14,7 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
   const act = async (fn: () => Promise<unknown>) => {
     setMsg(null)
     try { await fn(); setMsg({ ok: true, text: t('saved') }); reload() }
-    catch (e) { setMsg({ ok: false, text: e instanceof ApiError && e.code === 'invalid_transition' ? t('invalidTransition') : e instanceof ApiError && e.code === 'version_conflict' ? t('conflict') : t('failed') }); if (e instanceof ApiError && e.status === 409) reload() }
+    catch (e) { setMsg({ ok: false, text: e instanceof ApiError && e.code === 'invalid_transition' ? t('invalidTransition') : e instanceof ApiError && e.code === 'version_conflict' ? t('conflict') : e instanceof ApiError && e.code === 'documents_blocked' ? t('blockedDocs') : t('failed') }); if (e instanceof ApiError && e.status === 409) reload() }
   }
   const openFile = async (f: FileRow) => {
     try { const b = await api.fileBlob(f.id); setPreview({ url: URL.createObjectURL(b), mime: f.mime, name: f.name }) } catch { setMsg({ ok: false, text: t('failed') }) }
@@ -63,22 +63,18 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
             </dl>
           </Card>
           <Card title={t('documents')}>
-            {d.files.length === 0 && <p className="muted">{t('noFiles')}</p>}
-            {d.files.map((f) => (
-              <div className="file" key={f.id}>
-                <span>{f.kind === 'final' ? <span className="tag">{t('delivery')}</span> : f.kind === 'invoice' ? <span className="tag">{t('invoice')}</span> : null} {f.label || f.name}<br /><span className="muted small">{f.name} · {Math.max(1, Math.round(f.size / 1024))} KB</span></span>
-                <button className="btn sm" onClick={() => openFile(f)}>{t('view')}</button>
+            {d.files.filter((f) => f.kind === 'source').length === 0 && <p className="muted">{t('noFiles')}</p>}
+            {d.files.filter((f) => f.kind === 'source').map((f) => (
+              <div key={f.id} style={{ borderBottom: '1px dashed var(--line)', paddingBottom: 8, marginBottom: 8 }}>
+                <div className="file" style={{ borderBottom: 0 }}>
+                  <span>{f.label || f.name}<br /><span className="muted small">{f.name} · {Math.max(1, Math.round(f.size / 1024))} KB</span></span>
+                  <button className="btn sm" onClick={() => openFile(f)}>{t('view')}</button>
+                </div>
+                <FileChecks file={f} checks={d.checks.filter((c) => c.file_id === f.id)} role={me.role} act={act} />
               </div>
             ))}
           </Card>
-          {r.deliveryVersion > 0 && (
-            <Card title={t('delivery2')}>
-              <dl className="kv">
-                <dt>{t('deliveryVer')}</dt><dd>{r.deliveryVersion}</dd>
-                <dt>{t('ackDone')}</dt><dd>{r.acknowledgedVersion >= r.deliveryVersion && r.acknowledgedAt ? <span className="badge b-completed">✓ {fmt(r.acknowledgedAt)}</span> : <span className="badge b-needs_documents">{t('ackWait')}</span>}</dd>
-              </dl>
-            </Card>
-          )}
+          <DeliveryCard d={d} act={act} openFile={openFile} />
           {r.staff.authorityRef && <Card title={t('authorityAt')}><p dir="ltr" style={{ margin: 0, textAlign: lang === 'ar' ? 'right' : 'left' }}><b>{r.staff.authorityRef}</b></p></Card>}
           {d.missing.length > 0 && (
             <Card title={t('missingList')}>
@@ -174,6 +170,7 @@ function Actions({ d, me, act }: { d: Detail; me: { id: string }; act: (fn: () =
         </Card>
       )}
       <Card title={t('uploadFile')}>
+        <p className="muted small">{t('pkgHint')}</p>
         <Field label={t('kind')}><select value={kind} onChange={(e) => setKind(e.target.value as 'final' | 'invoice')}><option value="final">{t('delivery')}</option><option value="invoice">{t('invoice')}</option></select></Field>
         <Field label={t('fileLabel')}><input value={label} onChange={(e) => setLabel(e.target.value)} /></Field>
         <Field label={t('choose')}><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></Field>
@@ -195,7 +192,7 @@ function OverrideCard({ d, act }: { d: Detail; act: (fn: () => Promise<unknown>)
   const [expected, setExpected] = useState('')
   const [name, setName] = useState('')
   const [reason, setReason] = useState('')
-  const all: Status[] = ['submitted', 'review', 'needs_documents', 'authority', 'decision', 'completed', 'rejected', 'cancelled']
+  const all: Status[] = ['submitted', 'review', 'needs_documents', 'ready_for_authority', 'authority', 'decision', 'completed', 'rejected', 'cancelled']
   const changed = !!status || !!expected || !!name.trim()
   return (
     <section className="card section override">
@@ -215,5 +212,71 @@ function OverrideCard({ d, act }: { d: Detail; act: (fn: () => Promise<unknown>)
         {t('overrideApply')}
       </button>
     </section>
+  )
+}
+
+function FileChecks({ file, checks, role, act }: { file: FileRow; checks: CheckRow[]; role: Role; act: (fn: () => Promise<unknown>) => Promise<void> }) {
+  const { t, fmt } = useI18n()
+  const [expiry, setExpiry] = useState('')
+  const live = checks.filter((c) => !c.superseded_at)
+  const label = (o: CheckRow['outcome']) => (o === 'pass' ? t('outPass') : o === 'fail' ? t('outFail') : t('outManual'))
+  const canOverride = role === 'owner' || role === 'manager'
+  return (
+    <div className="small" style={{ marginTop: 4 }}>
+      <b>{t('checks')}</b>
+      {live.length === 0 && <span className="muted"> · {t('noChecks')}</span>}
+      {live.map((c) => (
+        <div key={c.id} className="row" style={{ marginTop: 4 }}>
+          <span className={`badge ${c.outcome === 'pass' ? 'b-completed' : c.outcome === 'fail' ? 'b-rejected' : 'b-needs_documents'}`}>{label(c.outcome)}</span>
+          <span dir="ltr">{c.rule_code} v{c.rule_version}</span>
+          {c.override_reason ? <span className="tag" title={c.override_reason}>{t('overridden')} · {c.overridden_at ? fmt(c.overridden_at) : ''}</span>
+            : c.outcome !== 'pass' && canOverride && c.rule_code !== 'malware_scan' && (
+              <button className="btn sm danger" onClick={() => { const reason = window.prompt(t('docOverrideReason'))?.trim(); if (!reason || reason.length < 10) return; void act(() => api.overrideCheck(file.id, c.id, reason)) }}>{t('docOverride')}</button>
+            )}
+        </div>
+      ))}
+      {live.some((c) => c.override_reason) && <div className="muted">{t('overrideNote')}</div>}
+      <div className="row" style={{ marginTop: 6 }}>
+        <input type="date" aria-label={t('passportExpiry')} value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+        <button className="btn sm" disabled={!expiry} onClick={() => act(async () => { await api.readPassport(file.id, expiry); setExpiry('') })}>{t('readExpiry')}</button>
+        <button className="btn sm" onClick={() => act(() => api.manualCheck(file.id, 'name_match', 'fail', ''))}>{t('nameMismatch')}</button>
+      </div>
+    </div>
+  )
+}
+
+function DeliveryCard({ d, act, openFile }: { d: Detail; act: (fn: () => Promise<unknown>) => Promise<void>; openFile: (f: FileRow) => void | Promise<void> }) {
+  const { t, fmt } = useI18n()
+  const r = d.request
+  const draft = d.deliveries.find((x) => x.status === 'draft')
+  const items = draft ? d.files.filter((f) => f.delivery_id === draft.id) : []
+  const published = d.deliveries.filter((x) => x.status !== 'draft')
+  if (!draft && published.length === 0) return null
+  const canPublish = items.some((f) => f.kind === 'final')
+  return (
+    <Card title={t('pkgTitle')}>
+      {draft && (
+        <div style={{ marginBottom: 12 }}>
+          <span className="tag">{t('pkgDraft')}</span>
+          {items.length === 0 && <p className="muted small">{t('pkgEmpty')}</p>}
+          {items.map((f) => (
+            <div className="file" key={f.id}>
+              <span>{f.kind === 'invoice' ? <span className="tag">{t('invoice')}</span> : <span className="tag">{t('delivery')}</span>} {f.label || f.name}</span>
+              <span className="row"><button className="btn sm" onClick={() => openFile(f)}>{t('view')}</button><button className="btn sm danger" onClick={() => act(() => api.removeDraftFile(f.id))}>{t('pkgRemove')}</button></span>
+            </div>
+          ))}
+          {!canPublish && <p className="muted small">{t('pkgNeedFinal')}</p>}
+          <button className="btn primary" disabled={!canPublish} onClick={() => { if (!window.confirm(t('pkgPublishConfirm'))) return; void act(() => api.publish(r.id, r.version)) }}>{t('pkgPublish')}</button>
+        </div>
+      )}
+      {published.map((p) => {
+        return (
+          <div className="file" key={p.id}>
+            <span><b>{t('pkgVersion')} {p.version}</b> <span className={`badge ${p.status === 'published' ? 'b-completed' : 'b-draft'}`}>{p.status === 'published' ? t('pkgPublished') : t('pkgSuperseded')}</span><br /><span className="muted small">{p.published_at ? fmt(p.published_at) : ''}</span></span>
+            {p.acknowledged_at ? <span className="badge b-completed">✓ {t('ackAt')} · {fmt(p.acknowledged_at)}</span> : p.status === 'published' ? <span className="badge b-needs_documents">{t('ackWait')}</span> : <span />}
+          </div>
+        )
+      })}
+    </Card>
   )
 }

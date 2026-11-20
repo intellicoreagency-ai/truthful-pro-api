@@ -46,16 +46,18 @@ const j = async <T,>(r: Response) => (await r.json()) as T
 
 // ---- types ----
 export type Role = 'owner' | 'manager' | 'agent' | 'accountant'
-export type Status = 'draft' | 'submitted' | 'review' | 'needs_documents' | 'authority' | 'decision' | 'completed' | 'cancelled' | 'rejected'
+export type Status = 'draft' | 'submitted' | 'review' | 'needs_documents' | 'ready_for_authority' | 'authority' | 'decision' | 'completed' | 'cancelled' | 'rejected'
 export type Bi = { ar: string; en: string }
 export type Stats = { byStatus: Partial<Record<Status, number>>; unassigned: number; mine: number }
 export type ListItem = { id: string; serviceId: string; status: Status; title: Bi | null; customer: { id: string; name: string; phone: string }; assignee: { id: string; name: string } | null; createdAt: number; updatedAt: number }
-export type FileRow = { id: string; name: string; mime: string; size: number; kind: 'source' | 'final' | 'invoice'; label: string | null; created_at: number }
+export type FileRow = { id: string; name: string; mime: string; size: number; kind: 'source' | 'final' | 'invoice'; label: string | null; created_at: number; delivery_id: string | null; extracted: string | null }
+export type DeliveryRow = { id: string; version: number | null; status: 'draft' | 'published' | 'superseded'; published_at: number | null; created_at: number; acknowledged_at: number | null }
+export type CheckRow = { id: string; file_id: string; rule_code: string; rule_version: string; outcome: 'pass' | 'fail' | 'manual_review'; evidence: string; created_at: number; superseded_at: number | null; override_reason: string | null; overridden_at: number | null }
 export type EventRow = { id: string; actor: string; kind: string; text_ar: string; text_en: string; visible: number; created_at: number }
 export type MissingRow = { id: string; label_ar: string; label_en: string; note_ar: string; note_en: string; replacement_file_id: string | null; resolved_at: number | null }
 export type Detail = {
   request: { id: string; serviceId: string; status: Status; assigneeId: string | null; createdAt: number; updatedAt: number; version: number; deliveryVersion: number; acknowledgedVersion: number; acknowledgedAt: number | null; data: { title?: Bi; name?: string; phone?: string; fields?: Record<string, string>; termsVersion?: string; termsAcceptedAt?: string }; staff: { expectedAt?: string; completedAt?: string; issue?: string; authorityRef?: string; authorityAt?: string } }
-  customer: { id: string; name: string; phone: string }; files: FileRow[]; events: EventRow[]; missing: MissingRow[]; transitions: Status[]
+  customer: { id: string; name: string; phone: string }; files: FileRow[]; deliveries: DeliveryRow[]; checks: CheckRow[]; blocked: { fileId: string; ruleCode: string; outcome: string }[]; events: EventRow[]; missing: MissingRow[]; transitions: Status[]
 }
 export type TeamRow = { id: string; name: string; role: Role; active: number; created_at: number }
 export type Overview = {
@@ -123,6 +125,11 @@ export const api = {
   note: (id: string, text: string) => call('POST', `/staff/v1/requests/${id}/notes`, { body: { text } }),
   upload: (id: string, file: File, kind: 'final' | 'invoice', label: string) =>
     call('PUT', `/staff/v1/requests/${id}/files?kind=${kind}`, { raw: file, headers: { 'x-file-name': encodeURIComponent(file.name), 'x-file-label': encodeURIComponent(label) } }),
+  publish: (id: string, expectedVersion?: number) => call('POST', `/staff/v1/requests/${id}/deliveries/publish`, { body: { expectedVersion } }),
+  removeDraftFile: (fileId: string) => call('DELETE', `/staff/v1/files/${fileId}`),
+  readPassport: (fileId: string, expiry: string) => call('POST', `/staff/v1/files/${fileId}/extracted`, { body: { docType: 'passport', expiry } }),
+  manualCheck: (fileId: string, ruleCode: string, outcome: 'pass' | 'fail' | 'manual_review', note: string) => call('POST', `/staff/v1/files/${fileId}/checks`, { body: { ruleCode, outcome, note } }),
+  overrideCheck: (fileId: string, checkId: string, reason: string) => call('POST', `/staff/v1/files/${fileId}/override`, { body: { checkId, reason } }),
   fileBlob: async (id: string) => (await call('GET', `/staff/v1/files/${id}`)).blob(),
   team: async () => (await j<{ team: TeamRow[] }>(await call('GET', '/staff/v1/team'))).team,
   addMember: async (phone: string, name: string, role: Role) => j<{ id: string; enrollKey: string; enrollExpiresInHours: number }>(await call('POST', '/staff/v1/team', { body: { phone, name, role } })),

@@ -2,7 +2,7 @@ import { api, type Status } from './api'
 import { STATUS_LABEL, useI18n } from './i18n'
 import { Badge, Card, ago, shortId, useAsync } from './ui'
 
-const ORDER: Status[] = ['submitted', 'review', 'needs_documents', 'authority', 'decision', 'completed']
+const ORDER: Status[] = ['submitted', 'review', 'needs_documents', 'ready_for_authority', 'authority', 'decision', 'completed']
 
 export function Overview({ go, name }: { go: (hash: string) => void; name: string }) {
   const { t, lang } = useI18n()

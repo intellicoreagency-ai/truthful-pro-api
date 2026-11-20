@@ -26,6 +26,6 @@ export function safeFileName(raw: string | null | undefined, fallbackExt: string
   return n && n !== '.' && n !== '..' ? n : `document.${fallbackExt}`
 }
 
-export const REQUEST_STATUSES = ['draft', 'submitted', 'review', 'needs_documents', 'authority', 'decision', 'completed', 'cancelled', 'rejected'] as const
+export const REQUEST_STATUSES = ['draft', 'submitted', 'review', 'needs_documents', 'ready_for_authority', 'authority', 'decision', 'completed', 'cancelled', 'rejected'] as const
 export const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)
 export const isServiceId = (s: unknown): s is string => typeof s === 'string' && /^[a-z0-9][a-z0-9-]{1,63}$/.test(s)

@@ -31,6 +31,8 @@ const dict = {
     waCodeSend: 'إرسال الرمز إلى واتساب', waCodeHint: 'سنرسل رمزاً من 6 أرقام إلى واتساب الخاص بك إن كان رقمك مسجلاً في الفريق.', waCodeSent: 'إن كان الرقم مسجلاً فقد أُرسل الرمز. أدخله هنا.', waUseMessage: 'أو تحقق بإرسال رسالة (مجاني)', waUseCode: 'أو أرسل لي رمزاً على واتساب', newCode: 'رمز جديد',
     authorityRef: 'مرجع التقديم للجهة (إلزامي)', authorityHint: 'يُطلب رقم أو دليل التقديم الفعلي للجهة قبل نقل الطلب إلى «لدى الجهة».', rejectReason: 'سبب الرفض (إلزامي)', conflict: 'عدّل شخص آخر هذا الطلب قبل قليل. حدّثتُ الصفحة، راجع التغييرات ثم أعد المحاولة.', refNeeded: 'أدخل مرجع التقديم للجهة:', rejNeeded: 'أدخل سبب الرفض:',
     delivery2: 'التسليم', deliveryVer: 'نسخة التسليم', ackDone: 'أكد العميل الاستلام', ackWait: 'بانتظار تأكيد العميل', authorityAt: 'مرجع الجهة',
+    pkgTitle: 'حزمة التسليم', pkgDraft: 'مسودة (لا يراها العميل)', pkgPublish: 'نشر للعميل', pkgPublishConfirm: 'نشر هذه الحزمة للعميل؟ سيراها العميل ويُطلب منه تأكيد استلامها.', pkgVersion: 'النسخة', pkgPublished: 'منشورة', pkgSuperseded: 'مستبدَلة', pkgEmpty: 'لا ملفات مرفوعة للتسليم بعد.', pkgRemove: 'إزالة من المسودة', pkgNeedFinal: 'أضف ملفاً نهائياً واحداً على الأقل قبل النشر.', pkgHint: 'الملفات المرفوعة تُحفظ في مسودة ولا تظهر للعميل قبل «نشر للعميل».', ackAt: 'تأكيد الاستلام',
+    checks: 'فحوص المستند', noChecks: 'لا فحوص بعد', readExpiry: 'قراءة انتهاء الجواز', passportExpiry: 'تاريخ انتهاء الجواز', evaluate: 'تقييم', outPass: 'مطابق', outFail: 'غير مطابق', outManual: 'مراجعة يدوية', docOverride: 'قبول بعد المراجعة', docOverrideReason: 'سبب القبول الداخلي (10 أحرف على الأقل):', overridden: 'قُبل داخلياً', overrideNote: 'اعتماد داخلي وليس إثباتاً للأصالة ولا قبولاً حكومياً.', blockedDocs: 'مستندات غير مطابقة لم تُحسم: لا يمكن الانتقال إلى «جاهزة للتقديم».', nameMismatch: 'تسجيل اختلاف اسم', ruleLabel: 'القاعدة',
     enrollTitle: 'مفتاح إعداد العضو', enrollBody: 'سلّم هذا المفتاح للعضو بشكل خاص. يظهر مرة واحدة فقط وينتهي خلال 24 ساعة. يستخدمه في «أول دخول».', done: 'تم', copy: 'نسخ', copied: 'نُسخ',
   },
   en: {
@@ -61,6 +63,8 @@ const dict = {
     waCodeSend: 'Send the code to WhatsApp', waCodeHint: 'We will send a 6-digit code to your WhatsApp if your number is on the team.', waCodeSent: 'If the number is registered, the code was sent. Enter it here.', waUseMessage: 'Or verify by sending a message (free)', waUseCode: 'Or send me a code on WhatsApp', newCode: 'New code',
     authorityRef: 'Authority submission reference (required)', authorityHint: 'The real submission number or evidence is required before moving a request to “With authority”.', rejectReason: 'Rejection reason (required)', conflict: 'Someone else changed this request a moment ago. I reloaded it; review the changes and try again.', refNeeded: 'Enter the authority submission reference:', rejNeeded: 'Enter the rejection reason:',
     delivery2: 'Delivery', deliveryVer: 'Delivery version', ackDone: 'Customer confirmed receipt', ackWait: 'Waiting for the customer to confirm', authorityAt: 'Authority reference',
+    pkgTitle: 'Delivery package', pkgDraft: 'Draft (hidden from the customer)', pkgPublish: 'Publish to customer', pkgPublishConfirm: 'Publish this package to the customer? They will see it and be asked to confirm receipt.', pkgVersion: 'Version', pkgPublished: 'Published', pkgSuperseded: 'Superseded', pkgEmpty: 'No delivery files uploaded yet.', pkgRemove: 'Remove from draft', pkgNeedFinal: 'Add at least one final file before publishing.', pkgHint: 'Uploaded files are saved to a draft and stay hidden from the customer until you press “Publish to customer”.', ackAt: 'Receipt confirmed',
+    checks: 'Document checks', noChecks: 'No checks yet', readExpiry: 'Read passport expiry', passportExpiry: 'Passport expiry date', evaluate: 'Evaluate', outPass: 'Pass', outFail: 'Fail', outManual: 'Manual review', docOverride: 'Accept after review', docOverrideReason: 'Reason for internal acceptance (min. 10 characters):', overridden: 'Accepted internally', overrideNote: 'Internal approval only: not proof of authenticity or government acceptance.', blockedDocs: 'Failed documents are unresolved: cannot move to “Ready to submit”.', nameMismatch: 'Record name mismatch', ruleLabel: 'Rule',
     enrollTitle: 'Member setup key', enrollBody: 'Give this key to the member privately. It is shown once and expires in 24 hours. They use it under “First sign-in”.', done: 'Done', copy: 'Copy', copied: 'Copied',
   },
 } as const
@@ -68,7 +72,7 @@ export type Key = keyof typeof dict.ar
 
 export const STATUS_LABEL: Record<Status, { ar: string; en: string }> = {
   draft: { ar: 'مسودة', en: 'Draft' }, submitted: { ar: 'تم الإرسال', en: 'Submitted' }, review: { ar: 'قيد المراجعة', en: 'Under review' },
-  needs_documents: { ar: 'مطلوب استكمال', en: 'Action required' }, authority: { ar: 'لدى الجهة', en: 'With authority' }, decision: { ar: 'بانتظار القرار', en: 'Decision pending' },
+  needs_documents: { ar: 'مطلوب استكمال', en: 'Action required' }, ready_for_authority: { ar: 'جاهزة للتقديم', en: 'Ready to submit' }, authority: { ar: 'لدى الجهة', en: 'With authority' }, decision: { ar: 'بانتظار القرار', en: 'Decision pending' },
   completed: { ar: 'منجزة', en: 'Completed' }, cancelled: { ar: 'ملغاة', en: 'Cancelled' }, rejected: { ar: 'مرفوضة', en: 'Rejected' },
 }
 

@@ -32,7 +32,8 @@ beforeAll(async () => {
   const dir = new URL('../migrations/', import.meta.url)
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
     const sql = readFileSync(new URL(file, dir), 'utf8')
-    for (const stmt of sql.split(/;\s*\n/).map((x) => x.trim()).filter(Boolean)) await env.DB.prepare(stmt).run()
+    const stmts = sql.split(/;\s*\n/).map((x) => x.trim()).filter(Boolean)
+    await env.DB.batch(stmts.map((x) => env.DB.prepare(x))) // one transaction per migration, like production
   }
 })
 afterAll(async () => { await dispose?.() })
@@ -388,20 +389,30 @@ describe('staff operations hub', () => {
     d = await (await hit('GET', `/v1/requests/${id}`, { token: cust })).json() as typeof d
     expect(d.request.status).toBe('review'); expect(d.missing[0]!.resolved_at).not.toBeNull()
   })
-  it('delivers a final file the customer can open but not delete; staff views are audited', async () => {
+  it('keeps delivery files hidden until published, then lets the owner of the request open them (but not delete them); staff views are audited', async () => {
     const cust = await customerLogin('+971521140014')
     const id = await submitted(cust)
     const put = await hit('PUT', `/staff/v1/requests/${id}/files?kind=final`, { token: owner, raw: pdf(), headers: { 'x-file-name': 'result.pdf', 'x-file-label': encodeURIComponent('Delivery') } })
     expect(put.status).toBe(201)
-    const f = await put.json() as { id: string }
+    const f = await put.json() as { id: string; published: boolean }
+    expect(f.published).toBe(false)
+    // before publishing: invisible to the customer in the request, in downloads and in the data export
+    expect((await hit('GET', `/v1/files/${f.id}`, { token: cust })).status).toBe(404)
+    const before = await (await hit('GET', `/v1/requests/${id}`, { token: cust })).json() as { files: { id: string }[] }
+    expect(before.files.some((x) => x.id === f.id)).toBe(false)
+    const exp0 = await (await hit('GET', '/v1/me/export', { token: cust })).json() as { files: { id: string }[] }
+    expect(exp0.files.some((x) => x.id === f.id)).toBe(false)
+    // staff can view the draft; that view is audited
+    const sv = await hit('GET', `/staff/v1/files/${f.id}`, { token: owner })
+    expect(sv.status).toBe(200); expect(sv.headers.get('content-security-policy')).toContain("frame-ancestors 'self'")
+    expect((await hit('GET', '/health')).headers.get('x-frame-options')).toBe('DENY')
+    // publish
+    expect((await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, { token: owner, body: {} })).status).toBe(201)
     const dl = await hit('GET', `/v1/files/${f.id}`, { token: cust })
     expect(dl.status).toBe(200); expect(new Uint8Array(await dl.arrayBuffer())).toEqual(pdf())
     expect((await hit('DELETE', `/v1/files/${f.id}`, { token: cust })).status).toBe(404)
-    const sv = await hit('GET', `/staff/v1/files/${f.id}`, { token: owner })
-    expect(sv.status).toBe(200); expect(sv.headers.get('content-security-policy')).toContain("frame-ancestors 'self'")
-    expect((await hit('GET', '/health')).headers.get('x-frame-options')).toBe('DENY') // everything else stays un-embeddable
-    const logged = await env.DB.prepare("SELECT COUNT(*) n FROM audit_events WHERE action='staff.file_view'").first<{ n: number }>()
-    expect(logged!.n).toBeGreaterThan(0)
+    expect((await hit('DELETE', `/staff/v1/files/${f.id}`, { token: owner })).status).toBe(409) // published packages are immutable
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM audit_events WHERE action='staff.file_view'").first<{ n: number }>())!.n).toBeGreaterThan(0)
   })
   it('deactivating a staff member ends their session immediately', async () => {
     const team = await (await hit('GET', '/staff/v1/team', { token: owner })).json() as { team: { id: string; name: string; role: string }[] }
@@ -778,9 +789,11 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     await hit('PATCH', `/v1/requests/${id}`, { status: 'cancelled' }, cust)
     expect((await hit('POST', `/staff/v1/requests/${id}/notes`, { text: 'still allowed' }, owner)).status).toBe(200) // internal notes never conflict
   })
-  it('will not move to "with authority" without a submission reference, nor reject without a reason', async () => {
+  it('needs "ready to submit" first, then a submission reference for "with authority", and a reason to reject', async () => {
     const id = await submit()
     await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'review' }, owner)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'AUTH-1' }, owner)).status).toBe(409) // cannot skip ready_for_authority
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'ready_for_authority' }, owner)).status).toBe(200)
     expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority' }, owner)).status).toBe(400)
     expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'x' }, owner)).status).toBe(400)
     expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'AUTH-2026-00123' }, owner)).status).toBe(200)
@@ -791,36 +804,170 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     const d = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { request: { status: string; staff_data: string } }
     expect(d.request.status).toBe('rejected'); expect(JSON.parse(d.request.staff_data).issue).toBe('Expired passport')
   })
-  it('records receipt acknowledgement once per delivery version; viewing never acknowledges', async () => {
+  const toCompleted = async (id: string) => {
+    for (const body of [{ status: 'review' }, { status: 'ready_for_authority' }, { status: 'authority', reference: 'REF-123' }, { status: 'decision' }, { status: 'completed' }])
+      expect((await hit('POST', `/staff/v1/requests/${id}/status`, body, owner)).status).toBe(200)
+  }
+  const stage = (id: string, name: string) => hit('PUT', `/staff/v1/requests/${id}/files?kind=final`, undefined, owner, { 'x-file-name': name }, pdf())
+  const publish = (id: string) => hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, {}, owner)
+  it('records receipt acknowledgement once per PUBLISHED delivery version; viewing never acknowledges; each version needs its own', async () => {
     const id = await submit()
-    const ack = (v: number) => hit('POST', `/v1/requests/${id}/acknowledgments`, { deliveryVersion: v }, cust)
+    const ack = (v: number, token = cust) => hit('POST', `/v1/requests/${id}/acknowledgments`, { deliveryVersion: v }, token)
     expect((await ack(1)).status).toBe(409) // not completed
-    for (const s of ['review']) await hit('POST', `/staff/v1/requests/${id}/status`, { status: s }, owner)
-    await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'REF-123' }, owner)
-    await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'decision' }, owner)
-    await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'completed' }, owner)
-    expect((await ack(1)).status).toBe(409) // completed but nothing delivered
-    const up = await hit('PUT', `/staff/v1/requests/${id}/files?kind=final`, undefined, owner, { 'x-file-name': 'a.pdf' }, pdf())
-    expect(up.status).toBe(201)
-    const f = await up.json() as { id: string }
-    await hit('GET', `/v1/files/${f.id}`, undefined, cust) // customer downloads
+    await toCompleted(id)
+    expect((await ack(1)).status).toBe(409) // completed but nothing published
+    const f1 = await (await stage(id, 'a.pdf')).json() as { id: string }
+    expect((await ack(1)).status).toBe(409) // a saved draft is not a delivery
+    expect((await publish(id)).status).toBe(201)
+    await hit('GET', `/v1/files/${f1.id}`, undefined, cust) // customer downloads
     expect((await detail(id)).request.acknowledgedVersion).toBe(0) // ...which is not an acknowledgement
-    expect((await ack(2)).status).toBe(409) // wrong/stale version
+    expect((await ack(2)).status).toBe(409)
     const a1 = await ack(1); const j1 = await a1.json() as { duplicate: boolean; acknowledgedAt: number }
     expect(a1.status).toBe(200); expect(j1.duplicate).toBe(false)
     const a2 = await ack(1); const j2 = await a2.json() as { duplicate: boolean; acknowledgedAt: number }
     expect(j2.duplicate).toBe(true); expect(j2.acknowledgedAt).toBe(j1.acknowledgedAt)
     expect((await env.DB.prepare('SELECT COUNT(*) n FROM receipt_acks WHERE request_id=?').bind(id).first<{ n: number }>())!.n).toBe(1)
-    // a replacement delivery needs its own confirmation; the old one is not carried over
-    await hit('PUT', `/staff/v1/requests/${id}/files?kind=final`, undefined, owner, { 'x-file-name': 'b.pdf' }, pdf())
+    // a replacement package is staged invisibly, and only becomes version 2 when published
+    const f2 = await (await stage(id, 'b.pdf')).json() as { id: string }
+    expect((await detail(id)).request.deliveryVersion).toBe(1)
+    expect((await ack(2)).status).toBe(409)
+    expect((await publish(id)).status).toBe(201)
     let det = await detail(id); expect(det.request.deliveryVersion).toBe(2); expect(det.request.acknowledgedVersion).toBe(1)
     expect((await ack(1)).status).toBe(409)
     expect((await ack(2)).status).toBe(200)
     det = await detail(id); expect(det.request.acknowledgedVersion).toBe(2)
-    const cd = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { request: { delivery_version: number; acknowledged_version: number } }
+    // the customer sees only the latest published package; the superseded file is no longer served to them, but is kept for staff
+    expect((await hit('GET', `/v1/files/${f2.id}`, undefined, cust)).status).toBe(200)
+    expect((await hit('GET', `/v1/files/${f1.id}`, undefined, cust)).status).toBe(404)
+    expect((await hit('GET', `/staff/v1/files/${f1.id}`, undefined, owner)).status).toBe(200)
+    const cd = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { request: { delivery_version: number; acknowledged_version: number }; files: { id: string }[] }
     expect(cd.request.delivery_version).toBe(2); expect(cd.request.acknowledged_version).toBe(2)
-    // another customer cannot acknowledge it
+    expect(cd.files.map((x) => x.id)).toEqual([f2.id])
+    // another customer can neither acknowledge nor download
     const other = await login('+971521190012')
-    expect((await hit('POST', `/v1/requests/${id}/acknowledgments`, { deliveryVersion: 2 }, other)).status).toBe(404)
+    expect((await ack(2, other)).status).toBe(404)
+    expect((await hit('GET', `/v1/files/${f2.id}`, undefined, other)).status).toBe(404)
+    // history: each version recorded with its own manifest
+    const dels = await env.DB.prepare('SELECT version,status,manifest_hash FROM deliveries WHERE request_id=? ORDER BY version').bind(id).all<{ version: number; status: string; manifest_hash: string }>()
+    expect(dels.results.map((x) => x.status)).toEqual(['superseded', 'published']); expect(dels.results[0]!.manifest_hash).not.toBe(dels.results[1]!.manifest_hash)
+  })
+  it('cannot publish without a final file; a staged file can be removed before publishing', async () => {
+    const id = await submit()
+    expect((await publish(id)).status).toBe(409)
+    const inv = await (await hit('PUT', `/staff/v1/requests/${id}/files?kind=invoice`, undefined, owner, { 'x-file-name': 'inv.pdf' }, pdf())).json() as { id: string }
+    expect((await publish(id)).status).toBe(409) // an invoice alone is not a delivery
+    const fin = await (await stage(id, 'final.pdf')).json() as { id: string }
+    expect((await hit('DELETE', `/staff/v1/files/${fin.id}`, undefined, owner)).status).toBe(200)
+    expect((await publish(id)).status).toBe(409)
+    void inv
+  })
+  it('a stale version cannot publish', async () => {
+    const id = await submit(); await toCompleted(id)
+    await stage(id, 'x.pdf')
+    const v = (await detail(id)).request.version
+    await hit('POST', `/staff/v1/requests/${id}/notes`, { text: 'x' }, owner)
+    expect((await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, { expectedVersion: v - 1 }, owner)).status).toBe(409)
+    expect((await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, { expectedVersion: v }, owner)).status).toBe(201)
+  })
+  // ---- document checks and internal override ----
+  const sourceFile = async (id: string) => ((await (await hit('PUT', `/v1/requests/${id}/files`, undefined, cust, { 'x-file-name': 'passport.pdf' }, pdf())).json()) as { id: string }).id
+  const staffToken = async (role: 'agent' | 'accountant' | 'manager') => {
+    const { randomToken, sha256Hex, newId } = await import('../src/crypto')
+    const sid = newId(), tok = randomToken(32), now = Date.now()
+    await env.DB.prepare('INSERT INTO staff (id,phone_hash,phone_enc,name,role,created_at) VALUES (?,?,?,?,?,?)').bind(sid, 'h' + sid, 'x', role + '-t', role, now).run()
+    await env.DB.prepare('INSERT INTO staff_sessions (id,staff_id,access_hash,refresh_hash,access_expires_at,refresh_expires_at,created_at) VALUES (?,?,?,?,?,?,?)').bind(newId(), sid, await sha256Hex(tok), await sha256Hex(tok + 'r'), now + 3600_000, now + 7200_000, now).run()
+    return tok
+  }
+  const toReview = async (id: string) => { await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'review' }, owner) }
+  const checksOf = async (id: string) => (await detail2(id)).checks
+  const detail2 = async (id: string) => (await (await hit('GET', `/staff/v1/requests/${id}`, undefined, owner)).json()) as { blocked: { fileId: string; ruleCode: string }[]; checks: { id: string; file_id: string; rule_code: string; rule_version: string; outcome: string; superseded_at: number | null; override_reason: string | null }[]; events: { text_en: string; visible: number }[] }
+
+  it('evaluates the passport rule server-side and blocks "ready to submit" until the failure is resolved', async () => {
+    const id = await submit(); const fid = await sourceFile(id); await toReview(id)
+    // base = request day; an expiry only 3 months away fails the 6-calendar-month rule
+    const base = new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 10)
+    const { addCalendarMonths } = await import('../src/rules')
+    const soon = addCalendarMonths(base, 3)!
+    const r = await (await hit('POST', `/staff/v1/files/${fid}/extracted`, { docType: 'passport', expiry: soon }, owner)).json() as { result: { outcome: string } }
+    expect(r.result.outcome).toBe('fail')
+    const blocked = await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'ready_for_authority' }, owner)
+    expect(blocked.status).toBe(409)
+    const bj = await blocked.json() as { error: string; files: { fileId: string; ruleCode: string }[] }
+    expect(bj.error).toBe('documents_blocked'); expect(bj.files[0]).toMatchObject({ fileId: fid, ruleCode: 'passport_validity_6m' })
+    // the customer is never shown rule results
+    expect(JSON.stringify(await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json())).not.toContain('passport_validity')
+    // re-reading a valid expiry supersedes the old result (history kept) and unblocks
+    const ok = await (await hit('POST', `/staff/v1/files/${fid}/extracted`, { docType: 'passport', expiry: addCalendarMonths(base, 24) }, owner)).json() as { result: { outcome: string } }
+    expect(ok.result.outcome).toBe('pass')
+    const chk = await checksOf(id); expect(chk.filter((c) => c.superseded_at).length).toBe(1); expect(chk).toHaveLength(2)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'ready_for_authority' }, owner)).status).toBe(200)
+  })
+  it('unreadable data goes to manual review, never an automatic decision', async () => {
+    const id = await submit(); const fid = await sourceFile(id); await toReview(id)
+    const r = await (await hit('POST', `/staff/v1/files/${fid}/extracted`, { docType: 'passport', expiry: '2026-13-45' }, owner)).json() as { result: { outcome: string } }
+    expect(r.result.outcome).toBe('manual_review')
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'ready_for_authority' }, owner)).status).toBe(409)
+    expect((await hit('POST', `/staff/v1/files/${fid}/extracted`, { docType: 'badtype', expiry: '2030-01-01' }, owner)).status).toBe(400)
+  })
+  it('an authorised member can accept a failed document after review: reason, rule, version, member and time are recorded', async () => {
+    const id = await submit(); const fid = await sourceFile(id); await toReview(id)
+    await hit('POST', `/staff/v1/files/${fid}/extracted`, { docType: 'passport', expiry: '2020-01-01' }, owner)
+    const c0 = (await checksOf(id))[0]!
+    const agent = await staffToken('agent')
+    expect((await hit('POST', `/staff/v1/files/${fid}/override`, { checkId: c0.id, reason: 'Customer showed a renewed passport at the counter' }, agent)).status).toBe(403) // not authorised
+    expect((await hit('POST', `/staff/v1/files/${fid}/override`, { checkId: c0.id, reason: 'short' }, owner)).status).toBe(400) // reason required
+    expect((await hit('POST', `/staff/v1/files/${fid}/override`, { checkId: crypto.randomUUID(), reason: 'A proper long reason here' }, owner)).status).toBe(404)
+    expect((await hit('POST', `/staff/v1/files/${fid}/override`, { checkId: c0.id, reason: 'Customer showed a renewed passport at the counter' }, owner)).status).toBe(200)
+    expect((await hit('POST', `/staff/v1/files/${fid}/override`, { checkId: c0.id, reason: 'Customer showed a renewed passport at the counter' }, owner)).status).toBe(409)
+    const d = await detail2(id)
+    expect(d.checks[0]!.override_reason).toContain('renewed passport')
+    const note = d.events.find((e) => e.text_en.includes('overridden by'))!
+    expect(note.visible).toBe(0)
+    expect(note.text_en).toContain('passport_validity_6m v1'); expect(note.text_en).toContain('Reason:'); expect(note.text_en).toContain('not proof of authenticity')
+    expect(JSON.stringify(await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json())).not.toContain('overridden')
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM audit_events WHERE action='staff.doc_override'").first<{ n: number }>())!.n).toBeGreaterThan(0)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'ready_for_authority' }, owner)).status).toBe(200) // internal acceptance lets it proceed
+  })
+  it('never lets anyone override the malware / signature / size rules, or record them by hand', async () => {
+    const id = await submit(); const fid = await sourceFile(id); await toReview(id)
+    expect((await hit('POST', `/staff/v1/files/${fid}/checks`, { ruleCode: 'malware_scan', outcome: 'pass' }, owner)).status).toBe(400) // only the system records these
+    const { newId } = await import('../src/crypto')
+    const cid = newId()
+    await env.DB.prepare("INSERT INTO document_checks (id,file_id,request_id,rule_code,rule_version,outcome,evidence,created_by,created_at) VALUES (?,?,?,?,'1','fail','{}','system',?)").bind(cid, fid, id, 'malware_scan', Date.now()).run()
+    expect((await hit('POST', `/staff/v1/files/${fid}/override`, { checkId: cid, reason: 'Trust me, it is fine really' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'ready_for_authority' }, owner)).status).toBe(409) // still blocked
+    // ...and manual outcomes for overridable rules work
+    expect((await hit('POST', `/staff/v1/files/${fid}/checks`, { ruleCode: 'name_match', outcome: 'fail', note: 'Spelling differs' }, owner)).status).toBe(200)
+    expect((await hit('POST', `/staff/v1/files/${fid}/checks`, { ruleCode: 'nope', outcome: 'fail' }, owner)).status).toBe(400)
+  })
+  it('another staff scope cannot touch a file it cannot see', async () => {
+    const id = await submit(); const fid = await sourceFile(id)
+    const me = await (await hit('GET', '/staff/v1/me', undefined, owner)).json() as { staff: { id: string } }
+    await hit('POST', `/staff/v1/requests/${id}/assign`, { staffId: me.staff.id }, owner)
+    const agent = await staffToken('agent')
+    expect((await hit('GET', `/staff/v1/files/${fid}`, undefined, agent)).status).toBe(404)
+    expect((await hit('POST', `/staff/v1/files/${fid}/extracted`, { docType: 'passport', expiry: '2030-01-01' }, agent)).status).toBe(404)
+  })
+})
+
+describe('calendar-month rules', () => {
+  it('adds calendar months with month-end clamping, year rollover and leap years', async () => {
+    const { addCalendarMonths: add } = await import('../src/rules')
+    expect(add('2026-01-31', 6)).toBe('2026-07-31')
+    expect(add('2026-08-31', 6)).toBe('2027-02-28')   // clamped, non-leap
+    expect(add('2023-08-31', 6)).toBe('2024-02-29')   // clamped, leap year
+    expect(add('2026-12-31', 6)).toBe('2027-06-30')   // year rollover + short month
+    expect(add('2024-02-29', 12)).toBe('2025-02-28')  // leap day + 1 year
+    expect(add('2026-02-30', 6)).toBeNull(); expect(add('nonsense', 6)).toBeNull()
+  })
+  it('treats the six-month boundary as inclusive and one day less as a failure', async () => {
+    const { passportValidity: pv } = await import('../src/rules')
+    expect(pv('2026-07-31', '2026-01-31').outcome).toBe('pass')
+    expect(pv('2026-07-30', '2026-01-31').outcome).toBe('fail')
+    expect(pv('2027-02-28', '2026-08-31').outcome).toBe('pass')
+    expect(pv('2027-02-27', '2026-08-31').outcome).toBe('fail')
+    expect(pv('2024-02-29', '2023-08-31').outcome).toBe('pass'); expect(pv('2024-02-28', '2023-08-31').outcome).toBe('fail')
+    expect(pv(undefined, '2026-01-31').outcome).toBe('manual_review'); expect(pv('2026-02-31', '2026-01-31').outcome).toBe('manual_review')
+    expect(pv('2026-07-31', 'bad').outcome).toBe('manual_review')
   })
 })

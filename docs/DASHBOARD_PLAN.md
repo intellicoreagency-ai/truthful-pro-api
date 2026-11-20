@@ -30,6 +30,9 @@ transactions, and follows customers up. It sits on the same API/database as the 
 - **Owner-only team for now.** The owner signs in alone and holds every permission. The role system (manager/agent/accountant) already exists in the API
   and is simply unused until the team grows.
 
+## Further owner decisions (20 Nov 2026, batch 2)
+See `docs/WORKFLOW_GAP_ANALYSIS.md` ("Decisions recorded from the owner"): `ready_for_authority`, draft/publish delivery packages with versions, internal document override, official WhatsApp number for future notifications (no real messages now), finance without VAT.
+
 ## Not decided yet / needs the owner
 - Fee schedule for quotes/invoices.
 - Provided (20 Nov 2026): the owner's mobile has calls/SMS only, no WhatsApp, hence authenticator-app sign-in. It is deployed as a secret, not stored in the repo.

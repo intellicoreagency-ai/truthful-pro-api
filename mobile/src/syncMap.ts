@@ -7,7 +7,7 @@ export type ServerEvent={id:string;text_ar:string;text_en:string;created_at:numb
 export type ServerMissing={id:string;label_ar:string;label_en:string;note_ar:string;note_en:string;replacement_file_id:string|null;resolved_at:number|null};
 export type ServerDetail={files:ServerFile[];events?:ServerEvent[];missing?:ServerMissing[]};
 
-export const STAGE:Record<Status,1|2|3|4|5>={draft:1,submitted:1,review:2,needs_documents:2,authority:3,decision:4,completed:5,cancelled:1,rejected:5};
+export const STAGE:Record<Status,1|2|3|4|5>={draft:1,submitted:1,review:2,needs_documents:2,ready_for_authority:2,authority:3,decision:4,completed:5,cancelled:1,rejected:5};
 const iso=(ms:number)=>new Date(ms).toISOString();
 const parse=(s?:string):any=>{try{return s?JSON.parse(s):{}}catch{return {}}};
 export const isServerId=(s:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);

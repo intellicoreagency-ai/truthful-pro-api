@@ -232,7 +232,7 @@ authed.get('/me/export', async (c) => {
     exportedAt: Date.now(),
     user: u ? { ...u, phone_enc: undefined, phone } : null,
     requests: await q('SELECT id,service_id,status,data,renewal_of,created_at,updated_at FROM requests WHERE user_id=? AND deleted_at IS NULL'),
-    files: await q('SELECT id,request_id,name,mime,size,sha256,created_at FROM request_files WHERE user_id=? AND deleted_at IS NULL'),
+    files: await q("SELECT id,request_id,name,mime,size,sha256,created_at FROM request_files WHERE user_id=? AND deleted_at IS NULL AND (kind='source' OR delivery_id IN (SELECT id FROM deliveries WHERE status='published'))"),
     consents: await q('SELECT type,version,accepted,created_at FROM consents WHERE user_id=?'),
   })
 })
@@ -301,7 +301,7 @@ authed.get('/requests/:id', async (c) => {
   if (!isUuid(id)) return c.json({ error: 'not_found' }, 404)
   const r = await c.env.DB.prepare('SELECT id,service_id,status,data,staff_data,renewal_of,created_at,updated_at,version,delivery_version,(SELECT MAX(delivery_version) FROM receipt_acks a WHERE a.request_id=requests.id) acknowledged_version,(SELECT MAX(acknowledged_at) FROM receipt_acks a WHERE a.request_id=requests.id) acknowledged_at FROM requests WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(id, c.get('userId')).first()
   if (!r) return c.json({ error: 'not_found' }, 404)
-  const files = await c.env.DB.prepare('SELECT id,name,mime,size,kind,label,created_at FROM request_files WHERE request_id=? AND deleted_at IS NULL').bind(id).all()
+  const files = await c.env.DB.prepare("SELECT id,name,mime,size,kind,label,created_at FROM request_files WHERE request_id=? AND deleted_at IS NULL AND (kind='source' OR delivery_id IN (SELECT id FROM deliveries WHERE status='published'))").bind(id).all()
   // Customers only ever see events marked visible; internal notes never leave the staff API.
   const events = await c.env.DB.prepare('SELECT id,text_ar,text_en,created_at FROM request_events WHERE request_id=? AND visible=1 ORDER BY created_at').bind(id).all()
   const missing = await c.env.DB.prepare('SELECT id,label_ar,label_en,note_ar,note_en,replacement_file_id,resolved_at FROM missing_documents WHERE request_id=? ORDER BY created_at').bind(id).all()
@@ -394,7 +394,7 @@ authed.put('/requests/:id/files', async (c) => {
 authed.get('/files/:fileId', async (c) => {
   const fid = c.req.param('fileId'), uid = c.get('userId')
   if (!isUuid(fid)) return c.json({ error: 'not_found' }, 404)
-  const f = await c.env.DB.prepare('SELECT r2_key,name,mime FROM request_files WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(fid, uid).first<{ r2_key: string; name: string; mime: string }>()
+  const f = await c.env.DB.prepare("SELECT r2_key,name,mime FROM request_files WHERE id=? AND user_id=? AND deleted_at IS NULL AND (kind='source' OR delivery_id IN (SELECT id FROM deliveries WHERE status='published'))").bind(fid, uid).first<{ r2_key: string; name: string; mime: string }>()
   const obj = f ? await c.env.DOCS.get(f.r2_key) : null
   if (!f || !obj) return c.json({ error: 'not_found' }, 404)
   const plain = await open(c.env.DATA_KEY, `file:${uid}:${fid}`, new Uint8Array(await obj.arrayBuffer()))

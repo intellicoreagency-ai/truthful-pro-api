@@ -4,6 +4,7 @@ import type { Env, Vars } from './types'
 import { hmacHex, newId, open, openText, randomToken, seal, sealText, sha256Hex, timingSafeEqual } from './crypto'
 import { MAX_FILE_BYTES, isUuid, normalizePhone, safeFileName, sniffFile } from './validate'
 import { allow, audit, clientIp, jsonBody, type C } from './security'
+import { RULES, passportValidity } from './rules'
 import { newSecret, otpauthUri, verifyTotp } from './totp'
 import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server'
 import { b64, unb64, otpCode } from './crypto'
@@ -18,13 +19,14 @@ export const staff = new Hono<{ Bindings: Env; Variables: Vars }>()
 // ---------- status machine ----------
 export const TRANSITIONS: Record<string, string[]> = {
   submitted: ['review', 'rejected', 'cancelled'],
-  review: ['needs_documents', 'authority', 'rejected', 'cancelled'],
+  review: ['needs_documents', 'ready_for_authority', 'rejected', 'cancelled'],
   needs_documents: ['review', 'rejected', 'cancelled'],
+  ready_for_authority: ['authority', 'needs_documents', 'review', 'rejected', 'cancelled'],
   authority: ['decision', 'needs_documents', 'completed', 'rejected'],
   decision: ['completed', 'authority', 'rejected'],
 }
 const LABEL: Record<string, [string, string]> = {
-  review: ['قيد المراجعة', 'Under review'], needs_documents: ['مطلوب استكمال', 'Action required'], authority: ['لدى الجهة', 'With authority'],
+  review: ['قيد المراجعة', 'Under review'], needs_documents: ['مطلوب استكمال', 'Action required'], ready_for_authority: ['جاهزة للتقديم', 'Ready to submit'], authority: ['لدى الجهة', 'With authority'],
   decision: ['بانتظار القرار', 'Decision pending'], completed: ['منجزة', 'Completed'], rejected: ['مرفوضة', 'Rejected'], cancelled: ['ملغاة', 'Cancelled'],
 }
 
@@ -278,6 +280,16 @@ async function loadRequest(c: C, id: string) {
 const conflict = (c: C, r: Row, b: Record<string, unknown> | null) =>
   b && typeof b.expectedVersion === 'number' && b.expectedVersion !== r.version ? c.json({ error: 'version_conflict', current: r.version }, 409) : null
 
+
+/** Source documents with a failed / manual-review check that nobody has resolved (re-run or internally accepted). */
+async function blockedFiles(c: C, requestId: string): Promise<{ fileId: string; ruleCode: string; outcome: string }[]> {
+  const r = await c.env.DB.prepare(
+    `SELECT k.file_id,k.rule_code,k.outcome FROM document_checks k JOIN request_files f ON f.id=k.file_id
+     WHERE k.request_id=? AND f.kind='source' AND f.deleted_at IS NULL AND k.outcome!='pass' AND k.superseded_at IS NULL
+       AND NOT EXISTS (SELECT 1 FROM document_overrides o WHERE o.check_id=k.id)`).bind(requestId).all<{ file_id: string; rule_code: string; outcome: string }>()
+  return r.results.map((x) => ({ fileId: x.file_id, ruleCode: x.rule_code, outcome: x.outcome }))
+}
+
 async function addEvent(c: C, requestId: string, kind: string, ar: string, en: string, visible: boolean) {
   await c.env.DB.prepare('INSERT INTO request_events (id,request_id,actor,staff_id,kind,text_ar,text_en,visible,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
     .bind(newId(), requestId, 'staff', c.get('staffId'), kind, ar, en, visible ? 1 : 0, Date.now()).run()
@@ -286,14 +298,17 @@ async function addEvent(c: C, requestId: string, kind: string, ar: string, en: s
 guarded.get('/requests/:id', roles(...OPS), async (c) => {
   const r = await loadRequest(c, c.req.param('id'))
   if (!r) return c.json({ error: 'not_found' }, 404)
-  const files = await c.env.DB.prepare('SELECT id,name,mime,size,kind,label,created_at FROM request_files WHERE request_id=? AND deleted_at IS NULL ORDER BY created_at').bind(r.id).all()
+  const files = await c.env.DB.prepare('SELECT id,name,mime,size,kind,label,created_at,delivery_id,extracted FROM request_files WHERE request_id=? AND deleted_at IS NULL ORDER BY created_at').bind(r.id).all()
+  const deliveries = await c.env.DB.prepare('SELECT d.id,d.version,d.status,d.published_at,d.created_at,(SELECT acknowledged_at FROM receipt_acks a WHERE a.request_id=d.request_id AND a.delivery_version=d.version) acknowledged_at FROM deliveries d WHERE d.request_id=? ORDER BY COALESCE(d.version, 1000000), d.created_at').bind(r.id).all()
+  const checks = await c.env.DB.prepare('SELECT k.id,k.file_id,k.rule_code,k.rule_version,k.outcome,k.evidence,k.created_at,k.superseded_at,o.reason override_reason,o.created_at overridden_at FROM document_checks k LEFT JOIN document_overrides o ON o.check_id=k.id WHERE k.request_id=? ORDER BY k.created_at').bind(r.id).all()
+  const blocked = await blockedFiles(c, r.id)
   const events = await c.env.DB.prepare('SELECT id,actor,kind,text_ar,text_en,visible,created_at FROM request_events WHERE request_id=? ORDER BY created_at').bind(r.id).all()
   const missing = await c.env.DB.prepare('SELECT id,label_ar,label_en,note_ar,note_en,replacement_file_id,resolved_at FROM missing_documents WHERE request_id=? ORDER BY created_at').bind(r.id).all()
   let data: any = {}, sd: any = {}; try { data = JSON.parse(r.data) } catch {} try { sd = JSON.parse(r.staff_data) } catch {}
   const ackV = await c.env.DB.prepare('SELECT MAX(delivery_version) v, MAX(acknowledged_at) at FROM receipt_acks WHERE request_id=?').bind(r.id).first<{ v: number | null; at: number | null }>()
   const phone = await openText(c.env.DATA_KEY, 'user-phone', r.phone_enc).catch(() => '')
   await audit(c, 'staff.view_request', null, { requestId: r.id, by: c.get('staffId') })
-  return c.json({ request: { id: r.id, serviceId: r.service_id, status: r.status, assigneeId: r.assignee_id, createdAt: r.created_at, updatedAt: r.updated_at, version: r.version, deliveryVersion: r.delivery_version, acknowledgedVersion: ackV?.v ?? 0, acknowledgedAt: ackV?.at ?? null, data, staff: sd }, customer: { id: r.user_id, name: data.name || r.display_name || '', phone }, files: files.results, events: events.results, missing: missing.results, transitions: TRANSITIONS[r.status] ?? [] })
+  return c.json({ request: { id: r.id, serviceId: r.service_id, status: r.status, assigneeId: r.assignee_id, createdAt: r.created_at, updatedAt: r.updated_at, version: r.version, deliveryVersion: r.delivery_version, acknowledgedVersion: ackV?.v ?? 0, acknowledgedAt: ackV?.at ?? null, data, staff: sd }, customer: { id: r.user_id, name: data.name || r.display_name || '', phone }, files: files.results, deliveries: deliveries.results, checks: checks.results, blocked, events: events.results, missing: missing.results, transitions: TRANSITIONS[r.status] ?? [] })
 })
 
 guarded.post('/requests/:id/assign', roles(...OPS), async (c) => {
@@ -322,6 +337,10 @@ guarded.post('/requests/:id/status', roles(...OPS), async (c) => {
   if (!(TRANSITIONS[r.status] ?? []).includes(to)) return c.json({ error: 'invalid_transition', allowed: TRANSITIONS[r.status] ?? [] }, 409)
   let sd: any = {}; try { sd = JSON.parse(r.staff_data) } catch {}
   const now = new Date().toISOString()
+  if (to === 'ready_for_authority') { // internal approval to submit: no unresolved failed document check may remain
+    const blocked = await blockedFiles(c, r.id)
+    if (blocked.length) return c.json({ error: 'documents_blocked', files: blocked }, 409)
+  }
   // "With authority" is a fact that needs evidence of the actual submission; a rejection needs an understandable reason.
   if (to === 'authority') {
     const ref = typeof b?.reference === 'string' ? b.reference.trim() : ''
@@ -395,19 +414,126 @@ guarded.put('/requests/:id/files', roles(...OPS), async (c) => {
   if (!bytes.length || bytes.length > MAX_FILE_BYTES) return c.json({ error: 'too_large' }, 413)
   const t = sniffFile(bytes)
   if (!t) return c.json({ error: 'unsupported_type' }, 415)
+  // Files go to the request's DRAFT delivery package. The customer sees nothing until the package is published.
+  let draft = await c.env.DB.prepare("SELECT id FROM deliveries WHERE request_id=? AND status='draft'").bind(r.id).first<{ id: string }>()
+  if (!draft) {
+    const did = newId()
+    await c.env.DB.prepare("INSERT INTO deliveries (id,request_id,status,created_by,created_at) VALUES (?,?,'draft',?,?)").bind(did, r.id, c.get('staffId'), Date.now()).run()
+    draft = { id: did }
+  }
   const fid = newId(), key = `u/${r.user_id}/${fid}`
   await c.env.DOCS.put(key, await seal(c.env.DATA_KEY, `file:${r.user_id}:${fid}`, bytes), { httpMetadata: { contentType: 'application/octet-stream' } })
   const name = safeFileName(c.req.header('x-file-name') ? decodeURIComponent(c.req.header('x-file-name') as string) : null, t.ext)
   const label = (c.req.header('x-file-label') ? decodeURIComponent(c.req.header('x-file-label') as string) : '').slice(0, 120) || null
-  await c.env.DB.prepare('INSERT INTO request_files (id,request_id,user_id,r2_key,name,mime,size,sha256,created_at,kind,label) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-    .bind(fid, r.id, r.user_id, key, name, t.mime, bytes.length, await sha256Hex(bytes), Date.now(), kind, label).run()
-  if (kind === 'final') await c.env.DB.prepare('UPDATE requests SET delivery_version=delivery_version+1, version=version+1, updated_at=? WHERE id=?').bind(Date.now(), r.id).run() // a new delivery needs a new acknowledgement
-  await addEvent(c, r.id, 'file', kind === 'final' ? 'أُضيف ملف التسليم' : 'أُضيفت فاتورة', kind === 'final' ? 'Delivery file added' : 'Invoice added', true)
+  await c.env.DB.prepare('INSERT INTO request_files (id,request_id,user_id,r2_key,name,mime,size,sha256,created_at,kind,label,delivery_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+    .bind(fid, r.id, r.user_id, key, name, t.mime, bytes.length, await sha256Hex(bytes), Date.now(), kind, label, draft.id).run()
+  await addEvent(c, r.id, 'file', 'أُضيف ملف إلى مسودة التسليم', 'File added to the draft delivery', false) // internal until published
   await audit(c, 'staff.file_upload', null, { fileId: fid, requestId: r.id, kind, by: c.get('staffId') })
-  return c.json({ id: fid, name, kind }, 201)
+  return c.json({ id: fid, name, kind, deliveryId: draft.id, published: false }, 201)
 })
 
+/** Staff can remove a file from the DRAFT package; published packages are immutable (replace by publishing a new version). */
+guarded.delete('/files/:fileId', roles(...OPS), async (c) => {
+  const fid = c.req.param('fileId')
+  if (!isUuid(fid)) return c.json({ error: 'not_found' }, 404)
+  const f = await c.env.DB.prepare("SELECT f.r2_key,f.request_id,r.assignee_id,d.status ds FROM request_files f JOIN requests r ON r.id=f.request_id LEFT JOIN deliveries d ON d.id=f.delivery_id WHERE f.id=? AND f.deleted_at IS NULL AND f.kind IN ('final','invoice')").bind(fid)
+    .first<{ r2_key: string; request_id: string; assignee_id: string | null; ds: string | null }>()
+  if (!f || !canSee(c, f.assignee_id)) return c.json({ error: 'not_found' }, 404)
+  if (f.ds !== 'draft') return c.json({ error: 'published_is_immutable' }, 409)
+  await c.env.DOCS.delete(f.r2_key)
+  await c.env.DB.prepare('UPDATE request_files SET deleted_at=?, r2_key=? WHERE id=?').bind(Date.now(), 'deleted', fid).run()
+  await audit(c, 'staff.draft_file_remove', null, { fileId: fid, by: c.get('staffId') })
+  return c.json({ ok: true })
+})
 
+/** Explicit publish: freezes the draft as the next delivery version, supersedes the previous one, and shows it to the customer. */
+guarded.post('/requests/:id/deliveries/publish', roles(...OPS), async (c) => {
+  const r = await loadRequest(c, c.req.param('id'))
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const cf = conflict(c, r, b); if (cf) return cf
+  const draft = await c.env.DB.prepare("SELECT id FROM deliveries WHERE request_id=? AND status='draft'").bind(r.id).first<{ id: string }>()
+  const items = draft ? (await c.env.DB.prepare('SELECT id,kind,sha256 FROM request_files WHERE delivery_id=? AND deleted_at IS NULL ORDER BY id').bind(draft.id).all<{ id: string; kind: string; sha256: string }>()).results : []
+  if (!draft || !items.some((x) => x.kind === 'final')) return c.json({ error: 'no_final_files' }, 409) // nothing to publish without a final file
+  const mx = await c.env.DB.prepare('SELECT MAX(version) v FROM deliveries WHERE request_id=?').bind(r.id).first<{ v: number | null }>()
+  const version = (mx?.v ?? 0) + 1
+  const manifest = await sha256Hex(items.map((x) => `${x.id}:${x.sha256}`).join('|'))
+  const now = Date.now()
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE deliveries SET status='superseded' WHERE request_id=? AND status='published'").bind(r.id),
+    c.env.DB.prepare("UPDATE deliveries SET status='published', version=?, manifest_hash=?, published_by=?, published_at=? WHERE id=?").bind(version, manifest, c.get('staffId'), now, draft.id),
+    c.env.DB.prepare('UPDATE requests SET delivery_version=?, version=version+1, updated_at=? WHERE id=?').bind(version, now, r.id),
+  ])
+  await addEvent(c, r.id, 'file', 'ملفات التسليم جاهزة', `Delivery files published (version ${version})`, true)
+  await audit(c, 'staff.delivery_publish', null, { requestId: r.id, version, by: c.get('staffId') })
+  return c.json({ ok: true, version, manifestHash: manifest }, 201)
+})
+
+// ---------- document checks (internal review aids) and overrides ----------
+const loadFile = async (c: C, fid: string) => {
+  if (!isUuid(fid)) return null
+  const f = await c.env.DB.prepare("SELECT f.id,f.request_id,f.kind,f.user_id,r.assignee_id,r.created_at FROM request_files f JOIN requests r ON r.id=f.request_id WHERE f.id=? AND f.deleted_at IS NULL AND r.deleted_at IS NULL").bind(fid)
+    .first<{ id: string; request_id: string; kind: string; user_id: string; assignee_id: string | null; created_at: number }>()
+  return f && canSee(c, f.assignee_id) ? f : null
+}
+const newCheck = async (c: C, f: { id: string; request_id: string }, rule: string, outcome: string, evidence: unknown) => {
+  const now = Date.now()
+  await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE document_checks SET superseded_at=? WHERE file_id=? AND rule_code=? AND superseded_at IS NULL').bind(now, f.id, rule), // a re-run replaces the previous result, history kept
+    c.env.DB.prepare('INSERT INTO document_checks (id,file_id,request_id,rule_code,rule_version,outcome,evidence,created_by,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
+      .bind(newId(), f.id, f.request_id, rule, (RULES[rule] as { version: string }).version, outcome, JSON.stringify(evidence).slice(0, 1000), c.get('staffId'), now),
+  ])
+}
+
+/** Staff records what they read from a document; the system evaluates the rules (the passport rule uses calendar months). */
+guarded.post('/files/:fileId/extracted', roles(...OPS), async (c) => {
+  const f = await loadFile(c, c.req.param('fileId'))
+  if (!f || f.kind !== 'source') return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const type = b?.docType
+  if (!['passport', 'id', 'licence'].includes(type as string)) return c.json({ error: 'invalid_request' }, 400)
+  const expiry = typeof b?.expiry === 'string' ? b.expiry : null
+  const base = typeof b?.baseDate === 'string' ? b.baseDate : new Date(f.created_at + 4 * 3600_000).toISOString().slice(0, 10) // default: request creation day in Dubai
+  await c.env.DB.prepare('UPDATE request_files SET extracted=? WHERE id=?').bind(JSON.stringify({ docType: type, expiry, holder: typeof b?.holder === 'string' ? b.holder.slice(0, 80) : null, source: 'manual', by: c.get('staffId') }), f.id).run()
+  let result: { outcome: string; evidence: unknown } | null = null
+  if (type === 'passport') { result = passportValidity(expiry, base, 6); await newCheck(c, f, 'passport_validity_6m', result.outcome, result.evidence) }
+  await audit(c, 'staff.doc_extracted', null, { fileId: f.id, by: c.get('staffId') }) // no document numbers in the log
+  return c.json({ ok: true, result })
+})
+
+/** Staff records a manual rule outcome (e.g. a name mismatch found on review). */
+guarded.post('/files/:fileId/checks', roles(...OPS), async (c) => {
+  const f = await loadFile(c, c.req.param('fileId'))
+  if (!f || f.kind !== 'source') return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const rule = typeof b?.ruleCode === 'string' ? b.ruleCode : ''
+  if (!RULES[rule] || !['pass', 'fail', 'manual_review'].includes(b?.outcome as string)) return c.json({ error: 'invalid_request' }, 400)
+  if (['file_signature', 'file_size', 'malware_scan'].includes(rule)) return c.json({ error: 'system_rule' }, 400) // only the system records these
+  await newCheck(c, f, rule, b?.outcome as string, { note: typeof b?.note === 'string' ? b.note.slice(0, 300) : '' })
+  return c.json({ ok: true })
+})
+
+/** Internal acceptance of a document that a rule failed, after review. Owner/manager only; reason, rule, rule version, member and time are recorded. Never for malware/signature/size. */
+guarded.post('/files/:fileId/override', roles('owner', 'manager'), async (c) => {
+  const f = await loadFile(c, c.req.param('fileId'))
+  if (!f || f.kind !== 'source') return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const reason = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 500) : ''
+  if (reason.length < 10) return c.json({ error: 'reason_required' }, 400)
+  const chk = typeof b?.checkId === 'string' && isUuid(b.checkId)
+    ? await c.env.DB.prepare('SELECT id,rule_code,rule_version,outcome FROM document_checks WHERE id=? AND file_id=? AND superseded_at IS NULL').bind(b.checkId, f.id).first<{ id: string; rule_code: string; rule_version: string; outcome: string }>() : null
+  if (!chk || chk.outcome === 'pass') return c.json({ error: 'not_found' }, 404)
+  if (!RULES[chk.rule_code]?.overridable) return c.json({ error: 'not_overridable' }, 400)
+  try {
+    await c.env.DB.prepare('INSERT INTO document_overrides (id,check_id,file_id,request_id,rule_code,rule_version,staff_id,reason,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
+      .bind(newId(), chk.id, f.id, f.request_id, chk.rule_code, chk.rule_version, c.get('staffId'), reason, Date.now()).run()
+  } catch { return c.json({ error: 'already_overridden' }, 409) }
+  const me = await c.env.DB.prepare('SELECT name FROM staff WHERE id=?').bind(c.get('staffId')).first<{ name: string }>()
+  const txt = `Document accepted internally after review: rule ${chk.rule_code} v${chk.rule_version} overridden by ${me?.name ?? c.get('staffId')}. Reason: ${reason}. (Internal approval only: not proof of authenticity or of government acceptance.)`
+  await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,staff_id,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'staff',?,'note',?,?,0,?)").bind(newId(), f.request_id, c.get('staffId'), txt, txt, Date.now()).run()
+  await audit(c, 'staff.doc_override', null, { fileId: f.id, requestId: f.request_id, rule: chk.rule_code, version: chk.rule_version, by: c.get('staffId') })
+  return c.json({ ok: true })
+})
 
 // ---------- which sign-in methods are available (public; reveals configuration only) ----------
 staff.get('/auth/methods', (c) => c.json({
@@ -553,7 +679,7 @@ staff.post('/auth/passkey/verify', async (c) => {
 
 
 // ---------- override (owner/manager): bypass the status machine, with a mandatory reason, fully audited ----------
-const ALL_STATUS = ['submitted', 'review', 'needs_documents', 'authority', 'decision', 'completed', 'cancelled', 'rejected']
+const ALL_STATUS = ['submitted', 'review', 'needs_documents', 'ready_for_authority', 'authority', 'decision', 'completed', 'cancelled', 'rejected']
 guarded.post('/requests/:id/override', roles('owner', 'manager'), async (c) => {
   const r = await loadRequest(c, c.req.param('id'))
   if (!r) return c.json({ error: 'not_found' }, 404)
