@@ -4,6 +4,7 @@ import { b64, hmacHex, hmacHexText, waCode, newId, open, openText, otpCode, rand
 import { MAX_FILES_PER_REQUEST, MAX_FILE_BYTES, REQUEST_STATUSES, isServiceId, isUuid, normalizePhone, safeFileName, sniffFile } from './validate'
 import { allow, audit, clientIp, jsonBody, requireAuth, securityHeaders, type C } from './security'
 import { sendOtp } from './sms'
+import { staff } from './staff'
 
 const ACCESS_TTL = 15 * 60 * 1000
 const REFRESH_TTL = 30 * 24 * 3600 * 1000
@@ -154,7 +155,7 @@ app.post('/v1/auth/wa/poll', async (c) => {
   if (!isUuid(id) || !/^[A-Za-z0-9_-]{20,64}$/.test(poll) || !phone) return c.json({ error: 'invalid_request' }, 400)
   if (!(await allow(c.env, `wapoll:${clientIp(c)}`, 300, 600))) return c.json({ error: 'too_many_requests' }, 429)
   const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
-  const ch = await c.env.DB.prepare('SELECT poll_hash,phone_hash,expires_at,verified_at,consumed_at FROM wa_challenges WHERE id=?').bind(id)
+  const ch = await c.env.DB.prepare('SELECT poll_hash,phone_hash,expires_at,verified_at,consumed_at FROM wa_challenges WHERE id=? AND purpose=\'customer\'').bind(id)
     .first<{ poll_hash: string; phone_hash: string; expires_at: number; verified_at: number | null; consumed_at: number | null }>()
   if (!ch || !timingSafeEqual(ch.poll_hash, await sha256Hex(poll)) || ch.phone_hash !== phoneHash) return c.json({ error: 'invalid_request' }, 400)
   if (ch.consumed_at || ch.expires_at < Date.now()) return c.json({ status: 'expired' })
@@ -255,7 +256,7 @@ authed.delete('/me', async (c) => {
 
 // ---------- Requests ----------
 authed.get('/requests', async (c) => {
-  const r = await c.env.DB.prepare('SELECT id,service_id,status,data,renewal_of,created_at,updated_at FROM requests WHERE user_id=? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 200').bind(c.get('userId')).all()
+  const r = await c.env.DB.prepare('SELECT id,service_id,status,data,staff_data,renewal_of,created_at,updated_at FROM requests WHERE user_id=? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 200').bind(c.get('userId')).all()
   return c.json({ requests: r.results })
 })
 authed.post('/requests', async (c) => {
@@ -280,10 +281,13 @@ const ownRequest = (c: C, id: string) =>
 authed.get('/requests/:id', async (c) => {
   const id = c.req.param('id')
   if (!isUuid(id)) return c.json({ error: 'not_found' }, 404)
-  const r = await c.env.DB.prepare('SELECT id,service_id,status,data,renewal_of,created_at,updated_at FROM requests WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(id, c.get('userId')).first()
+  const r = await c.env.DB.prepare('SELECT id,service_id,status,data,staff_data,renewal_of,created_at,updated_at FROM requests WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(id, c.get('userId')).first()
   if (!r) return c.json({ error: 'not_found' }, 404)
-  const files = await c.env.DB.prepare('SELECT id,name,mime,size,created_at FROM request_files WHERE request_id=? AND deleted_at IS NULL').bind(id).all()
-  return c.json({ request: r, files: files.results })
+  const files = await c.env.DB.prepare('SELECT id,name,mime,size,kind,label,created_at FROM request_files WHERE request_id=? AND deleted_at IS NULL').bind(id).all()
+  // Customers only ever see events marked visible; internal notes never leave the staff API.
+  const events = await c.env.DB.prepare('SELECT id,text_ar,text_en,created_at FROM request_events WHERE request_id=? AND visible=1 ORDER BY created_at').bind(id).all()
+  const missing = await c.env.DB.prepare('SELECT id,label_ar,label_en,note_ar,note_en,replacement_file_id,resolved_at FROM missing_documents WHERE request_id=? ORDER BY created_at').bind(id).all()
+  return c.json({ request: r, files: files.results, events: events.results, missing: missing.results })
 })
 authed.patch('/requests/:id', async (c) => {
   const id = c.req.param('id')
@@ -294,7 +298,12 @@ authed.patch('/requests/:id', async (c) => {
   // Clients may only submit or cancel; every other status belongs to staff.
   const status = b?.status === 'submitted' || b?.status === 'cancelled' ? b.status : null
   if (b?.status !== undefined && !status) return c.json({ error: 'invalid_status' }, 400)
+  const before = await ownRequest(c, id)
   await c.env.DB.prepare('UPDATE requests SET data=COALESCE(?,data), status=COALESCE(?,status), updated_at=? WHERE id=? AND user_id=?').bind(data, status, Date.now(), id, c.get('userId')).run()
+  if (status && before?.status !== status) {
+    const [ar, en] = status === 'submitted' ? ['تم إرسال الطلب', 'Request submitted'] : ['أُلغي الطلب', 'Request cancelled']
+    await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, ar, en, Date.now()).run()
+  }
   return c.json({ ok: true })
 })
 authed.delete('/requests/:id', async (c) => {
@@ -328,6 +337,20 @@ authed.put('/requests/:id/files', async (c) => {
   const name = safeFileName(c.req.header('x-file-name') ? decodeURIComponent(c.req.header('x-file-name') as string) : null, kind.ext)
   await c.env.DB.prepare('INSERT INTO request_files (id,request_id,user_id,r2_key,name,mime,size,sha256,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
     .bind(fileId, id, uid, key, name, kind.mime, bytes.length, await sha256Hex(bytes), Date.now()).run()
+  const missingId = c.req.query('missingId')
+  if (missingId && isUuid(missingId)) {
+    const m = await c.env.DB.prepare('UPDATE missing_documents SET replacement_file_id=?, resolved_at=? WHERE id=? AND request_id=? AND resolved_at IS NULL').bind(fileId, Date.now(), missingId, id).run()
+    if (m.meta.changes) {
+      const left = await c.env.DB.prepare('SELECT COUNT(*) n FROM missing_documents WHERE request_id=? AND resolved_at IS NULL').bind(id).first<{ n: number }>()
+      const cur = await ownRequest(c, id)
+      if ((left?.n ?? 0) === 0 && cur?.status === 'needs_documents') { // all supplied: back to staff review
+        await c.env.DB.batch([
+          c.env.DB.prepare("UPDATE requests SET status='review', updated_at=? WHERE id=?").bind(Date.now(), id),
+          c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, 'أرسل العميل المستندات المطلوبة', 'Customer sent the requested documents', Date.now()),
+        ])
+      }
+    }
+  }
   await audit(c, 'file.upload', uid, { fileId })
   return c.json({ id: fileId, name, mime: kind.mime, size: bytes.length }, 201)
 })
@@ -344,7 +367,7 @@ authed.get('/files/:fileId', async (c) => {
 authed.delete('/files/:fileId', async (c) => {
   const fid = c.req.param('fileId'), uid = c.get('userId')
   if (!isUuid(fid)) return c.json({ error: 'not_found' }, 404)
-  const f = await c.env.DB.prepare('SELECT r2_key FROM request_files WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(fid, uid).first<{ r2_key: string }>()
+  const f = await c.env.DB.prepare("SELECT r2_key FROM request_files WHERE id=? AND user_id=? AND kind='source' AND deleted_at IS NULL").bind(fid, uid).first<{ r2_key: string }>()
   if (!f) return c.json({ error: 'not_found' }, 404)
   await c.env.DOCS.delete(f.r2_key)
   await c.env.DB.prepare('UPDATE request_files SET deleted_at=?, r2_key=? WHERE id=?').bind(Date.now(), 'deleted', fid).run()
@@ -353,4 +376,5 @@ authed.delete('/files/:fileId', async (c) => {
 })
 
 app.route('/v1', authed)
+app.route('/staff/v1', staff)
 export default app

@@ -1,6 +1,6 @@
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import { getPlatformProxy } from 'wrangler'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { app } from '../src/index'
 import type { Env } from '../src/types'
 
@@ -29,8 +29,11 @@ beforeAll(async () => {
   const p = await getPlatformProxy<Env>({ configPath: new URL('../wrangler.toml', import.meta.url).pathname, persist: false })
   dispose = p.dispose
   env = { ...p.env, PEPPER: b64(32), DATA_KEY: b64(32), ENVIRONMENT: 'test', DEV_OTP_ECHO: '1' } as Env
-  const sql = readFileSync(new URL('../migrations/0001_init.sql', import.meta.url), 'utf8')
-  for (const stmt of sql.split(/;\s*\n/).map((s) => s.trim()).filter(Boolean)) await env.DB.prepare(stmt).run()
+  const dir = new URL('../migrations/', import.meta.url)
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
+    const sql = readFileSync(new URL(file, dir), 'utf8')
+    for (const stmt of sql.split(/;\s*\n/).map((x) => x.trim()).filter(Boolean)) await env.DB.prepare(stmt).run()
+  }
 })
 afterAll(async () => { await dispose?.() })
 
@@ -284,5 +287,126 @@ describe('whatsapp verification (free, user-initiated)', () => {
     const ok = await fetchWa('/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=vt&hub.challenge=12345', { method: 'GET' })
     expect(await ok.text()).toBe('12345')
     expect((await fetchWa('/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=nope&hub.challenge=1', { method: 'GET' })).status).toBe(403)
+  })
+})
+
+describe('staff operations hub', () => {
+  const SECRET = 's-secret'
+  const OWNER = '+971521140001'
+  const senv = () => ({ ...env, WA_BUSINESS_NUMBER: '971500000000', WA_APP_SECRET: SECRET, OWNER_PHONE: OWNER } as Env)
+  const hit = (method: string, path: string, o: { body?: unknown; token?: string; raw?: Uint8Array; headers?: Record<string, string> } = {}) => {
+    const headers: Record<string, string> = { 'cf-connecting-ip': `10.3.0.${++ipCounter % 250}`, ...(o.headers ?? {}) }
+    let body: BodyInit | undefined
+    if (o.raw) body = o.raw as BodyInit; else if (o.body !== undefined) { headers['content-type'] = 'application/json'; body = JSON.stringify(o.body) }
+    if (o.token) headers.authorization = `Bearer ${o.token}`
+    return app.fetch(new Request('https://api.test' + path, { method, headers, body }), senv())
+  }
+  const deliver = async (from: string, code: string) => {
+    const raw = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ from, type: 'text', text: { body: code } }] } }] }] })
+    const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+    const sig = 'sha256=' + Buffer.from(await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(raw))).toString('hex')
+    return hit('POST', '/webhooks/whatsapp', { headers: { 'x-hub-signature-256': sig, 'content-type': 'application/json' }, raw: new TextEncoder().encode(raw) })
+  }
+  async function staffLogin(phone: string) {
+    const s = await (await hit('POST', '/staff/v1/auth/wa/start', { body: { phone } })).json() as { challengeId: string; pollToken: string; code: string }
+    await deliver(phone.replace('+', ''), s.code)
+    const r = await hit('POST', '/staff/v1/auth/wa/poll', { body: { phone, challengeId: s.challengeId, pollToken: s.pollToken } })
+    return { status: r.status, j: await r.json() as { status: string; accessToken: string } }
+  }
+  async function customerLogin(phone: string) {
+    const s = await (await hit('POST', '/v1/auth/wa/start', { body: { phone } })).json() as { challengeId: string; pollToken: string; code: string }
+    await deliver(phone.replace('+', ''), s.code)
+    const r = await hit('POST', '/v1/auth/wa/poll', { body: { phone, challengeId: s.challengeId, pollToken: s.pollToken } })
+    return (await r.json() as { accessToken: string }).accessToken
+  }
+  const submitted = async (token: string) => {
+    const { id } = await (await hit('POST', '/v1/requests', { token, body: { serviceId: 'emirates-id', data: { name: 'Ali', title: { ar: 'تجديد', en: 'Renew' } } } })).json() as { id: string }
+    await hit('PATCH', `/v1/requests/${id}`, { token, body: { status: 'submitted' } })
+    return id
+  }
+  let owner = '', agentA = '', agentB = '', accountant = ''
+
+  it('denies a verified number that is not on the team, and bootstraps the owner', async () => {
+    const stranger = await staffLogin('+971521140099')
+    expect(stranger.status).toBe(403); expect(stranger.j.status).toBe('not_staff')
+    const o = await staffLogin(OWNER)
+    expect(o.status).toBe(200); owner = o.j.accessToken
+  })
+  it('lets only the owner manage the team; roles are enforced', async () => {
+    for (const [phone, role] of [['+971521140002', 'agent'], ['+971521140003', 'agent'], ['+971521140004', 'accountant']] as const)
+      expect((await hit('POST', '/staff/v1/team', { token: owner, body: { phone, name: role, role } })).status).toBe(201)
+    agentA = (await staffLogin('+971521140002')).j.accessToken
+    agentB = (await staffLogin('+971521140003')).j.accessToken
+    accountant = (await staffLogin('+971521140004')).j.accessToken
+    expect((await hit('POST', '/staff/v1/team', { token: agentA, body: { phone: '+971521140005', name: 'x', role: 'agent' } })).status).toBe(403)
+    expect((await hit('GET', '/staff/v1/requests', { token: accountant })).status).toBe(403)
+    expect((await hit('POST', '/staff/v1/team', { token: owner, body: { phone: '+971521140005', name: 'x', role: 'owner' } })).status).toBe(400)
+  })
+  it('keeps customer and staff identities apart', async () => {
+    const cust = await customerLogin('+971521140010')
+    expect((await hit('GET', '/staff/v1/requests', { token: cust })).status).toBe(401)
+    expect((await hit('GET', '/v1/requests', { token: owner })).status).toBe(401)
+    expect((await hit('GET', '/staff/v1/requests')).status).toBe(401)
+  })
+  it('queue hides drafts, scopes agents, and supports assignment', async () => {
+    const cust = await customerLogin('+971521140011')
+    const draft = (await (await hit('POST', '/v1/requests', { token: cust, body: { serviceId: 'emirates-id' } })).json() as { id: string }).id
+    const id = await submitted(cust)
+    const q = await (await hit('GET', '/staff/v1/requests', { token: agentA })).json() as { requests: { id: string; customer: { phone: string } }[] }
+    expect(q.requests.some((r) => r.id === id)).toBe(true)
+    expect(q.requests.some((r) => r.id === draft)).toBe(false)
+    expect(q.requests.find((r) => r.id === id)?.customer.phone).toBe('+971521140011')
+    const me = await (await hit('GET', '/staff/v1/me', { token: agentA })).json() as { staff: { id: string } }
+    expect((await hit('POST', `/staff/v1/requests/${id}/assign`, { token: agentA, body: { staffId: me.staff.id } })).status).toBe(200)
+    expect((await hit('GET', `/staff/v1/requests/${id}`, { token: agentB })).status).toBe(404) // taken by A
+    expect((await hit('GET', `/staff/v1/requests/${id}`, { token: owner })).status).toBe(200) // owner sees all
+    expect((await hit('POST', `/staff/v1/requests/${id}/assign`, { token: agentB, body: { staffId: me.staff.id } })).status).toBe(404)
+  })
+  it('enforces the status machine and hides internal notes from the customer', async () => {
+    const cust = await customerLogin('+971521140012')
+    const id = await submitted(cust)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { token: owner, body: { status: 'completed' } })).status).toBe(409)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { token: owner, body: { status: 'review', expectedAt: '2026-12-01' } })).status).toBe(200)
+    await hit('POST', `/staff/v1/requests/${id}/notes`, { token: owner, body: { text: 'SECRET internal note' } })
+    const d = await (await hit('GET', `/v1/requests/${id}`, { token: cust })).json() as { request: { status: string; staff_data: string }; events: { text_en: string }[] }
+    expect(d.request.status).toBe('review')
+    expect(JSON.parse(d.request.staff_data).expectedAt).toBe('2026-12-01')
+    expect(JSON.stringify(d.events)).not.toContain('SECRET')
+    expect(d.events.map((e) => e.text_en)).toEqual(expect.arrayContaining(['Request submitted', 'Under review']))
+    expect((await hit('PATCH', `/v1/requests/${id}`, { token: cust, body: { status: 'completed' } })).status).toBe(400) // customers cannot self-complete
+  })
+  it('asks for missing documents and returns to review when the customer supplies them', async () => {
+    const cust = await customerLogin('+971521140013')
+    const id = await submitted(cust)
+    await hit('POST', `/staff/v1/requests/${id}/status`, { token: owner, body: { status: 'review' } })
+    expect((await hit('POST', `/staff/v1/requests/${id}/missing`, { token: owner, body: { items: [] } })).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/requests/${id}/missing`, { token: owner, body: { items: [{ labelAr: 'صورة الجواز', labelEn: 'Passport copy', noteEn: 'Unclear' }] } })).status).toBe(200)
+    let d = await (await hit('GET', `/v1/requests/${id}`, { token: cust })).json() as { request: { status: string }; missing: { id: string; resolved_at: number | null }[] }
+    expect(d.request.status).toBe('needs_documents'); expect(d.missing).toHaveLength(1)
+    const up = await hit('PUT', `/v1/requests/${id}/files?missingId=${d.missing[0]!.id}`, { token: cust, raw: pdf() })
+    expect(up.status).toBe(201)
+    d = await (await hit('GET', `/v1/requests/${id}`, { token: cust })).json() as typeof d
+    expect(d.request.status).toBe('review'); expect(d.missing[0]!.resolved_at).not.toBeNull()
+  })
+  it('delivers a final file the customer can open but not delete; staff views are audited', async () => {
+    const cust = await customerLogin('+971521140014')
+    const id = await submitted(cust)
+    const put = await hit('PUT', `/staff/v1/requests/${id}/files?kind=final`, { token: owner, raw: pdf(), headers: { 'x-file-name': 'result.pdf', 'x-file-label': encodeURIComponent('Delivery') } })
+    expect(put.status).toBe(201)
+    const f = await put.json() as { id: string }
+    const dl = await hit('GET', `/v1/files/${f.id}`, { token: cust })
+    expect(dl.status).toBe(200); expect(new Uint8Array(await dl.arrayBuffer())).toEqual(pdf())
+    expect((await hit('DELETE', `/v1/files/${f.id}`, { token: cust })).status).toBe(404)
+    const sv = await hit('GET', `/staff/v1/files/${f.id}`, { token: owner })
+    expect(sv.status).toBe(200); expect(sv.headers.get('content-security-policy')).toContain("frame-ancestors 'self'")
+    expect((await hit('GET', '/health')).headers.get('x-frame-options')).toBe('DENY') // everything else stays un-embeddable
+    const logged = await env.DB.prepare("SELECT COUNT(*) n FROM audit_events WHERE action='staff.file_view'").first<{ n: number }>()
+    expect(logged!.n).toBeGreaterThan(0)
+  })
+  it('deactivating a staff member ends their session immediately', async () => {
+    const team = await (await hit('GET', '/staff/v1/team', { token: owner })).json() as { team: { id: string; name: string; role: string }[] }
+    const acc = team.team.find((t) => t.role === 'accountant')!
+    expect((await hit('PATCH', `/staff/v1/team/${acc.id}`, { token: owner, body: { active: false } })).status).toBe(200)
+    expect((await hit('GET', '/staff/v1/me', { token: accountant })).status).toBe(401)
   })
 })
