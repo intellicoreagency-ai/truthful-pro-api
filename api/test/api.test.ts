@@ -1070,7 +1070,7 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
   const fin = async (id: string) => (await (await hit('GET', `/staff/v1/requests/${id}/finance`, undefined, owner)).json()) as { quotes: { id: string; version: number; status: string; number: string | null; total_fils: number }[]; payments: { id: string; kind: string; status: string; amount_fils: number; receipt_id: string | null; refund_of: string | null }[]; documents: { id: string; doc_type: string; number: string; status: string; related_id: string | null }[]; totals: { total: number; paid: number; refunded: number; net: number; pending: number; remaining: number; state: string }; tax: { configured: boolean }; test: boolean }
   const issueQuote = async (id: string, items: unknown = ITEMS) => { const q = (await (await draftQuote(id, items)).json()) as { id: string; version: number }; const r = await hit('POST', `/staff/v1/quotes/${q.id}/issue`, {}, owner); return { q, r } } // issuing creates the invoice for the Company fee (no quotation step)
   const priced = async (id: string) => { const { q, r } = await issueQuote(id); const inv = await r.json() as { documentId: string; number: string }; return { q, inv } }
-  const proof = async (id: string) => ((await (await hit('PUT', `/v1/requests/${id}/files`, undefined, cust, { 'x-file-name': 'transfer.pdf' }, pdf())).json()) as { id: string }).id
+  const proof = async (id: string) => { await env.DB.prepare('DELETE FROM rate_limits').run(); return ((await (await hit('PUT', `/v1/requests/${id}/files`, undefined, cust, { 'x-file-name': 'transfer.pdf' }, pdf())).json()) as { id: string }).id }
   let refSeq = 0
   const pay = async (id: string, amount: number, o: { key?: string; ref?: string; token?: string; file?: string } = {}) =>
     hit('POST', `/v1/requests/${id}/payments`, { amountFils: amount, method: 'bank_transfer', reference: o.ref ?? `TRX-${Date.now()}-${++refSeq}`, proofFileId: o.file ?? await proof(id), clientKey: o.key ?? `ckey-${Date.now()}-${refSeq}-${Math.random().toString(36).slice(2, 8)}` }, o.token ?? cust)
@@ -1338,6 +1338,129 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect(rec.flags.some((x) => x.type === 'approved_without_proof' && x.paymentId === b)).toBe(true)
     expect(rec.flags.some((x) => x.type === 'invoice_ledger_mismatch')).toBe(false)
     expect((await hit('GET', `/staff/v1/finance/reconciliation?date=${day}`, undefined, await staffToken('agent'))).status).toBe(403)
+  })
+  // ===== transaction lifecycle: every step has an action, an owner and a condition; the server is the reference =====
+  type WorkJ = { work: { waitingOn: string; next: { code: string }; overdue: boolean; followUpAt: number | null; payment: { company: string }; delivery: { state: string; version: number } }; log: { from_status: string | null; to_status: string; actor_kind: string; reason: string | null; internal_note: string | null; reference: string | null }[]; submissions: { number: number; reference: string; state: string; returned_reason: string | null }[]; problems: { id: string; status: string }[] }
+  const sdet = async (id: string) => (await (await hit('GET', `/staff/v1/requests/${id}`, undefined, owner)).json()) as WorkJ
+  const cwork = async (id: string, token = cust) => ((await (await hit('GET', `/v1/requests/${id}`, undefined, token)).json()) as { work: { stage: { actionRequired: boolean; action: string | null; ar: string }; payment: { company: string }; delivery: { state: string } } }).work
+  const st = (id: string, body: Record<string, unknown>) => hit('POST', `/staff/v1/requests/${id}/status`, body, owner)
+  it('full successful cycle: next action and waiting party at every step; payment, status and delivery are independent; all moves logged; renewal reminders', async () => {
+    await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: 25000 }, owner)
+    const id = await submit().finally(() => hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: null }, owner)) // 3: server received it, numbered it, invoice issued automatically
+    let d = await sdet(id)
+    expect(d.work).toMatchObject({ waitingOn: 'staff', next: { code: 'assign' } }) // 4: someone must own it
+    expect((await cwork(id)).stage.action).toBe('pay_company_fee') // the customer is told what is needed from them
+    const mgr = await staffToken('manager')
+    await st(id, { status: 'review' }); d = await sdet(id)
+    expect(['finish_review', 'await_scan']).toContain(d.work.next.code); expect(d.work.followUpAt).toBeGreaterThan(Date.now())
+    // 7: pay (verified payment) -> the payment state moves on its own; the transaction status does not
+    const p = (await (await pay(id, 25000)).json() as { id: string }).id
+    expect((await sdet(id)).work.payment.company).toBe('awaiting_payment') // a reported payment proves nothing
+    await approve(p)
+    d = await sdet(id); expect(d.work.payment.company).toBe('paid'); expect((await cwork(id)).payment.company).toBe('paid')
+    expect(d.work.next.code).not.toBe('await_payment')
+    expect((await st(id, { status: 'ready_for_authority' })).status).toBe(200) // 8
+    expect((await sdet(id)).work.next.code).toBe('submit_authority')
+    expect((await st(id, { status: 'authority' })).status).toBe(400) // no reference, no evidence of submission
+    expect((await st(id, { status: 'authority', reference: 'AUTH-LIFE-1' })).status).toBe(200) // 9
+    d = await sdet(id); expect(d.work).toMatchObject({ waitingOn: 'authority', next: { code: 'follow_authority' } })
+    expect(d.submissions).toHaveLength(1); expect(d.submissions[0]).toMatchObject({ number: 1, reference: 'AUTH-LIFE-1', state: 'active' })
+    await st(id, { status: 'decision' }); expect((await sdet(id)).work.next.code).toBe('record_decision') // 10
+    expect((await st(id, { status: 'completed', expiresAt: '2000-01-01' })).status).toBe(400) // expiry in the past
+    expect((await st(id, { status: 'completed', expiresAt: new Date(Date.now() + 400 * 86400000).toISOString().slice(0, 10) })).status).toBe(200) // 11
+    d = await sdet(id)
+    expect(d.work.next.code).toBe('upload_final'); expect(d.work.delivery.state).toBe('none') // 12: completed does NOT mean delivered
+    expect(d.submissions[0]!.state).toBe('decided')
+    await stage(id, 'result.pdf'); expect((await sdet(id)).work.next.code).toBe('publish'); expect((await sdet(id)).work.delivery.state).toBe('draft')
+    expect((await cwork(id)).delivery.state).toBe('draft') === undefined
+    expect((await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, {}, owner)).status).toBe(201) // 13
+    d = await sdet(id); expect(d.work).toMatchObject({ waitingOn: 'customer', next: { code: 'await_receipt' }, delivery: { state: 'awaiting_receipt', version: 1 } })
+    const cw = await cwork(id); expect(cw.stage).toMatchObject({ actionRequired: true, action: 'confirm_receipt' })
+    // opening/downloading does not acknowledge; only the explicit confirmation does
+    expect((await sdet(id)).work.delivery.state).toBe('awaiting_receipt')
+    const ack = await hit('POST', `/v1/requests/${id}/acknowledgments`, { deliveryVersion: 1 }, cust); expect(ack.status).toBeLessThan(300)
+    d = await sdet(id); expect(d.work.delivery.state).toBe('received'); expect(d.work.next.code).toBe('archived') // 14: expiry is already recorded
+    // every move was logged: who, from, to, reason/reference
+    const kinds = d.log.map((x) => `${x.from_status ?? '-'}>${x.to_status}:${x.actor_kind}`)
+    expect(kinds).toEqual(expect.arrayContaining(['draft>submitted:customer', 'review>ready_for_authority:staff', 'ready_for_authority>authority:staff', 'decision>completed:staff']))
+    expect(d.log.find((x) => x.to_status === 'authority')!.reference).toBe('AUTH-LIFE-1')
+    expect(env.DB.prepare('DELETE FROM request_transitions').run()).rejects.toThrow()
+    // reminders at 90/30/7 days before expiry; they fire into the customer's timeline once, and not when a renewal already exists
+    const n = (await env.DB.prepare("SELECT COUNT(*) n FROM reminders WHERE request_id=? AND state='pending'").bind(id).first<{ n: number }>())!.n
+    expect(n).toBe(3)
+    const { fireReminders } = await import('../src/ops')
+    expect(await fireReminders(env, Date.now() + 370 * 86400000)).toBeGreaterThan(0)
+    const ev = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { events: { text_en: string }[] }
+    expect(ev.events.some((e) => e.text_en.includes('expires in about'))).toBe(true)
+    expect(await fireReminders(env, Date.now() + 400 * 86400000)).toBeGreaterThanOrEqual(0)
+    // 14: renewal creates a NEW linked request; the original is untouched
+    const ren = await hit('POST', '/v1/requests', { serviceId: 'emirates-id', renewalOf: id, data: { name: 'Z' } }, cust); expect(ren.status).toBe(201)
+    expect((await sdet(id)).work.next.code).toBe('archived')
+    await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: null }, owner); void mgr
+  })
+  it('shortage cycle: staff names what is missing, the customer is told, replies, and the request returns to review; the authority can ask again against its reference', async () => {
+    const id = await submit(); await toReview(id)
+    expect((await hit('POST', `/staff/v1/requests/${id}/missing`, { items: [{ labelAr: 'صورة الجواز', labelEn: 'Passport copy', noteAr: 'أوضح', noteEn: 'clearer' }] }, owner)).status).toBe(200)
+    let d = await sdet(id); expect(d.work).toMatchObject({ waitingOn: 'customer', next: { code: 'chase_customer' } })
+    expect((await cwork(id)).stage).toMatchObject({ actionRequired: true, action: 'send_documents' })
+    const missing = ((await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json()) as { missing: { id: string }[] }).missing[0]!.id
+    expect((await hit('PUT', `/v1/requests/${id}/files?missingId=${missing}`, undefined, cust, { 'x-file-name': 'p.pdf' }, pdf())).status).toBe(201)
+    d = await sdet(id); expect(d.log.some((x) => x.from_status === 'needs_documents' && x.to_status === 'review' && x.actor_kind === 'customer')).toBe(true)
+    expect((await cwork(id)).stage.action).not.toBe('send_documents')
+    // the authority returns it: reason is mandatory, tied to the submission reference; the first filing is kept and a new one is a new row
+    for (const body of [{ status: 'ready_for_authority' }, { status: 'authority', reference: 'AUTH-A-1', overrideReason: 'test: fees settled offline' }]) await st(id, body)
+    expect((await st(id, { status: 'needs_documents' })).status).toBe(400)
+    expect((await st(id, { status: 'needs_documents', reason: 'Authority asked for a signed power of attorney' })).status).toBe(200)
+    d = await sdet(id); expect(d.submissions).toHaveLength(1); expect(d.submissions[0]).toMatchObject({ state: 'returned', returned_reason: 'Authority asked for a signed power of attorney', reference: 'AUTH-A-1' })
+    expect((await cwork(id)).stage.action).toBe('send_documents')
+    for (const body of [{ status: 'review' }, { status: 'ready_for_authority' }, { status: 'authority', reference: 'AUTH-A-2', overrideReason: 'test: fees settled offline' }]) await st(id, body)
+    d = await sdet(id); expect(d.submissions.map((x) => [x.number, x.reference, x.state])).toEqual([[1, 'AUTH-A-1', 'returned'], [2, 'AUTH-A-2', 'active']])
+  })
+  it('rejection, cancellation and delay have reasons, follow-up and a money path; nothing is deleted', async () => {
+    // rejection
+    const rej = await submit(); await toReview(rej)
+    expect((await st(rej, { status: 'rejected' })).status).toBe(400)
+    expect((await st(rej, { status: 'rejected', reason: 'Documents do not meet the authority rules' })).status).toBe(200)
+    expect((await cwork(rej)).stage.ar).toContain('لم تُقبل')
+    expect((await sdet(rej)).log.find((x) => x.to_status === 'rejected')!.reason).toContain('authority rules')
+    // cancellation by staff needs a reason; by the customer it records one; money is untouched either way
+    const can = await submit(); await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: null }, owner); await issueQuote(can, [ITEMS[1], ITEMS[2]])
+    const pp = (await (await pay(can, 100000)).json() as { id: string }).id; await approve(pp)
+    await toReview(can)
+    expect((await st(can, { status: 'cancelled' })).status).toBe(400)
+    expect((await hit('PATCH', `/v1/requests/${can}`, { status: 'cancelled', reason: 'I no longer need the service' }, cust)).status).toBe(200)
+    const dc = await sdet(can); expect(dc.log.find((x) => x.to_status === 'cancelled')).toMatchObject({ actor_kind: 'customer', reason: 'I no longer need the service' })
+    expect(dc.work.next.code).toBe('settle_money') // the money path is the next action; nothing was refunded automatically
+    expect((await fin(can)).totals).toMatchObject({ paid: 100000, net: 100000 })
+    expect(((await (await hit('GET', `/staff/v1/requests/${can}/cancellation`, undefined, owner)).json()) as { companyFee: { allocated: number } }).companyFee.allocated).toBe(100000)
+    // delay: explained to the customer with a new date, status unchanged, follow-up moved
+    const dl = await submit(); await toReview(dl)
+    expect((await hit('POST', `/staff/v1/requests/${dl}/delay`, { reason: 'x', expectedAt: '2099-01-01' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/requests/${dl}/delay`, { reason: 'The authority portal is down', expectedAt: '2099-01-01' }, owner)).status).toBe(200)
+    const cd = await (await hit('GET', `/v1/requests/${dl}`, undefined, cust)).json() as { request: { status: string; staff_data: string }; events: { text_en: string }[] }
+    expect(cd.request.status).toBe('review'); expect(cd.events.some((e) => e.text_en.includes('delayed') && e.text_en.includes('2099-01-01'))).toBe(true)
+    expect((await sdet(dl)).work.followUpAt).toBe(Date.parse('2099-01-01T08:00:00Z'))
+    // overdue follow-up is flagged for the staff list
+    await env.DB.prepare('UPDATE requests SET follow_up_at=? WHERE id=?').bind(Date.now() - 1000, dl).run()
+    const list = await (await hit('GET', '/staff/v1/requests?limit=100', undefined, owner)).json() as { requests: { id: string; work: { overdue: boolean; waitingOn: string } }[] }
+    expect(list.requests.find((x) => x.id === dl)!.work).toMatchObject({ overdue: true, waitingOn: 'staff' })
+  })
+  it('delivery problem and package replacement: the customer reports, staff must publish a newer version before resolving as replaced; the earlier version is kept', async () => {
+    const id = await submit(); await advance(id); await st(id, { status: 'completed' })
+    await stage(id, 'v1.pdf'); expect((await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, {}, owner)).status).toBe(201)
+    expect((await hit('POST', `/v1/requests/${id}/problems`, { text: 'x' }, cust)).status).toBe(400)
+    const prob = await hit('POST', `/v1/requests/${id}/problems`, { text: 'The file is of another person' }, cust); expect(prob.status).toBe(201)
+    const pid = (await prob.json() as { id: string }).id
+    expect(((await (await hit('POST', `/v1/requests/${id}/problems`, { text: 'The file is of another person' }, cust)).json()) as { duplicate: boolean }).duplicate).toBe(true)
+    const other = await login('+971521190066'); expect((await hit('POST', `/v1/requests/${id}/problems`, { text: 'not my request at all' }, other)).status).toBe(404)
+    let d = await sdet(id); expect(d.work.next.code).toBe('fix_delivery'); expect(d.problems).toHaveLength(1)
+    expect((await cwork(id)).stage.ar).toContain('بلاغك')
+    expect((await hit('POST', `/staff/v1/problems/${pid}/resolve`, { resolution: 'replaced', note: 'Replaced with the right file' }, owner)).status).toBe(409) // no newer package yet
+    await stage(id, 'v2.pdf'); expect((await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, {}, owner)).status).toBe(201)
+    expect((await hit('POST', `/staff/v1/problems/${pid}/resolve`, { resolution: 'replaced', note: 'Replaced with the right file' }, owner)).status).toBe(200)
+    d = await sdet(id); expect(d.work.next.code).toBe('await_receipt')
+    const dv = await env.DB.prepare("SELECT version,status FROM deliveries WHERE request_id=? AND version IS NOT NULL ORDER BY version").bind(id).all<{ version: number; status: string }>()
+    expect(dv.results.map((x) => [x.version, x.status])).toEqual([[1, 'superseded'], [2, 'published']]) // the earlier package is kept, not deleted
   })
   it('permissions: agents may draft but not issue; accountants issue; customers and other customers are kept out', async () => {
     const id = await submit()

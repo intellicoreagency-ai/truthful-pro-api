@@ -6,6 +6,7 @@ import { allow, audit, clientIp, jsonBody, requireAuth, securityHeaders, type C 
 import { sendOtp } from './sms'
 import { staff } from './staff'
 import { scanBytes, scannerMode, uploadsBlocked } from './scanner'
+import { fireReminders, recordTransition, workFor } from './ops'
 import { emailMode, confirmEmail, enqueueInvoiceEmail, flushAll, setCustomerEmail, validEmail } from './mail'
 import { autoInvoice, creditFor, govFor, insertAuthorityPayment, insertPayment, isFils, renderDocument, totalsFor, type DocRow } from './finance'
 
@@ -322,7 +323,11 @@ authed.get('/requests/:id', async (c) => {
   // Customers only ever see events marked visible; internal notes never leave the staff API.
   const events = await c.env.DB.prepare('SELECT id,text_ar,text_en,created_at FROM request_events WHERE request_id=? AND visible=1 ORDER BY created_at').bind(id).all()
   const missing = await c.env.DB.prepare('SELECT id,label_ar,label_en,note_ar,note_en,replacement_file_id,resolved_at FROM missing_documents WHERE request_id=? ORDER BY created_at').bind(id).all()
-  return c.json({ request: r, files: files.results, events: events.results, missing: missing.results, finance: await customerFinance(c, id) })
+  const ex = await c.env.DB.prepare('SELECT user_id,assignee_id,follow_up_at,expires_at FROM requests WHERE id=?').bind(id).first<{ user_id: string; assignee_id: string | null; follow_up_at: number | null; expires_at: number | null }>()
+  const w = await workFor(c.env, { id, user_id: ex!.user_id, service_id: (r as { service_id: string }).service_id, status: (r as { status: string }).status, assignee_id: ex!.assignee_id, follow_up_at: ex!.follow_up_at, expires_at: ex!.expires_at })
+  const problems = (await c.env.DB.prepare('SELECT id,delivery_version,text,status,created_at,resolved_at FROM delivery_problems WHERE request_id=? ORDER BY created_at').bind(id).all()).results
+  // the customer sees only where things stand and what is needed from them: never who we wait on internally, follow-up dates or notes
+  return c.json({ request: r, files: files.results, events: events.results, missing: missing.results, finance: await customerFinance(c, id), work: { stage: w.customer, payment: w.payment, delivery: w.delivery }, problems })
 })
 authed.patch('/requests/:id', async (c) => {
   const id = c.req.param('id')
@@ -353,10 +358,33 @@ authed.patch('/requests/:id', async (c) => {
   if (status) {
     const [ar, en] = status === 'submitted' ? ['تم إرسال الطلب', 'Request submitted'] : ['أُلغي الطلب', 'Request cancelled']
     await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, ar, en, Date.now()).run()
+    await recordTransition(c.env, { requestId: id, from: cur.status, to: status, actor: { kind: 'customer', id: c.get('userId') }, reason: typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) : null }).catch(() => null)
     if (status === 'submitted') await autoInvoice(c.env, id).catch(() => null) // the fee invoice appears in the app straight away; a failure here never blocks submission
   }
   return c.json({ ok: true, applied: true, status: status ?? cur.status })
 })
+// The customer reports a problem with a published delivery; it opens a tracked case for the team (no status is deleted or rewritten).
+authed.post('/requests/:id/problems', async (c) => {
+  const id = c.req.param('id'), uid = c.get('userId')
+  const r = isUuid(id) ? await c.env.DB.prepare('SELECT delivery_version FROM requests WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(id, uid).first<{ delivery_version: number }>() : null
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const text = typeof b?.text === 'string' ? b.text.trim().slice(0, 500) : ''
+  if (text.length < 5) return c.json({ error: 'invalid_request' }, 400)
+  if (!r.delivery_version) return c.json({ error: 'nothing_delivered' }, 409)
+  if (!(await allow(c.env, `problem:${uid}`, 10, 3600))) return c.json({ error: 'too_many_requests' }, 429)
+  const open = await c.env.DB.prepare("SELECT id FROM delivery_problems WHERE request_id=? AND status='open' AND delivery_version=?").bind(id, r.delivery_version).first<{ id: string }>()
+  if (open) return c.json({ id: open.id, duplicate: true })
+  const pid = newId()
+  await c.env.DB.batch([
+    c.env.DB.prepare('INSERT INTO delivery_problems (id,request_id,delivery_version,text,created_at) VALUES (?,?,?,?,?)').bind(pid, id, r.delivery_version, text, Date.now()),
+    c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, 'أبلغ العميل عن مشكلة في التسليم', 'The customer reported a delivery problem', Date.now()),
+    c.env.DB.prepare('UPDATE requests SET follow_up_at=?, version=version+1, updated_at=? WHERE id=?').bind(Date.now() + 86400000, Date.now(), id),
+  ])
+  await audit(c, 'delivery.problem', uid, { requestId: id, problemId: pid })
+  return c.json({ id: pid }, 201)
+})
+
 authed.delete('/requests/:id', async (c) => {
   const id = c.req.param('id')
   const r = isUuid(id) ? await ownRequest(c, id) : null
@@ -489,6 +517,7 @@ authed.put('/requests/:id/files', async (c) => {
       const left = await c.env.DB.prepare('SELECT COUNT(*) n FROM missing_documents WHERE request_id=? AND resolved_at IS NULL').bind(id).first<{ n: number }>()
       const cur = await ownRequest(c, id)
       if ((left?.n ?? 0) === 0 && cur?.status === 'needs_documents') { // all supplied: back to staff review
+        await recordTransition(c.env, { requestId: id, from: 'needs_documents', to: 'review', actor: { kind: 'customer', id: uid }, reason: 'customer sent the requested documents' }).catch(() => null)
         await c.env.DB.batch([
           c.env.DB.prepare("UPDATE requests SET status='review', version=version+1, updated_at=? WHERE id=?").bind(Date.now(), id),
           c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, 'أرسل العميل المستندات المطلوبة', 'Customer sent the requested documents', Date.now()),
@@ -522,4 +551,4 @@ authed.delete('/files/:fileId', async (c) => {
 
 app.route('/v1', authed)
 app.route('/staff/v1', staff)
-export default { fetch: app.fetch, scheduled: (_e: ScheduledController, env: Env, ctx: ExecutionContext) => { ctx.waitUntil(flushAll(env)) } }
+export default { fetch: app.fetch, scheduled: (_e: ScheduledController, env: Env, ctx: ExecutionContext) => { ctx.waitUntil(Promise.all([flushAll(env), fireReminders(env)])) } }

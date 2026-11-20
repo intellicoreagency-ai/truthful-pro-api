@@ -45,6 +45,7 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
       </div>
       <h1>{r.data.title?.[lang] ?? r.serviceId} <span className="muted small" dir="ltr">#{shortId(r.id)}</span></h1>
       {msg && <div className={`msg ${msg.ok ? 'ok' : ''}`} role="status">{msg.text}</div>}
+      <WorkBanner d={d} act={act} />
       {(() => {
         const next = NEXT[r.status]
         const showNext = !!next && d.transitions.includes(next)
@@ -123,6 +124,32 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
         </div>
       )}
     </>
+  )
+}
+
+const WAIT_LABEL: Record<string, Key> = { customer: 'waitCustomer', staff: 'waitStaff', authority: 'waitAuthority', none: 'waitNone' }
+/** "What do I do now?": the next action, who we are waiting on, and the follow-up date, from the server. */
+function WorkBanner({ d, act }: { d: Detail; act: (fn: () => Promise<unknown>) => Promise<void> }) {
+  const { t, lang, fmt } = useI18n()
+  const w = d.work
+  const r = d.request
+  return (
+    <section className="card" style={{ borderInlineStart: `4px solid ${w.overdue ? 'var(--bad)' : 'var(--gold, #b8893a)'}`, margin: '10px 0' }} aria-label={t('whatNow')}>
+      <b>{t('whatNow')}</b>
+      <p style={{ margin: '4px 0' }}>{w.next[lang]}</p>
+      <p className="muted small">{t('waitingOn')}: <b>{t(WAIT_LABEL[w.waitingOn] ?? 'waitNone')}</b> · {t('followUp')}: {w.followUpAt ? <span className={w.overdue ? 'tag' : ''}>{fmt(w.followUpAt)}{w.overdue ? ` · ${t('overdue')}` : ''}</span> : '—'} · {t('payState')}: {w.payment.company} · {t('delState')}: {w.delivery.state}</p>
+      <div className="row">
+        <button className="btn sm" onClick={() => { const v = window.prompt(t('followUpPrompt'))?.trim(); if (v) void act(() => api.setFollowUp(r.id, v)) }}>{t('setFollowUp')}</button>
+        {!['completed', 'cancelled', 'rejected'].includes(r.status) && <button className="btn sm" onClick={() => { const why = window.prompt(t('delayReasonPrompt'))?.trim(); if (!why) return; const when = window.prompt(t('followUpPrompt'))?.trim(); if (when) void act(() => api.delay(r.id, why, when)) }}>{t('reportDelay')}</button>}
+      </div>
+      {d.problems.filter((p) => p.status === 'open').map((p) => (
+        <div className="msg" key={p.id}>{t('deliveryProblem')}: {p.text} <button className="btn sm" onClick={() => { const note = window.prompt(t('resolveNote'))?.trim(); if (note) void act(() => api.resolveProblem(p.id, 'explained', note)) }}>{t('resolveProblem')}</button></div>
+      ))}
+      {d.submissions.length > 0 && <p className="muted small">{t('submissionsLbl')}: {d.submissions.map((x) => `#${x.number} ${x.reference} (${x.state}${x.returned_reason ? `: ${x.returned_reason}` : ''})`).join(' · ')}</p>}
+      <details><summary className="small">{t('moveLog')}</summary>
+        {d.log.map((x) => <div className="small" key={x.id}>{fmt(x.at)} · {x.from_status ?? '—'} → <b>{x.to_status}</b> · {x.actor_kind === 'staff' ? x.actor_name ?? 'team' : x.actor_kind}{x.reason ? ` · ${x.reason}` : ''}{x.reference ? ` · ${x.reference}` : ''}{x.internal_note ? ` · 🔒 ${x.internal_note}` : ''}</div>)}
+      </details>
+    </section>
   )
 }
 

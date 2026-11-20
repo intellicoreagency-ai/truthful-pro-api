@@ -6,7 +6,7 @@ export type ServerFile={id:string;name:string;mime:string;size:number;kind?:'sou
 export type ServerEvent={id:string;text_ar:string;text_en:string;created_at:number};
 export type ServerMissing={id:string;label_ar:string;label_en:string;note_ar:string;note_en:string;replacement_file_id:string|null;resolved_at:number|null};
 export type ServerFinance={credit?:{unallocated:number};gov?:{total:number;payUrl:string|null;verified:number;reported:number;remaining:number;state:string};authorityPayments?:{id:string;amount_fils:number;reference:string;status:string;created_at:number;note:string|null}[];quotes:{id:string;version:number;status:string;number:string|null;total_fils:number;items:{kind:string;description_ar:string;description_en:string;amount_fils:number}[]}[];payments:{id:string;kind:string;amount_fils:number;status:string;created_at:number;decision_note:string|null}[];documents:{id:string;doc_type:string;number:string;status:string;total_fils:number;created_at:number}[];totals:{total:number;paid:number;refunded:number;pending:number;remaining:number;state:string;invoice:{id:string;number:string;total:number}|null}};
-export type ServerDetail={files:ServerFile[];events?:ServerEvent[];missing?:ServerMissing[];finance?:ServerFinance};
+export type ServerDetail={work?:{stage:{ar:string;en:string;actionRequired:boolean}};files:ServerFile[];events?:ServerEvent[];missing?:ServerMissing[];finance?:ServerFinance};
 
 export const STAGE:Record<Status,1|2|3|4|5>={draft:1,submitted:1,review:2,needs_documents:2,ready_for_authority:2,authority:3,decision:4,completed:5,cancelled:1,rejected:5};
 const iso=(ms:number)=>new Date(ms).toISOString();
@@ -69,6 +69,7 @@ export function toClientRequest(row:ServerRow,det:ServerDetail,local?:ClientRequ
   };
   const fin=mapFinance(det.finance);
   const out:ClientRequest={...base,...(fin.money?{money:fin.money}:{}),...(fin.finance?{finance:fin.finance}:{}),remoteId:row.id,status:row.status,stage:STAGE[row.status],updatedAt:iso(row.updated_at),files,missing,events:events.length?events:base.events,syncedAt:iso(row.updated_at)};
+  if(det.work?.stage)out.whatNow={ar:det.work.stage.ar,en:det.work.stage.en,actionRequired:det.work.stage.actionRequired};else delete out.whatNow; // server says where it stands and whether something is needed from the customer
   if(sd.expectedAt)out.expectedAt=new Date(sd.expectedAt+'T00:00:00+04:00').toISOString();else delete out.expectedAt;
   if(completedAt)out.completedAt=completedAt;else delete out.completedAt;
   if(row.status==='completed'&&finals.length)out.deliveredAt=completedAt;else delete out.deliveredAt;

@@ -49,13 +49,18 @@ export type Role = 'owner' | 'manager' | 'agent' | 'accountant'
 export type Status = 'draft' | 'submitted' | 'review' | 'needs_documents' | 'ready_for_authority' | 'authority' | 'decision' | 'completed' | 'cancelled' | 'rejected'
 export type Bi = { ar: string; en: string }
 export type Stats = { byStatus: Partial<Record<Status, number>>; unassigned: number; mine: number }
-export type ListItem = { id: string; serviceId: string; status: Status; title: Bi | null; customer: { id: string; name: string; phone: string }; assignee: { id: string; name: string } | null; createdAt: number; updatedAt: number }
+export type ListItem = { id: string; serviceId: string; status: Status; title: Bi | null; customer: { id: string; name: string; phone: string }; assignee: { id: string; name: string } | null; createdAt: number; updatedAt: number; work?: { waitingOn: 'customer' | 'staff' | 'authority' | 'none'; next: { ar: string; en: string }; followUpAt: number | null; overdue: boolean } }
 export type FileRow = { id: string; name: string; mime: string; size: number; kind: 'source' | 'final' | 'invoice'; label: string | null; created_at: number; delivery_id: string | null; extracted: string | null }
 export type DeliveryRow = { id: string; version: number | null; status: 'draft' | 'published' | 'superseded'; published_at: number | null; created_at: number; acknowledged_at: number | null }
 export type CheckRow = { id: string; file_id: string; rule_code: string; rule_version: string; outcome: 'pass' | 'fail' | 'manual_review'; evidence: string; created_at: number; superseded_at: number | null; override_reason: string | null; overridden_at: number | null }
 export type EventRow = { id: string; actor: string; kind: string; text_ar: string; text_en: string; visible: number; created_at: number }
 export type MissingRow = { id: string; label_ar: string; label_en: string; note_ar: string; note_en: string; replacement_file_id: string | null; resolved_at: number | null }
+export type WorkInfo = { waitingOn: 'customer' | 'staff' | 'authority' | 'none'; next: { code: string; ar: string; en: string; role: string }; followUpAt: number | null; overdue: boolean; payment: { company: string; government: string }; delivery: { state: string; version: number }; openProblem: boolean }
+export type LogRow = { id: string; from_status: string | null; to_status: string; actor_kind: string; actor_name: string | null; at: number; reason: string | null; internal_note: string | null; reference: string | null }
+export type SubmissionRow = { id: string; number: number; reference: string; submitted_at: number; state: 'active' | 'returned' | 'decided'; returned_reason: string | null }
+export type ProblemRow = { id: string; delivery_version: number; text: string; status: 'open' | 'resolved'; created_at: number; resolution: string | null }
 export type Detail = {
+  work: WorkInfo; log: LogRow[]; submissions: SubmissionRow[]; problems: ProblemRow[]
   request: { id: string; serviceId: string; status: Status; assigneeId: string | null; createdAt: number; updatedAt: number; version: number; deliveryVersion: number; acknowledgedVersion: number; acknowledgedAt: number | null; data: { title?: Bi; name?: string; phone?: string; fields?: Record<string, string>; termsVersion?: string; termsAcceptedAt?: string }; staff: { expectedAt?: string; completedAt?: string; issue?: string; authorityRef?: string; authorityAt?: string } }
   customer: { id: string; name: string; phone: string }; files: FileRow[]; deliveries: DeliveryRow[]; checks: CheckRow[]; blocked: { fileId: string; ruleCode: string; outcome: string }[]; events: EventRow[]; missing: MissingRow[]; transitions: Status[]
 }
@@ -143,6 +148,9 @@ export const api = {
   fees: async () => j<{ fees: { service_id: string; fee_fils: number; updated_at: number }[] }>(await call('GET', '/staff/v1/fees')),
   setFee: (sid: string, feeFils: number | null) => call('PUT', `/staff/v1/fees/${sid}`, { body: { feeFils } }),
   setGovFee: (id: string, amountFils: number, url: string) => call('POST', `/staff/v1/requests/${id}/government-fee`, { body: { amountFils, url } }),
+  setFollowUp: (id: string, date: string) => call('POST', `/staff/v1/requests/${id}/follow-up`, { body: { date } }),
+  delay: (id: string, reason: string, expectedAt: string) => call('POST', `/staff/v1/requests/${id}/delay`, { body: { reason, expectedAt } }),
+  resolveProblem: (pid: string, resolution: 'explained' | 'replaced' | 'refunded', note: string) => call('POST', `/staff/v1/problems/${pid}/resolve`, { body: { resolution, note } }),
   setPayLink: (qid: string, url: string) => call('PATCH', `/staff/v1/quotes/${qid}/pay-link`, { body: { url } }),
   verifyAuthority: (pid: string) => call('POST', `/staff/v1/authority-payments/${pid}/verify`, { body: {} }),
   rejectAuthority: (pid: string, reason: string) => call('POST', `/staff/v1/authority-payments/${pid}/reject`, { body: { reason } }),

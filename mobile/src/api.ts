@@ -143,4 +143,6 @@ export async function reportAuthorityPayment(remoteRequestId:string,proof:Client
   const proofFileId=proof&&bytes?await upload(remoteRequestId,proof,bytes):undefined;
   return json<{id:string;status:string}>(await call('POST',`/v1/requests/${remoteRequestId}/authority-payments`,{body:{amountFils:p.amountFils,reference:p.reference,proofFileId,clientKey:p.clientKey}}));
 }
+/** Opens a tracked delivery-problem case for the team (the server keeps it; nothing about the request is deleted). */
+export async function reportDeliveryProblem(remoteRequestId:string,text:string){await call('POST',`/v1/requests/${remoteRequestId}/problems`,{body:{text}})}
 export async function fetchDocumentHtml(docId:string):Promise<string>{return await (await call('GET',`/v1/documents/${docId}`)).text()}

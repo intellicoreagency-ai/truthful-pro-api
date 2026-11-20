@@ -33,6 +33,7 @@ export function Requests({ params, go }: { params: URLSearchParams; go: (hash: s
           <b>{r.title?.[lang] ?? r.serviceId}</b>
           <span className="muted small">{r.customer.name || '—'} · #{shortId(r.id)}</span>
           <span className="muted small">{ago(r.updatedAt, lang)}{r.assignee ? ` · ${r.assignee.name}` : ''}</span>
+          {r.work && <span className="small" style={r.work.overdue ? { color: 'var(--bad)' } : undefined}>→ {r.work.next[lang]}{r.work.overdue ? ' ⏰' : ''}</span>}
         </button>
         {next && <button className="btn sm" title={t('moveTo')} onClick={() => move(r, next)}>{lang === 'ar' ? '←' : '→'} {STATUS_LABEL[next][lang]}</button>}
       </div>

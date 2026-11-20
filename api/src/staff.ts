@@ -7,6 +7,7 @@ import { allow, audit, clientIp, jsonBody, type C } from './security'
 import { RULES, passportValidity } from './rules'
 import { scanBytes, uploadsBlocked } from './scanner'
 import { enqueueInvoiceEmail } from './mail'
+import { activeSubmission, liteWork, openSubmission, recordTransition, scheduleReminders, workFor } from './ops'
 import { allocateManually, approvePayment, creditFor, documentStatements, govFor, insertAuthorityPayment, insertPayment, isFils, refundable, reverseAllocation, parseGovUrl, parseItems, renderDocument, totalsFor, type DocRow } from './finance'
 import { newSecret, otpauthUri, verifyTotp } from './totp'
 import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server'
@@ -25,8 +26,8 @@ export const TRANSITIONS: Record<string, string[]> = {
   review: ['needs_documents', 'ready_for_authority', 'rejected', 'cancelled'],
   needs_documents: ['review', 'rejected', 'cancelled'],
   ready_for_authority: ['authority', 'needs_documents', 'review', 'rejected', 'cancelled'],
-  authority: ['decision', 'needs_documents', 'completed', 'rejected'],
-  decision: ['completed', 'authority', 'rejected'],
+  authority: ['decision', 'needs_documents', 'completed', 'rejected', 'cancelled'],
+  decision: ['completed', 'authority', 'needs_documents', 'rejected', 'cancelled'],
 }
 const LABEL: Record<string, [string, string]> = {
   review: ['قيد المراجعة', 'Under review'], needs_documents: ['مطلوب استكمال', 'Action required'], ready_for_authority: ['جاهزة للتقديم', 'Ready to submit'], authority: ['لدى الجهة', 'With authority'],
@@ -257,15 +258,15 @@ guarded.get('/requests', roles(...OPS), async (c) => {
   if (who === 'me') { where.push('r.assignee_id=?'); args.push(c.get('staffId')) } else if (who === 'unassigned') where.push('r.assignee_id IS NULL')
   if (c.get('staffRole') === 'agent') { where.push('(r.assignee_id IS NULL OR r.assignee_id=?)'); args.push(c.get('staffId')) }
   const rows = await c.env.DB.prepare(
-    `SELECT r.id,r.user_id,r.service_id,r.status,r.data,r.staff_data,r.assignee_id,r.created_at,r.updated_at,u.display_name,u.phone_enc,m.name assignee_name
+    `SELECT r.id,r.user_id,r.service_id,r.status,r.data,r.staff_data,r.assignee_id,r.created_at,r.updated_at,r.follow_up_at,u.display_name,u.phone_enc,m.name assignee_name
      FROM requests r JOIN users u ON u.id=r.user_id LEFT JOIN staff m ON m.id=r.assignee_id
-     WHERE ${where.join(' AND ')} ORDER BY r.updated_at DESC LIMIT ? OFFSET ?`).bind(...args, limit, offset).all<Row>()
+     WHERE ${where.join(' AND ')} ORDER BY r.updated_at DESC LIMIT ? OFFSET ?`).bind(...args, limit, offset).all<Row & { follow_up_at: number | null }>()
   const q = (c.req.query('q') ?? '').trim().toLowerCase()
   const out = []
   for (const r of rows.results) {
     let d: any = {}; try { d = JSON.parse(r.data) } catch {}
     const phone = await openText(c.env.DATA_KEY, 'user-phone', r.phone_enc).catch(() => '')
-    const item = { id: r.id, serviceId: r.service_id, status: r.status, title: d.title ?? null, customer: { id: r.user_id, name: d.name || r.display_name || '', phone }, assignee: r.assignee_id ? { id: r.assignee_id, name: r.assignee_name } : null, createdAt: r.created_at, updatedAt: r.updated_at }
+    const item = { work: liteWork(r), id: r.id, serviceId: r.service_id, status: r.status, title: d.title ?? null, customer: { id: r.user_id, name: d.name || r.display_name || '', phone }, assignee: r.assignee_id ? { id: r.assignee_id, name: r.assignee_name } : null, createdAt: r.created_at, updatedAt: r.updated_at }
     if (!q || JSON.stringify([item.title, item.customer.name, item.customer.phone, r.id, r.service_id]).toLowerCase().includes(q)) out.push(item)
   }
   return c.json({ requests: out })
@@ -328,7 +329,11 @@ guarded.get('/requests/:id', roles(...OPS), async (c) => {
   const ackV = await c.env.DB.prepare('SELECT MAX(delivery_version) v, MAX(acknowledged_at) at FROM receipt_acks WHERE request_id=?').bind(r.id).first<{ v: number | null; at: number | null }>()
   const phone = await openText(c.env.DATA_KEY, 'user-phone', r.phone_enc).catch(() => '')
   await audit(c, 'staff.view_request', null, { requestId: r.id, by: c.get('staffId') })
-  return c.json({ request: { id: r.id, serviceId: r.service_id, status: r.status, assigneeId: r.assignee_id, createdAt: r.created_at, updatedAt: r.updated_at, version: r.version, deliveryVersion: r.delivery_version, acknowledgedVersion: ackV?.v ?? 0, acknowledgedAt: ackV?.at ?? null, data, staff: sd }, customer: { id: r.user_id, name: data.name || r.display_name || '', phone }, files: files.results, deliveries: deliveries.results, checks: checks.results, blocked, events: events.results, missing: missing.results, transitions: TRANSITIONS[r.status] ?? [] })
+  const work = await workFor(c.env, { id: r.id, user_id: r.user_id, service_id: r.service_id, status: r.status, assignee_id: r.assignee_id, follow_up_at: (await c.env.DB.prepare('SELECT follow_up_at,expires_at FROM requests WHERE id=?').bind(r.id).first<{ follow_up_at: number | null; expires_at: number | null }>())?.follow_up_at ?? null, expires_at: (await c.env.DB.prepare('SELECT expires_at FROM requests WHERE id=?').bind(r.id).first<{ expires_at: number | null }>())?.expires_at ?? null })
+  const submissions = (await c.env.DB.prepare('SELECT id,number,reference,submitted_at,state,returned_reason,returned_at FROM submissions WHERE request_id=? ORDER BY number').bind(r.id).all()).results
+  const transitions = (await c.env.DB.prepare('SELECT t.id,t.from_status,t.to_status,t.actor_kind,t.actor_id,t.at,t.reason,t.internal_note,t.reference,m.name actor_name FROM request_transitions t LEFT JOIN staff m ON m.id=t.actor_id WHERE t.request_id=? ORDER BY t.at,t.rowid').bind(r.id).all()).results
+  const problems = (await c.env.DB.prepare('SELECT id,delivery_version,text,status,created_at,resolved_at,resolution,resolution_note FROM delivery_problems WHERE request_id=? ORDER BY created_at').bind(r.id).all()).results
+  return c.json({ work, submissions, log: transitions, problems, request: { id: r.id, serviceId: r.service_id, status: r.status, assigneeId: r.assignee_id, createdAt: r.created_at, updatedAt: r.updated_at, version: r.version, deliveryVersion: r.delivery_version, acknowledgedVersion: ackV?.v ?? 0, acknowledgedAt: ackV?.at ?? null, data, staff: sd }, customer: { id: r.user_id, name: data.name || r.display_name || '', phone }, files: files.results, deliveries: deliveries.results, checks: checks.results, blocked, events: events.results, missing: missing.results, transitions: TRANSITIONS[r.status] ?? [] })
 })
 
 guarded.post('/requests/:id/assign', roles(...OPS), async (c) => {
@@ -375,11 +380,24 @@ guarded.post('/requests/:id/status', roles(...OPS), async (c) => {
     if (why.length < 3) return c.json({ error: 'reason_required' }, 400)
     sd.issue = why.slice(0, 300)
   }
+  const why0 = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) : ''
+  if (to === 'cancelled' && why0.length < 3) return c.json({ error: 'reason_required' }, 400) // cancellation always has a reason
+  const returnedByAuthority = to === 'needs_documents' && (r.status === 'authority' || r.status === 'decision')
+  if (returnedByAuthority && why0.length < 3) return c.json({ error: 'reason_required' }, 400) // what the authority asked for
+  let expiresAt: number | null = null
+  if (typeof b?.expiresAt === 'string') { const t = /^\d{4}-\d{2}-\d{2}$/.test(b.expiresAt) ? Date.parse(b.expiresAt + 'T00:00:00Z') : NaN; if (!Number.isFinite(t) || t < Date.now()) return c.json({ error: 'invalid_expiry' }, 400); expiresAt = t }
   if (typeof b?.expectedAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.expectedAt)) sd.expectedAt = b.expectedAt
   if (to === 'completed') sd.completedAt = now
   await c.env.DB.prepare('UPDATE requests SET status=?, staff_data=?, assignee_id=COALESCE(assignee_id,?), version=version+1, updated_at=? WHERE id=?').bind(to, JSON.stringify(sd), c.get('staffId'), Date.now(), r.id).run()
+  let submissionId: string | null = null
+  if (to === 'authority') submissionId = await openSubmission(c.env, r.id, sd.authorityRef, c.get('staffId'), Date.now())
+  else { const act = await activeSubmission(c.env, r.id); submissionId = act?.id ?? null
+    if (act && returnedByAuthority) await c.env.DB.prepare("UPDATE submissions SET state='returned', returned_reason=?, returned_at=? WHERE id=?").bind(why0, Date.now(), act.id).run()
+    else if (act && (to === 'completed' || to === 'rejected')) await c.env.DB.prepare("UPDATE submissions SET state='decided' WHERE id=?").bind(act.id).run() }
+  await recordTransition(c.env, { requestId: r.id, from: r.status, to, actor: { kind: 'staff', id: c.get('staffId') }, reason: why0 || null, internalNote: typeof b?.note === 'string' ? b.note : null, reference: to === 'authority' ? sd.authorityRef : null, submissionId })
+  if (to === 'completed' && expiresAt) { await c.env.DB.prepare('UPDATE requests SET expires_at=? WHERE id=?').bind(expiresAt, r.id).run(); await scheduleReminders(c.env, r.id, r.user_id, expiresAt) }
   const [ar, en] = LABEL[to] as [string, string]
-  await addEvent(c, r.id, 'status', ar, en, true)
+  await addEvent(c, r.id, 'status', returnedByAuthority ? 'طلبت الجهة مستندات إضافية' : ar, returnedByAuthority ? 'The authority asked for additional documents' : en, true)
   if (to === 'authority') await addEvent(c, r.id, 'note', `Submitted to authority. Reference: ${sd.authorityRef}`, `Submitted to authority. Reference: ${sd.authorityRef}`, false)
   if (typeof b?.note === 'string' && b.note.trim()) await addEvent(c, r.id, 'note', b.note.trim().slice(0, 500), b.note.trim().slice(0, 500), false)
   await audit(c, 'staff.status', null, { requestId: r.id, to, by: c.get('staffId') })
@@ -398,8 +416,76 @@ guarded.post('/requests/:id/missing', roles(...OPS), async (c) => {
   const stmts = items.map((i) => c.env.DB.prepare('INSERT INTO missing_documents (id,request_id,label_ar,label_en,note_ar,note_en,created_at) VALUES (?,?,?,?,?,?,?)')
     .bind(newId(), r.id, String(i.labelAr).slice(0, 120), String(i.labelEn).slice(0, 120), String(i.noteAr ?? '').slice(0, 300), String(i.noteEn ?? '').slice(0, 300), Date.now()))
   stmts.push(c.env.DB.prepare("UPDATE requests SET status='needs_documents', version=version+1, updated_at=? WHERE id=?").bind(Date.now(), r.id))
+  const act = r.status === 'authority' || r.status === 'decision' ? await activeSubmission(c.env, r.id) : null
+  const why = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) : ''
+  if (act && why.length < 3) return c.json({ error: 'reason_required' }, 400) // the authority's request is recorded against its submission reference
   await c.env.DB.batch(stmts)
-  await addEvent(c, r.id, 'missing', 'طُلب استكمال مستندات', 'Additional documents requested', true)
+  if (act) {
+    await c.env.DB.prepare("UPDATE submissions SET state='returned', returned_reason=?, returned_at=? WHERE id=?").bind(why, Date.now(), act.id).run()
+    await c.env.DB.prepare('UPDATE missing_documents SET submission_id=? WHERE request_id=? AND submission_id IS NULL AND resolved_at IS NULL').bind(act.id, r.id).run()
+  }
+  await recordTransition(c.env, { requestId: r.id, from: r.status, to: 'needs_documents', actor: { kind: 'staff', id: c.get('staffId') }, reason: why || 'additional documents requested', reference: act?.reference ?? null, submissionId: act?.id ?? null })
+  await addEvent(c, r.id, 'missing', act ? 'طلبت الجهة مستندات إضافية' : 'طُلب استكمال مستندات', act ? 'The authority asked for additional documents' : 'Additional documents requested', true)
+  return c.json({ ok: true })
+})
+
+// ---------- operations: follow-up, delay, expiry, delivery problems ----------
+guarded.post('/requests/:id/follow-up', roles(...OPS), async (c) => {
+  const r = await loadRequest(c, c.req.param('id'))
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  const b: any = await jsonBody(c)
+  const t = typeof b?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.date) ? Date.parse(b.date + 'T08:00:00Z') : NaN
+  if (!Number.isFinite(t) || t < Date.now() - 86400000) return c.json({ error: 'invalid_request' }, 400)
+  await c.env.DB.prepare('UPDATE requests SET follow_up_at=? WHERE id=?').bind(t, r.id).run()
+  await audit(c, 'staff.follow_up', null, { requestId: r.id, date: b.date, by: c.get('staffId') })
+  return c.json({ ok: true })
+})
+// A delay is explained to the customer with a new expected date; it changes no status.
+guarded.post('/requests/:id/delay', roles(...OPS), async (c) => {
+  const r = await loadRequest(c, c.req.param('id'))
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  const b: any = await jsonBody(c)
+  const reason = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) : ''
+  if (reason.length < 5 || typeof b?.expectedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.expectedAt) || Date.parse(b.expectedAt + 'T00:00:00Z') < Date.now() - 86400000) return c.json({ error: 'invalid_request' }, 400)
+  if (['completed', 'cancelled', 'rejected', 'draft'].includes(r.status)) return c.json({ error: 'invalid_transition' }, 409)
+  let sd: any = {}; try { sd = JSON.parse(r.staff_data) } catch { /* */ }
+  sd.expectedAt = b.expectedAt; sd.delayReason = reason
+  await c.env.DB.prepare('UPDATE requests SET staff_data=?, follow_up_at=?, version=version+1, updated_at=? WHERE id=?').bind(JSON.stringify(sd), Date.parse(b.expectedAt + 'T08:00:00Z'), Date.now(), r.id).run()
+  await addEvent(c, r.id, 'status', `تأخّر إنجاز معاملتك: ${reason}. الموعد المتوقع الجديد ${b.expectedAt}.`, `Your transaction is delayed: ${reason}. New expected date: ${b.expectedAt}.`, true)
+  await recordTransition(c.env, { requestId: r.id, from: r.status, to: r.status, actor: { kind: 'staff', id: c.get('staffId') }, reason: `delay: ${reason}`, followUpAt: Date.parse(b.expectedAt + 'T08:00:00Z') })
+  await audit(c, 'staff.delay', null, { requestId: r.id, expectedAt: b.expectedAt, by: c.get('staffId') })
+  return c.json({ ok: true })
+})
+// The approved expiry date of the delivered document: drives the renewal reminders (90/30/7 days before).
+guarded.post('/requests/:id/expiry', roles(...OPS), async (c) => {
+  const r = await loadRequest(c, c.req.param('id'))
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  if (r.status !== 'completed') return c.json({ error: 'invalid_transition' }, 409)
+  const b: any = await jsonBody(c)
+  const t = typeof b?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.date) ? Date.parse(b.date + 'T00:00:00Z') : NaN
+  if (!Number.isFinite(t) || t < Date.now()) return c.json({ error: 'invalid_request' }, 400)
+  await c.env.DB.prepare('UPDATE requests SET expires_at=? WHERE id=?').bind(t, r.id).run()
+  const n = await scheduleReminders(c.env, r.id, r.user_id, t)
+  await audit(c, 'staff.expiry', null, { requestId: r.id, date: b.date, reminders: n, by: c.get('staffId') })
+  return c.json({ ok: true, reminders: n })
+})
+guarded.post('/problems/:pid/resolve', roles(...OPS), async (c) => {
+  const pid = c.req.param('pid')
+  const p = isUuid(pid) ? await c.env.DB.prepare('SELECT id,request_id FROM delivery_problems WHERE id=?').bind(pid).first<{ id: string; request_id: string }>() : null
+  const r = p ? await loadRequest(c, p.request_id) : null
+  if (!p || !r) return c.json({ error: 'not_found' }, 404)
+  const b: any = await jsonBody(c)
+  const resolution = ['explained', 'replaced', 'refunded'].includes(b?.resolution) ? b.resolution : null
+  const note = typeof b?.note === 'string' ? b.note.trim().slice(0, 300) : ''
+  if (!resolution || note.length < 5) return c.json({ error: 'invalid_request' }, 400)
+  if (resolution === 'replaced') { // a replacement must exist: a newer published package than the one the customer complained about
+    const prob = await c.env.DB.prepare('SELECT delivery_version FROM delivery_problems WHERE id=?').bind(pid).first<{ delivery_version: number }>()
+    if ((r.delivery_version ?? 0) <= (prob?.delivery_version ?? 0)) return c.json({ error: 'publish_replacement_first' }, 409)
+  }
+  const u = await c.env.DB.prepare("UPDATE delivery_problems SET status='resolved', resolved_by=?, resolved_at=?, resolution=?, resolution_note=? WHERE id=? AND status='open'").bind(c.get('staffId'), Date.now(), resolution, note, pid).run()
+  if (!u.meta.changes) return c.json({ error: 'not_open' }, 409)
+  await addEvent(c, r.id, 'status', 'عالجنا بلاغ التسليم الخاص بك', 'Your delivery problem was handled', true)
+  await audit(c, 'staff.problem_resolved', null, { requestId: r.id, problemId: pid, resolution, by: c.get('staffId') })
   return c.json({ ok: true })
 })
 
@@ -766,7 +852,7 @@ guarded.post('/requests/:id/override', roles('owner', 'manager'), async (c) => {
   if (!done.length) return c.json({ error: 'nothing_to_change' }, 400)
   await c.env.DB.prepare('UPDATE requests SET status=?, staff_data=?, data=?, version=version+1, updated_at=? WHERE id=?')
     .bind(status, JSON.stringify(sd), dataChanged ? JSON.stringify(data) : r.data, Date.now(), r.id).run()
-  if (status !== r.status) { const [ar, en] = LABEL[status] as [string, string]; await addEvent(c, r.id, 'status', ar, en, true) }
+  if (status !== r.status) { await recordTransition(c.env, { requestId: r.id, from: r.status, to: status, actor: { kind: 'staff', id: c.get('staffId') }, reason, internalNote: 'override' }); const [ar, en] = LABEL[status] as [string, string]; await addEvent(c, r.id, 'status', ar, en, true) }
   const txt = `OVERRIDE by ${me?.name ?? c.get('staffId')}: ${done.join(', ')}. Reason: ${reason}`
   await addEvent(c, r.id, 'note', txt, txt, false)
   await audit(c, 'staff.override', null, { requestId: r.id, by: c.get('staffId'), changes: done, reason })
