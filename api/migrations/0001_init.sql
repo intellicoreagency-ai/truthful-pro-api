@@ -79,3 +79,15 @@ CREATE TABLE rate_limits (
   count INTEGER NOT NULL,
   PRIMARY KEY (key, window)
 );
+
+CREATE TABLE wa_challenges (
+  id TEXT PRIMARY KEY,
+  phone_hash TEXT NOT NULL,
+  code_hash TEXT NOT NULL,
+  poll_hash TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  verified_at INTEGER,
+  consumed_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX idx_wa_code ON wa_challenges(code_hash);

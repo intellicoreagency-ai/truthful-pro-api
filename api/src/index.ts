@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { Env, Vars } from './types'
-import { b64, hmacHex, newId, open, openText, otpCode, randomToken, seal, sealText, sha256Hex, timingSafeEqual } from './crypto'
+import { b64, hmacHex, hmacHexText, waCode, newId, open, openText, otpCode, randomToken, seal, sealText, sha256Hex, timingSafeEqual } from './crypto'
 import { MAX_FILES_PER_REQUEST, MAX_FILE_BYTES, REQUEST_STATUSES, isServiceId, isUuid, normalizePhone, safeFileName, sniffFile } from './validate'
 import { allow, audit, clientIp, jsonBody, requireAuth, securityHeaders, type C } from './security'
 import { sendOtp } from './sms'
@@ -78,6 +78,12 @@ app.post('/v1/auth/otp/verify', async (c) => {
   const used = await c.env.DB.prepare('UPDATE otp_challenges SET consumed_at=? WHERE id=? AND consumed_at IS NULL').bind(Date.now(), challengeId).run()
   if (!used.meta.changes) return c.json({ error: 'invalid_code' }, 401)
 
+  const out = await loginPhone(c, phone, phoneHash)
+  return c.json(out)
+})
+
+/** Finds or creates the user for a verified phone and opens a session. */
+async function loginPhone(c: C, phone: string, phoneHash: string) {
   let user = await c.env.DB.prepare('SELECT id FROM users WHERE phone_hash=? AND deleted_at IS NULL').bind(phoneHash).first<{ id: string }>()
   const isNew = !user
   if (!user) {
@@ -87,7 +93,75 @@ app.post('/v1/auth/otp/verify', async (c) => {
     user = { id }
   }
   await audit(c, isNew ? 'user.create' : 'auth.login', user.id)
-  return c.json({ ...(await issueSession(c, user.id)), isNewUser: isNew })
+  return { ...(await issueSession(c, user.id)), isNewUser: isNew }
+}
+
+// ---------- WhatsApp verification: the user sends us a message (inbound messages are free) ----------
+const WA_TTL = 10 * 60 * 1000
+app.post('/v1/auth/wa/start', async (c) => {
+  const body = await jsonBody(c)
+  const phone = normalizePhone(body?.phone)
+  if (!phone) return c.json({ error: 'invalid_phone' }, 400)
+  if (!c.env.WA_BUSINESS_NUMBER) return c.json({ error: 'not_configured' }, 503)
+  const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
+  if (!(await allow(c.env, `wa:p:${phoneHash}`, 5, 600)) || !(await allow(c.env, `wa:i:${clientIp(c)}`, 20, 600))) return c.json({ error: 'too_many_requests' }, 429)
+  const code = waCode(), poll = randomToken(24), id = newId(), now = Date.now()
+  await c.env.DB.prepare('INSERT INTO wa_challenges (id,phone_hash,code_hash,poll_hash,expires_at,created_at) VALUES (?,?,?,?,?,?)')
+    .bind(id, phoneHash, await hmacHex(c.env.PEPPER, `wa:${code}`), await sha256Hex(poll), now + WA_TTL, now).run()
+  const text = body?.language === 'en' ? `Verify my TRUTHFUL PRO account: ${code}` : `تأكيد حسابي في تروثفل برو: ${code}`
+  await audit(c, 'wa.start', null)
+  return c.json({ challengeId: id, pollToken: poll, code, expiresIn: WA_TTL / 1000, link: `https://wa.me/${c.env.WA_BUSINESS_NUMBER}?text=${encodeURIComponent(text)}` })
+})
+
+app.get('/webhooks/whatsapp', (c) => {
+  const ok = c.req.query('hub.mode') === 'subscribe' && !!c.env.WA_VERIFY_TOKEN && timingSafeEqual(c.req.query('hub.verify_token') ?? '', c.env.WA_VERIFY_TOKEN)
+  return ok ? c.text(c.req.query('hub.challenge') ?? '') : c.body(null, 403)
+})
+
+app.post('/webhooks/whatsapp', async (c) => {
+  if (!c.env.WA_APP_SECRET) return c.body(null, 503)
+  const raw = await c.req.text()
+  if (raw.length > 256 * 1024) return c.body(null, 413)
+  const sig = (c.req.header('x-hub-signature-256') ?? '').replace(/^sha256=/, '')
+  if (!timingSafeEqual(sig, await hmacHexText(c.env.WA_APP_SECRET, raw))) return c.body(null, 401)
+  let payload: any
+  try { payload = JSON.parse(raw) } catch { return c.body(null, 400) }
+  for (const entry of payload?.entry ?? []) for (const ch of entry?.changes ?? []) for (const m of ch?.value?.messages ?? []) {
+    if (m?.type !== 'text' || typeof m?.from !== 'string' || typeof m?.text?.body !== 'string') continue
+    const found = /TP-[A-HJ-NP-Z2-9]{8}/.exec(m.text.body.toUpperCase())
+    if (!found || !/^\d{8,15}$/.test(m.from)) continue
+    const upd = await c.env.DB.prepare(
+      'UPDATE wa_challenges SET verified_at=? WHERE code_hash=? AND phone_hash=? AND expires_at>? AND verified_at IS NULL'
+    ).bind(Date.now(), await hmacHex(c.env.PEPPER, `wa:${found[0]}`), await hmacHex(c.env.PEPPER, `phone:+${m.from}`), Date.now()).run()
+    if (upd.meta.changes) {
+      await audit(c, 'wa.verified', null)
+      if (c.env.WA_TOKEN && c.env.WA_PHONE_NUMBER_ID) { // free reply inside the 24h service window; failure is harmless
+        c.executionCtx?.waitUntil?.(fetch(`https://graph.facebook.com/v21.0/${c.env.WA_PHONE_NUMBER_ID}/messages`, {
+          method: 'POST', headers: { authorization: `Bearer ${c.env.WA_TOKEN}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ messaging_product: 'whatsapp', to: m.from, type: 'text', text: { body: 'تم التحقق ✅ ارجع إلى التطبيق. / Verified ✅ Return to the app.' } }),
+        }).catch(() => {}))
+      }
+    }
+  }
+  return c.body(null, 200)
+})
+
+app.post('/v1/auth/wa/poll', async (c) => {
+  const body = await jsonBody(c)
+  const id = typeof body?.challengeId === 'string' ? body.challengeId : ''
+  const poll = typeof body?.pollToken === 'string' ? body.pollToken : ''
+  const phone = normalizePhone(body?.phone)
+  if (!isUuid(id) || !/^[A-Za-z0-9_-]{20,64}$/.test(poll) || !phone) return c.json({ error: 'invalid_request' }, 400)
+  if (!(await allow(c.env, `wapoll:${clientIp(c)}`, 300, 600))) return c.json({ error: 'too_many_requests' }, 429)
+  const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
+  const ch = await c.env.DB.prepare('SELECT poll_hash,phone_hash,expires_at,verified_at,consumed_at FROM wa_challenges WHERE id=?').bind(id)
+    .first<{ poll_hash: string; phone_hash: string; expires_at: number; verified_at: number | null; consumed_at: number | null }>()
+  if (!ch || !timingSafeEqual(ch.poll_hash, await sha256Hex(poll)) || ch.phone_hash !== phoneHash) return c.json({ error: 'invalid_request' }, 400)
+  if (ch.consumed_at || ch.expires_at < Date.now()) return c.json({ status: 'expired' })
+  if (!ch.verified_at) return c.json({ status: 'pending' })
+  const used = await c.env.DB.prepare('UPDATE wa_challenges SET consumed_at=? WHERE id=? AND consumed_at IS NULL').bind(Date.now(), id).run()
+  if (!used.meta.changes) return c.json({ status: 'expired' })
+  return c.json({ status: 'verified', ...(await loginPhone(c, phone, phoneHash)) })
 })
 
 app.post('/v1/auth/refresh', async (c) => {

@@ -15,12 +15,22 @@ npx wrangler d1 migrations apply DB --remote
 ```bash
 npx wrangler secret put PEPPER      # openssl rand -base64 32
 npx wrangler secret put DATA_KEY    # openssl rand -base64 32  (back it up offline: losing it makes documents unreadable)
-npx wrangler secret put TWILIO_SID
-npx wrangler secret put TWILIO_TOKEN
-npx wrangler secret put TWILIO_FROM
+npx wrangler secret put WA_APP_SECRET      # Meta app secret (signs webhooks)
+npx wrangler secret put WA_VERIFY_TOKEN    # any random string, also entered in Meta
+npx wrangler secret put WA_TOKEN           # optional: free confirmation reply
+# set WA_BUSINESS_NUMBER (digits, e.g. 9715XXXXXXXX) and WA_PHONE_NUMBER_ID under [vars] in wrangler.toml
 ```
-In `production` the API refuses to send OTP without an SMS provider and never returns the code.
 Set `ENVIRONMENT = "production"` in `wrangler.toml` for the production deploy.
+
+## 2b. WhatsApp sign-in (free: the customer sends us a message)
+Customers are verified when they send a ready-made WhatsApp message to the company number. Inbound messages are free;
+the company never sends a paid authentication template. One-time setup:
+1. Meta for Developers -> create an app -> add **WhatsApp**; register the company's business number (it cannot be in use on a normal WhatsApp account).
+2. App settings -> copy the **App Secret** -> `WA_APP_SECRET`.
+3. WhatsApp -> Configuration -> Webhook: callback `https://<api-domain>/webhooks/whatsapp`, verify token = `WA_VERIFY_TOKEN`; subscribe to **messages**.
+4. Put the number in `WA_BUSINESS_NUMBER`. The optional confirmation reply needs `WA_TOKEN` + `WA_PHONE_NUMBER_ID` and is free inside the 24 h window the customer opens.
+Check Meta's current pricing page for your account before launch; free applies to customer-initiated conversations only.
+The old SMS route (`/v1/auth/otp/*`, Twilio) is still in the API but the app no longer uses it; it is paid.
 
 ## 3. Deploy and check
 ```bash

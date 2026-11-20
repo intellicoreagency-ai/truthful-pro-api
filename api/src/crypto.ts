@@ -61,3 +61,15 @@ export async function open(dataKey: string, info: string, sealed: Uint8Array): P
 }
 export const sealText = async (k: string, info: string, t: string) => b64(await seal(k, info, enc.encode(t)))
 export const openText = async (k: string, info: string, s: string) => dec.decode(await open(k, info, unb64(s)))
+
+/** HMAC-SHA256 with a plain-text secret (Meta signs webhooks with the app secret as-is). */
+export async function hmacHexText(secret: string, data: string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  return hex(await crypto.subtle.sign('HMAC', key, enc.encode(data)))
+}
+const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+/** TP-XXXXXXXX, 8 unambiguous characters (40 bits). */
+export function waCode(): string {
+  const b = crypto.getRandomValues(new Uint8Array(8))
+  return 'TP-' + [...b].map((x) => ALPHA[x % 32]).join('')
+}

@@ -61,6 +61,14 @@ export async function verifyOtp(phone:string,challengeId:string,code:string){
   const j=await json<{accessToken:string;refreshToken:string;isNewUser:boolean}>(await call('POST','/v1/auth/otp/verify',{auth:false,body:{phone,challengeId,code}}));
   await saveTokens(j.accessToken,j.refreshToken);return j.isNewUser;
 }
+export type WaChallenge={challengeId:string;pollToken:string;code:string;expiresIn:number;link:string};
+export const waStart=async(phone:string,language:'ar'|'en')=>json<WaChallenge>(await call('POST','/v1/auth/wa/start',{auth:false,body:{phone,language}}));
+/** Resolves 'pending' | 'expired' | 'verified'. On 'verified' the session tokens are stored. */
+export async function waPoll(phone:string,c:Pick<WaChallenge,'challengeId'|'pollToken'>):Promise<'pending'|'expired'|'verified'>{
+  const j=await json<{status:'pending'|'expired'|'verified';accessToken?:string;refreshToken?:string}>(await call('POST','/v1/auth/wa/poll',{auth:false,body:{phone,challengeId:c.challengeId,pollToken:c.pollToken}}));
+  if(j.status==='verified'&&j.accessToken&&j.refreshToken)await saveTokens(j.accessToken,j.refreshToken);
+  return j.status;
+}
 export async function logout(){try{if(mem.access)await call('POST','/v1/auth/logout')}catch{}await clearTokens()}
 export const me=async()=>json<{user:{id:string;display_name:string|null;language:'ar'|'en'}}>(await call('GET','/v1/me'));
 export const recordConsent=(type:'terms'|'privacy'|'document_processing',version:string,accepted:boolean)=>call('POST','/v1/consents',{body:{type,version,accepted}});

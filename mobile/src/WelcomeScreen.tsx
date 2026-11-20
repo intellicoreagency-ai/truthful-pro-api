@@ -1,8 +1,8 @@
-import React, {useState} from 'react';
-import {Image, Pressable, ScrollView, StyleSheet, TextInput, View} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {Image, Linking, Pressable, ScrollView, StyleSheet, TextInput, View} from 'react-native';
 import Svg, {Defs, LinearGradient, Rect, Stop} from 'react-native-svg';
 import {Icon} from './Icons';
-import {ApiError, apiEnabled, recordConsent, requestOtp, verifyOtp} from './api';
+import {ApiError, apiEnabled, recordConsent, waPoll, waStart, type WaChallenge} from './api';
 import {LEGAL_VERSION} from './legal';
 import {phoneDigits} from './clientModel';
 
@@ -23,7 +23,7 @@ const copy={
   email:'البريد الإلكتروني',password:'كلمة المرور',show:'إظهار كلمة المرور',hide:'إخفاء كلمة المرور',
   remember:'تذكّرني',forgot:'نسيت كلمة المرور؟',or:'أو',guest:'المتابعة كضيف',back:'العودة إلى تسجيل الدخول',
   preview:'نسخة معاينة. تسجيل الدخول غير متاح حالياً.',
-  otpIntro:'أدخل رقم جوالك وسنرسل لك رمز تحقق.',phone:'رقم الجوال (05XXXXXXXX)',code:'رمز التحقق (6 أرقام)',sendCode:'إرسال الرمز',verify:'تأكيد ودخول',changeNumber:'تغيير الرقم',
+  otpIntro:'أدخل رقم جوالك ثم أكّد ملكيته برسالة واتساب مجانية.',phone:'رقم الجوال (05XXXXXXXX)',sendCode:'التحقق عبر واتساب',waWait:'افتح واتساب وأرسل الرسالة الجاهزة كما هي دون تعديل، ثم عُد إلى هنا. سيتم دخولك تلقائياً.',waWaiting:'بانتظار رسالتك…',openWa:'فتح واتساب',cancel:'إلغاء',changeNumber:'تغيير الرقم',e_expired:'انتهت مهلة التحقق. ابدأ من جديد.',e_notcfg:'التحقق عبر واتساب غير مفعّل بعد.',
   agree:'أوافق على',terms:'شروط الاستخدام',and:'و',privacy:'سياسة الخصوصية',docConsent:'أوافق على معالجة مستنداتي لتنفيذ طلباتي، ويمكنني سحب موافقتي في أي وقت.',
   e_phone:'أدخل رقم جوال إماراتي صحيحاً.',e_consent:'يلزم الموافقة على الشروط والخصوصية ومعالجة المستندات.',e_many:'محاولات كثيرة. حاول لاحقاً.',e_code:'الرمز غير صحيح أو منتهي.',e_send:'تعذّر إرسال الرمز. حاول مرة أخرى.',e_net:'تعذّر الاتصال. تحقق من الإنترنت.',e_gen:'حدث خطأ. حاول مرة أخرى.',
  },
@@ -36,7 +36,7 @@ const copy={
   email:'Email address',password:'Password',show:'Show password',hide:'Hide password',
   remember:'Remember me',forgot:'Forgot password?',or:'or',guest:'Continue as Guest',back:'Back to Sign In',
   preview:'Preview only. Sign-in is currently unavailable.',
-  otpIntro:'Enter your mobile number and we will send you a verification code.',phone:'Mobile number (05XXXXXXXX)',code:'Verification code (6 digits)',sendCode:'Send code',verify:'Verify and sign in',changeNumber:'Change number',
+  otpIntro:'Enter your mobile number, then confirm you own it with a free WhatsApp message.',phone:'Mobile number (05XXXXXXXX)',sendCode:'Verify with WhatsApp',waWait:'Open WhatsApp and send the ready-made message as it is, then come back here. You will be signed in automatically.',waWaiting:'Waiting for your message…',openWa:'Open WhatsApp',cancel:'Cancel',changeNumber:'Change number',e_expired:'Verification timed out. Start again.',e_notcfg:'WhatsApp verification is not enabled yet.',
   agree:'I agree to the',terms:'Terms of Use',and:'and',privacy:'Privacy Policy',docConsent:'I consent to processing my documents to carry out my requests, and I can withdraw consent at any time.',
   e_phone:'Enter a valid UAE mobile number.',e_consent:'You must accept the Terms, Privacy Policy and document processing.',e_many:'Too many attempts. Try again later.',e_code:'The code is wrong or has expired.',e_send:'Could not send the code. Try again.',e_net:'Connection failed. Check your internet.',e_gen:'Something went wrong. Try again.',
  },
@@ -57,17 +57,33 @@ export function WelcomeScreen({lang,onLanguage,onGuest,onSignedIn,onLegal,logo,T
  const [remember,setRemember]=useState(false);
  const changeMode=(next:Mode)=>{setShowPassword(false);setMode(next);};
  const [phone,setPhone]=useState('');
- const [code,setCode]=useState('');
- const [challenge,setChallenge]=useState<string|null>(null);
+ const [wa,setWa]=useState<WaChallenge|null>(null);
  const [agreed,setAgreed]=useState(false);
  const [docOk,setDocOk]=useState(false);
  const [busy,setBusy]=useState(false);
  const [err,setErr]=useState('');
+ const alive=useRef(true);
+ useEffect(()=>{alive.current=true;return()=>{alive.current=false}},[]);
  const e164=():string|null=>{const d=phoneDigits(phone);const n=d.startsWith('971')?d:d.startsWith('0')?'971'+d.slice(1):d.length===9?'971'+d:'';return /^9715\d{8}$/.test(n)?'+'+n:null;};
- const fail=(e:unknown)=>{const c=e instanceof ApiError?e.code:'';setErr(c==='too_many_requests'?t.e_many:c==='invalid_code'?t.e_code:c==='delivery_failed'?t.e_send:c==='invalid_phone'?t.e_phone:c==='network'?t.e_net:t.e_gen);};
- const send=async()=>{setErr('');const p=e164();if(!p){setErr(t.e_phone);return}if(!agreed||!docOk){setErr(t.e_consent);return}setBusy(true);try{const r=await requestOtp(p,lang);setChallenge(r.challengeId);setCode('')}catch(e){fail(e)}finally{setBusy(false)}};
- const confirm=async()=>{setErr('');const p=e164();if(!p||!challenge)return;if(!/^\d{6}$/.test(phoneDigits(code))){setErr(t.e_code);return}setBusy(true);try{await verifyOtp(p,challenge,phoneDigits(code));await Promise.all([recordConsent('terms',LEGAL_VERSION,true),recordConsent('privacy',LEGAL_VERSION,true),recordConsent('document_processing',LEGAL_VERSION,true)]);onSignedIn()}catch(e){fail(e)}finally{setBusy(false)}};
-
+ const fail=(e:unknown)=>{const c=e instanceof ApiError?e.code:'';setErr(c==='too_many_requests'?t.e_many:c==='not_configured'?t.e_notcfg:c==='invalid_phone'?t.e_phone:c==='network'?t.e_net:t.e_gen);};
+ const openWa=(link:string)=>{void Linking.openURL(link).catch(()=>{})};
+ const start=async()=>{setErr('');const p=e164();if(!p){setErr(t.e_phone);return}if(!agreed||!docOk){setErr(t.e_consent);return}setBusy(true);try{const c=await waStart(p,lang);setWa(c);openWa(c.link)}catch(e){fail(e)}finally{setBusy(false)}};
+ // While waiting, ask the server every 2s whether the WhatsApp message arrived.
+ useEffect(()=>{
+   if(!wa)return;const p=e164();if(!p)return;let stop=false;const until=Date.now()+wa.expiresIn*1000;
+   const tick=async()=>{
+     if(stop||!alive.current)return;
+     try{
+       const st=await waPoll(p,wa);
+       if(st==='verified'){stop=true;await Promise.all([recordConsent('terms',LEGAL_VERSION,true),recordConsent('privacy',LEGAL_VERSION,true),recordConsent('document_processing',LEGAL_VERSION,true)]);if(alive.current)onSignedIn();return}
+       if(st==='expired'||Date.now()>until){stop=true;if(alive.current){setWa(null);setErr(t.e_expired)}return}
+     }catch(e){if(e instanceof ApiError&&e.status>=400&&e.status<500&&e.status!==429){stop=true;if(alive.current){setWa(null);fail(e)}return}}
+     if(!stop)timer=setTimeout(tick,2000);
+   };
+   let timer=setTimeout(tick,2000);
+   return()=>{stop=true;clearTimeout(timer)};
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[wa]);
  return <View style={s.cover}>
   <View style={StyleSheet.absoluteFill} pointerEvents="none" aria-hidden>
    <Image source={cover} resizeMode="cover" blurRadius={20} style={s.photo} accessible={false}/>
@@ -110,14 +126,17 @@ export function WelcomeScreen({lang,onLanguage,onGuest,onSignedIn,onLegal,logo,T
        <T lang={lang} style={s.preview}>{t.otpIntro}</T>
        <View style={[s.field,{flexDirection:row}]}>
          <Icon name="user" size={20} color={accent}/>
-         <TextInput editable={!challenge&&!busy} value={phone} onChangeText={setPhone} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" maxLength={16}
+         <TextInput editable={!wa&&!busy} value={phone} onChangeText={setPhone} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" maxLength={16}
            accessibilityLabel={t.phone} placeholder={t.phone} placeholderTextColor={ink} style={[s.input,{fontFamily:inputFont,textAlign:ar?'right':'left'}]}/>
        </View>
-       {challenge?<View style={[s.field,{flexDirection:row}]}>
-         <Icon name="lock" size={20} color={accent}/>
-         <TextInput value={code} onChangeText={setCode} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" maxLength={6} editable={!busy}
-           accessibilityLabel={t.code} placeholder={t.code} placeholderTextColor={ink} style={[s.input,{fontFamily:inputFont,textAlign:ar?'right':'left',letterSpacing:4}]}/>
-       </View>:<>
+       {wa?<>
+         <T lang={lang} style={s.preview}>{t.waWait}</T>
+         <T lang={lang} style={s.intro}>{t.waWaiting}</T>
+         <Pressable accessibilityRole="button" onPress={()=>openWa(wa.link)} style={({pressed})=>[s.primary,s.cta,{flexDirection:row},pressed&&{opacity:.7}]}>
+           <T lang={lang} style={[s.primaryText,s.guestText]}>{t.openWa}</T>
+         </Pressable>
+         <Pressable accessibilityRole="button" onPress={()=>{setWa(null);setErr('')}} style={s.inline}><T lang={lang} style={s.linkText}>{t.cancel}</T></Pressable>
+       </>:<>
          <Pressable accessibilityRole="checkbox" accessibilityState={{checked:agreed}} onPress={()=>setAgreed(v=>!v)} style={[s.inline,{flexDirection:row,alignItems:'flex-start'}]}>
            <View style={[s.check,agreed&&s.checked]}>{agreed&&<Icon name="check" size={13} color="#30251F"/>}</View>
            <T lang={lang} style={[s.linkText,{flex:1,textAlign:ar?'right':'left'}]}>{t.agree} {t.terms} {t.and} {t.privacy}</T>
@@ -130,12 +149,12 @@ export function WelcomeScreen({lang,onLanguage,onGuest,onSignedIn,onLegal,logo,T
            <View style={[s.check,docOk&&s.checked]}>{docOk&&<Icon name="check" size={13} color="#30251F"/>}</View>
            <T lang={lang} style={[s.linkText,{flex:1,textAlign:ar?'right':'left'}]}>{t.docConsent}</T>
          </Pressable>
+         {err?<T lang={lang} style={s.error}>{err}</T>:null}
+         <Pressable accessibilityRole="button" accessibilityState={{disabled:busy}} disabled={busy} onPress={start} style={({pressed})=>[s.primary,s.cta,{flexDirection:row},(pressed||busy)&&{opacity:.7}]}>
+           <T lang={lang} style={[s.primaryText,s.guestText]}>{t.sendCode}</T>
+         </Pressable>
        </>}
-       {err?<T lang={lang} style={s.error}>{err}</T>:null}
-       <Pressable accessibilityRole="button" accessibilityState={{disabled:busy}} disabled={busy} onPress={challenge?confirm:send} style={({pressed})=>[s.primary,s.cta,{flexDirection:row},(pressed||busy)&&{opacity:.7}]}>
-         <Icon name="lock" size={18} color="#30251F"/><T lang={lang} style={[s.primaryText,s.guestText]}>{challenge?t.verify:t.sendCode}</T>
-       </Pressable>
-       {challenge?<Pressable accessibilityRole="button" onPress={()=>{setChallenge(null);setCode('');setErr('')}} style={s.inline}><T lang={lang} style={s.linkText}>{t.changeNumber}</T></Pressable>:null}
+       {wa&&err?<T lang={lang} style={s.error}>{err}</T>:null}
      </>:<>
        <T lang={lang} style={s.preview}>{t.preview}</T>
        <View style={[s.field,{flexDirection:row}]}>

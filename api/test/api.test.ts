@@ -200,3 +200,76 @@ describe('cors', () => {
     expect(bad.status).toBe(403)
   })
 })
+
+describe('whatsapp verification (free, user-initiated)', () => {
+  const SECRET = 'test-app-secret'
+  const waEnv = () => ({ ...env, WA_BUSINESS_NUMBER: '971500000000', WA_APP_SECRET: SECRET, WA_VERIFY_TOKEN: 'vt' } as Env)
+  const sign = async (raw: string, secret = SECRET) => {
+    const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+    return 'sha256=' + Buffer.from(await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(raw))).toString('hex')
+  }
+  const fetchWa = (path: string, init: RequestInit, e: Env = waEnv()) => app.fetch(new Request('https://api.test' + path, { ...init, headers: { 'cf-connecting-ip': `10.1.0.${++ipCounter % 250}`, ...(init.headers ?? {}) } }), e)
+  const start = async (phone: string) => {
+    const r = await fetchWa('/v1/auth/wa/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ phone, language: 'en' }) })
+    return { r, j: await r.json() as { challengeId: string; pollToken: string; code: string; link: string } }
+  }
+  const inbound = async (from: string, text: string, secret = SECRET) => {
+    const raw = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ from, type: 'text', text: { body: text } }] } }] }] })
+    return fetchWa('/webhooks/whatsapp', { method: 'POST', headers: { 'x-hub-signature-256': await sign(raw, secret), 'content-type': 'application/json' }, body: raw })
+  }
+  const poll = async (s: { challengeId: string; pollToken: string }, phone: string) => {
+    const r = await fetchWa('/v1/auth/wa/poll', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ challengeId: s.challengeId, pollToken: s.pollToken, phone }) })
+    return await r.json() as { status?: string; accessToken?: string; error?: string }
+  }
+
+  it('is unavailable until the business number is configured', async () => {
+    const r = await call('POST', '/v1/auth/wa/start', { body: { phone: '+971521120001' } })
+    expect(r.status).toBe(503)
+  })
+  it('logs in when the real owner of the number sends the code', async () => {
+    const phone = '+971521120002'
+    const s = await start(phone)
+    expect(s.r.status).toBe(200)
+    expect(s.j.link).toContain('https://wa.me/971500000000?text=')
+    expect((await poll(s.j, phone)).status).toBe('pending')
+    expect((await inbound('971521120002', `Verify my account ${s.j.code}`)).status).toBe(200)
+    const done = await poll(s.j, phone)
+    expect(done.status).toBe('verified')
+    expect((await call('GET', '/v1/me', { token: done.accessToken })).status).toBe(200)
+    expect((await poll(s.j, phone)).status).toBe('expired') // single use
+  })
+  it('does not verify if someone else sends the code', async () => {
+    const phone = '+971521120003'
+    const s = await start(phone)
+    await inbound('971529999999', s.j.code) // attacker's own number
+    expect((await poll(s.j, phone)).status).toBe('pending')
+  })
+  it('rejects forged or unsigned webhooks', async () => {
+    const phone = '+971521120004'
+    const s = await start(phone)
+    expect((await inbound('971521120004', s.j.code, 'wrong-secret')).status).toBe(401)
+    const raw = JSON.stringify({ entry: [] })
+    expect((await fetchWa('/webhooks/whatsapp', { method: 'POST', body: raw })).status).toBe(401)
+    expect((await poll(s.j, phone)).status).toBe('pending')
+  })
+  it('will not hand a session to someone without the poll token', async () => {
+    const phone = '+971521120005'
+    const s = await start(phone)
+    await inbound('971521120005', s.j.code)
+    const r = await fetchWa('/v1/auth/wa/poll', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ challengeId: s.j.challengeId, pollToken: 'x'.repeat(30), phone }) })
+    expect(r.status).toBe(400)
+    expect((await poll(s.j, phone)).status).toBe('verified') // the real client still can
+  })
+  it('expires old challenges', async () => {
+    const phone = '+971521120006'
+    const s = await start(phone)
+    await env.DB.prepare('UPDATE wa_challenges SET expires_at=? WHERE id=?').bind(Date.now() - 1, s.j.challengeId).run()
+    await inbound('971521120006', s.j.code)
+    expect((await poll(s.j, phone)).status).toBe('expired')
+  })
+  it('answers Meta’s webhook handshake only with the right token', async () => {
+    const ok = await fetchWa('/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=vt&hub.challenge=12345', { method: 'GET' })
+    expect(await ok.text()).toBe('12345')
+    expect((await fetchWa('/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=nope&hub.challenge=1', { method: 'GET' })).status).toBe(403)
+  })
+})
