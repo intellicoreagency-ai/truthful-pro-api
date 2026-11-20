@@ -125,6 +125,12 @@ function FinancePanel({lang,r,act,onChanged,setMessage}:{lang:Lang;r:ClientReque
    <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('إجمالي أتعاب الشركة','Company fee total')} ({f.invoice?.number??''})</T><T lang="en" bold>{aed(f.quote.total)}</T></View>
    <T lang={lang} style={s.small}>{tx('الضريبة غير مهيأة ولم تُحتسب. هذه المستندات ليست فواتير ضريبية.','Tax is not configured and was not calculated. These are not tax invoices.')}</T>
   </>:<T lang={lang}>{tx('بانتظار إصدار الفاتورة من الفريق','Waiting for the team to issue your invoice')}</T>}
+  {f.gov&&f.invoice&&<View style={{backgroundColor:'#F6EACD',borderRadius:10,padding:10,gap:4}}>
+   <T lang={lang} bold>{tx('التكلفة الكاملة لمعاملتك','Full cost of your transaction')}</T>
+   <View style={[s.between,{flexDirection:row}]}><T lang={lang}>{tx('أتعاب الشركة','Company fee')}</T><T lang="en" bold>{aed(f.totals.total)}</T></View>
+   <View style={[s.between,{flexDirection:row}]}><T lang={lang}>{tx('الرسوم الحكومية (للجهة مباشرة)','Government fees (to the authority)')}</T><T lang="en" bold>{aed(f.gov.total)}</T></View>
+   <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('الإجمالي','Total')}</T><T lang="en" bold>{aed(f.totals.total+f.gov.total)}</T></View>
+  </View>}
   {f.gov&&<GovSection lang={lang} r={r} gov={f.gov} act={act} onChanged={onChanged} setMessage={setMessage}/>}
   {f.invoice&&<>
    <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('حالة الدفع','Payment status')}</T><T lang={lang} style={s.badge}>{state[f.totals.state]?.[ar?0:1]}</T></View>

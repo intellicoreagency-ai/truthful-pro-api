@@ -1176,6 +1176,55 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: null }, owner)
     const id2 = await submit(); expect((await fin(id2)).documents).toHaveLength(0)
   })
+  it('real scanner (clamav-http): configuration rules, explicit verdicts only; outage or odd answers stay pending, never clean', async () => {
+    const { scanBytes, scannerMode, uploadsBlocked } = await import('../src/scanner')
+    const base = { ...wenv(), SCANNER_MODE: 'clamav-http', SCANNER_TOKEN: 't'.repeat(32) } as Env
+    // production needs https; missing URL/token or plain http is "no scanner"
+    expect(scannerMode({ ...base, ENVIRONMENT: 'production', SCANNER_URL: 'https://scan.example.com/scan' } as Env)).toBe('clamav-http')
+    expect(uploadsBlocked({ ...base, ENVIRONMENT: 'production', SCANNER_URL: 'https://scan.example.com/scan' } as Env)).toBe(false)
+    expect(scannerMode({ ...base, ENVIRONMENT: 'production', SCANNER_URL: 'http://scan.example.com/scan' } as Env)).toBe('none')
+    expect(scannerMode({ ...base, ENVIRONMENT: 'production', SCANNER_URL: 'http://localhost:8081/scan' } as Env)).toBe('none')
+    expect(scannerMode({ ...base, SCANNER_URL: 'http://localhost:8081/scan' } as Env)).toBe('clamav-http') // local development only
+    expect(scannerMode({ ...base, SCANNER_URL: undefined } as Env)).toBe('none')
+    expect(scannerMode({ ...base, SCANNER_TOKEN: undefined, SCANNER_URL: 'https://x.example/scan' } as Env)).toBe('none')
+    const e = { ...base, SCANNER_URL: 'https://scan.example.com/scan' } as Env
+    const real = globalThis.fetch
+    try {
+      const answer = (status: number, body: unknown) => { globalThis.fetch = (async () => new Response(JSON.stringify(body), { status })) as typeof fetch }
+      answer(200, { status: 'clean' }); expect((await scanBytes(e, new Uint8Array([1]))).status).toBe('clean')
+      answer(200, { status: 'infected' }); expect((await scanBytes(e, new Uint8Array([1]))).status).toBe('infected')
+      for (const odd of [[200, { status: 'maybe' }], [200, {}], [502, { status: 'error' }], [401, { error: 'unauthorized' }], [200, { status: 'clean ' }]] as [number, unknown][]) {
+        answer(odd[0], odd[1]); expect((await scanBytes(e, new Uint8Array([1]))).status).toBe('pending')
+      }
+      globalThis.fetch = (async () => { throw new Error('network down') }) as typeof fetch
+      expect((await scanBytes(e, new Uint8Array([1]))).status).toBe('pending')
+      // the request carries the bearer token and the bytes
+      let seen: { auth: string | null; len: number } | null = null
+      globalThis.fetch = (async (_u: unknown, init?: RequestInit) => { seen = { auth: new Headers(init?.headers).get('authorization'), len: (init?.body as Uint8Array).length }; return new Response(JSON.stringify({ status: 'clean' })) }) as typeof fetch
+      await scanBytes(e, new Uint8Array(5)); expect(seen).toEqual({ auth: `Bearer ${'t'.repeat(32)}`, len: 5 })
+    } finally { globalThis.fetch = real }
+  })
+  it('rescan releases a pending file only on an explicit clean verdict', async () => {
+    const noScan = { ...wenv(), SCANNER_MODE: undefined } as Env
+    const id = await submit()
+    const up = await asEnv(noScan, 'PUT', `/v1/requests/${id}/files`, cust, pdf(), { 'x-file-name': 'p.pdf' })
+    const fid = ((await up.json()) as { id: string }).id
+    expect((await hit('POST', `/staff/v1/files/${fid}/rescan`, {}, await staffToken('agent'))).status).toBe(403)
+    expect((await asEnv(noScan, 'POST', `/staff/v1/files/${fid}/rescan`, owner)).status).toBe(200) // no scanner in this env: still pending
+    expect((await env.DB.prepare('SELECT scan_status s FROM request_files WHERE id=?').bind(fid).first<{ s: string }>())!.s).toBe('pending')
+    const real = globalThis.fetch
+    try {
+      for (const [verdict, stored] of [['clean', 'clean']] as const) {
+        globalThis.fetch = (async () => new Response(JSON.stringify({ status: verdict }))) as typeof fetch
+        const e = { ...wenv(), SCANNER_MODE: 'clamav-http', SCANNER_URL: 'https://scan.example.com/scan', SCANNER_TOKEN: 't'.repeat(32) } as Env
+        const r = await asEnv(e, 'POST', `/staff/v1/files/${fid}/rescan`, owner)
+        expect(r.status).toBe(200); expect(((await r.json()) as { status: string }).status).toBe(verdict)
+        expect((await env.DB.prepare('SELECT scan_status s FROM request_files WHERE id=?').bind(fid).first<{ s: string }>())!.s).toBe(stored)
+        expect((await asEnv(e, 'GET', `/staff/v1/files/${fid}`, owner)).status).toBe(200) // now openable
+        expect((await asEnv(e, 'POST', `/staff/v1/files/${fid}/rescan`, owner)).status).toBe(409) // already decided
+      }
+    } finally { globalThis.fetch = real }
+  })
   it('permissions: agents may draft but not issue; accountants issue; customers and other customers are kept out', async () => {
     const id = await submit()
     const agent = await staffToken('agent'), accountant = await staffToken('accountant')

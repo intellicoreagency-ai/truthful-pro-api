@@ -99,7 +99,7 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
         <>
           <h3 style={{ marginTop: 14 }}>{t('govTitle')}</h3>
           <p className="muted small">{t('govNote')}</p>
-          <dl className="kv"><dt>{t('kGov')}</dt><dd dir="ltr">{fmtFils(f.gov.total)}</dd><dt>{t('govVerified')}</dt><dd dir="ltr">{fmtFils(f.gov.verified)}</dd><dt>{t('govRemaining')}</dt><dd dir="ltr">{fmtFils(f.gov.remaining)}</dd></dl>
+          <dl className="kv"><dt>{t('fullCost')}</dt><dd dir="ltr"><b>{fmtFils(f.totals.total + f.gov.total)}</b> <span className="muted small">({fmtFils(f.totals.total)} + {fmtFils(f.gov.total)})</span></dd><dt>{t('kGov')}</dt><dd dir="ltr">{fmtFils(f.gov.total)}</dd><dt>{t('govVerified')}</dt><dd dir="ltr">{fmtFils(f.gov.verified)}</dd><dt>{t('govRemaining')}</dt><dd dir="ltr">{fmtFils(f.gov.remaining)}</dd></dl>
           {f.gov.payUrl && <p className="small" dir="ltr">{f.gov.payUrl}</p>}
           {f.authorityPayments.map((a) => (
             <div className="file" key={a.id}>

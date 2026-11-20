@@ -459,7 +459,7 @@ authed.put('/requests/:id/files', async (c) => {
   if (uploadsBlocked(c.env)) return c.json({ error: 'scanner_unavailable' }, 503) // production without a real scanner: nothing unscanned is ever stored
   const kind = sniffFile(bytes) // trust the bytes, never the client-declared type
   if (!kind) return c.json({ error: 'unsupported_type' }, 415)
-  const scan = scanBytes(c.env, bytes)
+  const scan = await scanBytes(c.env, bytes)
   if (scan.status === 'infected') { await audit(c, 'file.rejected_infected', uid); return c.json({ error: 'infected' }, 422) }
   const count = await c.env.DB.prepare('SELECT COUNT(*) n FROM request_files WHERE request_id=? AND deleted_at IS NULL').bind(id).first<{ n: number }>()
   if ((count?.n ?? 0) >= MAX_FILES_PER_REQUEST) return c.json({ error: 'too_many_files' }, 409)

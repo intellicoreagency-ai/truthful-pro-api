@@ -104,3 +104,14 @@ In `mobile/eas.json` add it under each profile's `env`. Then `eas build --profil
 ## Government payment links
 
 Customers pay government fees directly to the authority; staff attach the official payment link to the quote. The API only accepts `https://` links whose host ends in `.gov.ae`. If an authority uses another domain, add it as a comma-separated list in the `GOV_PAY_HOSTS` variable (exact host suffixes, e.g. `pay.example-authority.ae`). Review the list with the owner before launch.
+
+## Real malware scanner (ClamAV)
+
+Workers cannot run ClamAV, so `scanner-service/` holds a small bridge to a ClamAV daemon.
+
+1. On a server you control: `cd scanner-service && SCANNER_TOKEN=<32+ random chars> docker compose up -d` (the `clamav/clamav` image keeps signatures current with freshclam).
+2. Put it behind TLS (Cloudflare Tunnel or a reverse proxy).
+3. Give the Worker `SCANNER_MODE=clamav-http`, `SCANNER_URL=https://<host>/scan` and `SCANNER_TOKEN` (as secrets).
+4. Check `/health` reports `"scanner":"clamav","ready":true`, then test with an EICAR file: it must be refused (422).
+
+Behaviour: only an explicit `clean` releases a file; an outage, timeout or odd answer leaves it `pending` (staff cannot open it) and an owner/manager can `POST /staff/v1/files/:id/rescan` once the scanner is back. In production the Worker accepts only an `https://` scanner URL. Note: a file uploaded while the scanner is down is stored encrypted as pending until rescanned.

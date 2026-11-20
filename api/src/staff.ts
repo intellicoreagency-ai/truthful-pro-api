@@ -408,6 +408,22 @@ guarded.post('/requests/:id/notes', roles(...OPS), async (c) => {
   return c.json({ ok: true })
 })
 
+// Re-scan a file whose verdict is still "pending" (scanner was unreachable at upload time). Only a real "clean" releases it.
+guarded.post('/files/:fileId/rescan', roles('owner', 'manager'), async (c) => {
+  const fid = c.req.param('fileId')
+  if (!isUuid(fid)) return c.json({ error: 'not_found' }, 404)
+  const f = await c.env.DB.prepare("SELECT f.r2_key,f.user_id,f.request_id,f.scan_status FROM request_files f WHERE f.id=? AND f.deleted_at IS NULL").bind(fid).first<{ r2_key: string; user_id: string; request_id: string; scan_status: string }>()
+  if (!f) return c.json({ error: 'not_found' }, 404)
+  if (f.scan_status !== 'pending') return c.json({ error: 'not_pending', status: f.scan_status }, 409)
+  const obj = await c.env.DOCS.get(f.r2_key)
+  if (!obj) return c.json({ error: 'not_found' }, 404)
+  const plain = await open(c.env.DATA_KEY, `file:${f.user_id}:${fid}`, new Uint8Array(await obj.arrayBuffer()))
+  const scan = await scanBytes(c.env, plain)
+  if (scan.status !== 'pending') await c.env.DB.prepare("UPDATE request_files SET scan_status=?, scan_engine=?, scanned_at=? WHERE id=? AND scan_status='pending'").bind(scan.status, scan.engine, Date.now(), fid).run()
+  await audit(c, 'staff.file_rescan', null, { fileId: fid, requestId: f.request_id, result: scan.status, by: c.get('staffId') })
+  return c.json({ status: scan.status })
+})
+
 // ---------- documents ----------
 guarded.get('/files/:fileId', roles(...OPS), async (c) => {
   const fid = c.req.param('fileId')
@@ -434,7 +450,7 @@ guarded.put('/requests/:id/files', roles(...OPS), async (c) => {
   if (uploadsBlocked(c.env)) return c.json({ error: 'scanner_unavailable' }, 503)
   const t = sniffFile(bytes)
   if (!t) return c.json({ error: 'unsupported_type' }, 415)
-  const scan = scanBytes(c.env, bytes)
+  const scan = await scanBytes(c.env, bytes)
   if (scan.status === 'infected') return c.json({ error: 'infected' }, 422)
   // Files go to the request's DRAFT delivery package. The customer sees nothing until the package is published.
   let draft = await c.env.DB.prepare("SELECT id FROM deliveries WHERE request_id=? AND status='draft'").bind(r.id).first<{ id: string }>()

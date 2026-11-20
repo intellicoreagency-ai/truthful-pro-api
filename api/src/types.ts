@@ -13,6 +13,8 @@ export interface Env {
   OWNER_SETUP_KEY?: string      // secret, 24+ random chars: lets the owner enrol their authenticator app once
   WEBAUTHN_RP_ID?: string       // e.g. ops.example.com (defaults to the request host)
   WEBAUTHN_ORIGINS?: string     // e.g. https://ops.example.com (comma separated; defaults to the request origin)
+  SCANNER_URL?: string          // https endpoint of the ClamAV service (secret-ish: keep as a Worker secret)
+  SCANNER_TOKEN?: string        // bearer token for that service (Worker secret)
   SCANNER_MODE?: string         // 'fake-test' enables the explicit test scanner (ignored in production); anything else = no scanner
   GOV_PAY_HOSTS?: string        // extra allowed suffixes for official payment links, e.g. ".rta.ae,.dubaipolice.gov.ae" (default: .gov.ae)
   COMPANY_NAME_AR?: string

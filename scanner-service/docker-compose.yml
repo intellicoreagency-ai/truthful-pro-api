@@ -1,0 +1,20 @@
+# Real malware scanning for Truthful Pro: ClamAV (signatures auto-updated by freshclam) + the HTTPS-facing bridge.
+# Put this behind TLS (e.g. a Cloudflare Tunnel or a reverse proxy) and give the Worker: SCANNER_MODE=clamav-http, SCANNER_URL=https://<host>/scan, SCANNER_TOKEN=<same secret>.
+services:
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    volumes: [ "clamdb:/var/lib/clamav" ]
+    expose: [ "3310" ]
+  bridge:
+    image: node:22-alpine
+    restart: unless-stopped
+    working_dir: /app
+    volumes: [ "./:/app:ro" ]
+    command: node server.mjs
+    environment:
+      CLAMD_HOST: clamav
+      SCANNER_TOKEN: ${SCANNER_TOKEN:?set a long random SCANNER_TOKEN}
+    ports: [ "8080:8080" ]
+    depends_on: [ clamav ]
+volumes: { clamdb: {} }
