@@ -373,24 +373,6 @@ async function customerFinance(c: C, requestId: string) {
   return { quotes, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, requestId), gov: await govFor(c.env, requestId), authorityPayments: authority.results, tax: { configured: false }, test: true }
 }
 
-// The customer approves one specific quote version. A newer version needs a new approval; repeating is harmless.
-authed.post('/requests/:id/quotes/:qid/accept', async (c) => {
-  const id = c.req.param('id'), qid = c.req.param('qid'), uid = c.get('userId')
-  if (!isUuid(id) || !isUuid(qid) || !(await ownRequest(c, id))) return c.json({ error: 'not_found' }, 404)
-  const b = await jsonBody(c)
-  const q = await c.env.DB.prepare("SELECT id,version,status FROM quotes WHERE id=? AND request_id=? AND status!='draft'").bind(qid, id).first<{ id: string; version: number; status: string }>()
-  if (!q) return c.json({ error: 'not_found' }, 404)
-  if (b?.version !== q.version) return c.json({ error: 'stale_quote', current: q.version }, 409)
-  if (q.status === 'accepted') return c.json({ ok: true, duplicate: true })
-  if (q.status !== 'issued') return c.json({ error: 'quote_superseded' }, 409)
-  const now = Date.now()
-  const r = await c.env.DB.prepare("UPDATE quotes SET status='accepted', accepted_at=?, accepted_by=? WHERE id=? AND status='issued'").bind(now, uid, q.id).run()
-  if (!r.meta.changes) return c.json({ error: 'quote_superseded' }, 409)
-  await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, `وافق العميل على عرض السعر (النسخة ${q.version})`, `Customer accepted the quotation (version ${q.version})`, now).run()
-  await audit(c, 'finance.quote_accepted', uid, { requestId: id, version: q.version })
-  return c.json({ ok: true, duplicate: false })
-})
-
 // The customer reports a manual payment with proof. It stays "pending verification" until an authorised staff member approves it.
 authed.post('/requests/:id/payments', async (c) => {
   const id = c.req.param('id'), uid = c.get('userId')

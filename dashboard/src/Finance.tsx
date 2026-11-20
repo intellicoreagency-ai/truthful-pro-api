@@ -61,7 +61,7 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
         <dt>{t('remaining')}</dt><dd dir="ltr" style={{ textAlign: lang === 'ar' ? 'right' : 'left' }}><b>{fmtFils(f.totals.remaining)}</b></dd>
       </dl>
 
-      <h3 style={{ marginTop: 14 }}>{t('quote')}</h3>
+      <h3 style={{ marginTop: 14 }}>{t('feeStatement')}</h3>
       {f.quotes.filter((q) => q.status !== 'draft').map((q) => (
         <div className="file" key={q.id}><span>v{q.version} · <span dir="ltr">{q.number}</span> · <span dir="ltr">{fmtFils(q.total_fils)}</span></span><span className={`badge ${q.status === 'accepted' ? 'b-completed' : q.status === 'issued' ? 'b-review' : 'b-draft'}`}>{t(qLabel[q.status] ?? 'quoteDraft')}</span></div>
       ))}
@@ -80,7 +80,7 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
           <div className="row">
             <button className="btn sm" onClick={() => setLines([...lines, { kind: 'service_fee', ar: '', en: '', amount: '' }])}>{t('addLine')}</button>
             <button className="btn sm" disabled={!valid} onClick={() => run(() => api.draftQuote(requestId, parsed.map((l) => ({ kind: l.kind, descriptionAr: l.ar.trim(), descriptionEn: l.en.trim(), amountFils: l.fils as number })), payUrl.trim()))}>{t('saveDraft')}</button>
-            {canFin && draft && <button className="btn primary sm" onClick={() => run(() => api.issueQuote(draft.id))}>{t('issueQuote')}</button>}
+            {canFin && draft && <button className="btn primary sm" onClick={() => run(() => api.issueQuote(draft.id))}>{t('issueInvoice')}</button>}
           </div>
           {draft && <p className="muted small">{draft.items.map((i) => `${t(kLabel[i.kind] ?? 'kSvc')}: ${fmtFils(i.amount_fils)}`).join(' · ')}</p>}
         </div>
@@ -104,7 +104,6 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
           ))}
         </>
       )}
-      {canFin && live?.status === 'accepted' && !inv && <button className="btn primary" style={{ marginTop: 8 }} onClick={() => run(() => api.issueInvoice(requestId))}>{t('issueInvoice')}</button>}
       {canFin && inv && <button className="btn sm danger" style={{ marginTop: 8 }} onClick={() => { const r = window.prompt(t('cancelReason'))?.trim(); if (r && r.length >= 10) void run(() => api.cancelInvoice(inv.id, r)) }}>{t('cancelInvoice')}</button>}
 
       {inv && (

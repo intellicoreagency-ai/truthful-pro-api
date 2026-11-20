@@ -131,7 +131,6 @@ export async function deleteRemoteRequest(remoteId:string){await call('DELETE',`
 export async function deleteRemoteFile(remoteFileId:string){await call('DELETE',`/v1/files/${remoteFileId}`)}
 
 // ---- money (test copies; manual payments) ----
-export async function acceptQuote(remoteRequestId:string,quoteId:string,version:number){await call('POST',`/v1/requests/${remoteRequestId}/quotes/${quoteId}/accept`,{body:{version}})}
 /** Uploads the transfer proof, then reports the payment. The same clientKey makes a retry safe; it stays pending until the team verifies it. */
 export async function submitPayment(remoteRequestId:string,proof:ClientFile,bytes:Blob|Uint8Array,p:{amountFils:number;reference:string;clientKey:string}){
   const proofFileId=await upload(remoteRequestId,proof,bytes);

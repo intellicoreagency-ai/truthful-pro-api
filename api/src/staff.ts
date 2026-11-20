@@ -864,7 +864,8 @@ guarded.post('/requests/:id/quotes', roles(...FIN_VIEW), async (c) => {
   } catch { return c.json({ error: 'conflict' }, 409) }
 })
 
-// Issue the draft: freezes the lines, supersedes older versions (their acceptance no longer counts) and numbers the document.
+// Issue the fee statement as an INVOICE for the Company's own fee (there is no customer-facing quotation: the fee is agreed in advance).
+// Government fees appear on it only as information; the customer pays them to the authority and holds the authority's own receipt.
 guarded.post('/quotes/:qid/issue', roles(...FIN), async (c) => {
   const qid = c.req.param('qid')
   const q = isUuid(qid) ? await c.env.DB.prepare('SELECT id,request_id,version,status,total_fils,gov_fils FROM quotes WHERE id=?').bind(qid).first<{ id: string; request_id: string; version: number; status: string; total_fils: number; gov_fils: number }>() : null
@@ -876,30 +877,17 @@ guarded.post('/quotes/:qid/issue', roles(...FIN), async (c) => {
   const active = await c.env.DB.prepare("SELECT 1 x FROM fin_documents WHERE request_id=? AND doc_type='invoice' AND status='issued'").bind(r.id).first()
   if (active) return c.json({ error: 'invoice_active' }, 409) // cancel the invoice (with a reason) before re-pricing
   const now = Date.now(), docId = newId()
-  const snapshot = { ...reqMeta(r), lines: items.map((i) => ({ kind: i.kind, ar: i.description_ar, en: i.description_en, amount: i.amount_fils })), totals: { total: q.total_fils }, govTotal: q.gov_fils, extra: { version: q.version } }
-  await c.env.DB.batch([
-    c.env.DB.prepare("UPDATE quotes SET status='superseded' WHERE request_id=? AND status IN ('issued','accepted')").bind(r.id),
-    c.env.DB.prepare("UPDATE quotes SET status='issued', issued_at=?, issued_by=?, document_id=? WHERE id=? AND status='draft'").bind(now, c.get('staffId'), docId, q.id),
-    ...(await documentStatements(c.env, { id: docId, requestId: r.id, type: 'quote', relatedId: q.id, totalFils: q.total_fils, snapshot, createdBy: c.get('staffId'), now })),
-  ])
-  await visibleEvent(c, r.id, 'صدر عرض سعر جديد بانتظار موافقتك (نسخة تجريبية)', 'A new quotation is waiting for your approval (test copy)')
-  await audit(c, 'finance.quote_issue', null, { requestId: r.id, version: q.version, by: c.get('staffId') })
+  const snapshot = { ...reqMeta(r), lines: items.map((i) => ({ kind: i.kind, ar: i.description_ar, en: i.description_en, amount: i.amount_fils })), totals: { total: q.total_fils, paid: 0, refunded: 0, remaining: q.total_fils }, govTotal: q.gov_fils, extra: { version: q.version } }
+  try {
+    await c.env.DB.batch([
+      c.env.DB.prepare("UPDATE quotes SET status='superseded' WHERE request_id=? AND status IN ('issued','accepted')").bind(r.id),
+      c.env.DB.prepare("UPDATE quotes SET status='accepted', issued_at=?, issued_by=?, accepted_at=?, document_id=? WHERE id=? AND status='draft'").bind(now, c.get('staffId'), now, docId, q.id),
+      ...(await documentStatements(c.env, { id: docId, requestId: r.id, type: 'invoice', relatedId: q.id, totalFils: q.total_fils, snapshot, createdBy: c.get('staffId'), now })),
+    ])
+  } catch { return c.json({ error: 'invoice_exists' }, 409) }
+  await visibleEvent(c, r.id, 'صدرت فاتورة بأتعاب الشركة (نسخة تجريبية)', 'An invoice for the Company fee was issued (test copy)')
+  await audit(c, 'finance.invoice_issue', null, { requestId: r.id, version: q.version, by: c.get('staffId') })
   return c.json({ ok: true, documentId: docId, number: await numberOf(c, docId), version: q.version }, 201)
-})
-
-guarded.post('/requests/:id/invoice', roles(...FIN), async (c) => {
-  const r = await finRequest(c, c.req.param('id'))
-  if (!r) return c.json({ error: 'not_found' }, 404)
-  const q = await c.env.DB.prepare("SELECT id,version,total_fils,gov_fils,document_id FROM quotes WHERE request_id=? AND status='accepted' ORDER BY version DESC LIMIT 1").bind(r.id).first<{ id: string; version: number; total_fils: number; gov_fils: number; document_id: string | null }>()
-  if (!q) return c.json({ error: 'quote_not_accepted' }, 409) // an invoice exists only for a quote the customer accepted
-  const exists = await c.env.DB.prepare("SELECT 1 x FROM fin_documents WHERE request_id=? AND doc_type='invoice' AND status='issued'").bind(r.id).first()
-  if (exists) return c.json({ error: 'invoice_exists' }, 409)
-  const items = await itemsOf(c, q.id), now = Date.now(), docId = newId()
-  const snapshot = { ...reqMeta(r), lines: items.map((i) => ({ kind: i.kind, ar: i.description_ar, en: i.description_en, amount: i.amount_fils })), totals: { total: q.total_fils, paid: 0, refunded: 0, remaining: q.total_fils }, govTotal: q.gov_fils, extra: { quoteNumber: await numberOf(c, q.document_id) } }
-  try { await c.env.DB.batch(await documentStatements(c.env, { id: docId, requestId: r.id, type: 'invoice', relatedId: q.id, totalFils: q.total_fils, snapshot, createdBy: c.get('staffId'), now })) } catch { return c.json({ error: 'invoice_exists' }, 409) }
-  await visibleEvent(c, r.id, 'صدرت الفاتورة (نسخة تجريبية)', 'Invoice issued (test copy)')
-  await audit(c, 'finance.invoice_issue', null, { requestId: r.id, by: c.get('staffId') })
-  return c.json({ ok: true, documentId: docId, number: await numberOf(c, docId) }, 201)
 })
 
 // Cancelling an invoice never deletes it: it is voided with a reason and a linked credit note. Impossible while money is held.

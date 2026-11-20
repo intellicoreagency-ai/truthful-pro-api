@@ -6,7 +6,7 @@ import {Icon,type IconName} from './Icons';
 import {dubaiDay,steps,statusLabels,phoneDigits,applicantAge,total,remaining,money,renewalDue,dateText,makeId,event,confirmReceipt,canSendMissing,shareSummary,demoRequests,type ClientRequest,type ClientFile,type ClientFinance} from './clientModel';
 import {pickClientFile,downloadFile,previewFile,shareRequest,exportSummary,seedDemoFiles,getBytes,openHtmlDocument} from './clientStorage';
 import type {ServiceAction} from './serviceDetails';
-import {apiEnabled,hasSession,acceptQuote,submitPayment,reportAuthorityPayment,fetchDocumentHtml} from './api';
+import {apiEnabled,hasSession,submitPayment,reportAuthorityPayment,fetchDocumentHtml} from './api';
 import {LEGAL_VERSION} from './legal';
 type Lang='ar'|'en';
 type Props={lang:Lang;onLanguage:()=>void;onFocusChange:(focused:boolean)=>void;records:ClientRequest[];save:(records:ClientRequest[])=>boolean;onStart:()=>void;onResume:(serviceId:string,actionId:string,draftId?:string,renewalOf?:string)=>void;drafts:{key:string;title:string;resume:()=>void}[];onRefresh?:()=>void;};
@@ -118,14 +118,13 @@ function FinancePanel({lang,r,act,onChanged,setMessage}:{lang:Lang;r:ClientReque
  const fils=aedToFils(amount);const refOk=/^[A-Za-z0-9 ._/-]{4,60}$/.test(reference.trim());
  const send=()=>act(async()=>{if(!fils||!refOk||!proof||!r.remoteId)return;try{await submitPayment(r.remoteId,proof,await getBytes(proof),{amountFils:fils,reference:reference.trim(),clientKey:keyRef.current});keyRef.current='pay-'+makeId()+makeId();setOpen(false);setAmount('');setReference('');setProof(null);onChanged()}catch(e){const c=(e as {code?:string}).code;setMessage(c==='exceeds_balance'?tx('المبلغ يتجاوز المتبقي على الفاتورة','The amount exceeds the invoice balance'):c==='reference_used'?tx('مرجع التحويل مسجّل مسبقاً','That transfer reference is already registered'):tx('تعذّر إرسال الدفعة. حاول مجدداً','Could not send the payment. Try again'))}});
  return <View style={[s.panel,{marginTop:12}]}>
-  <T lang={lang} bold style={s.cardTitle}>{tx('عرض السعر والدفع','Quotation & payment')}</T>
+  <T lang={lang} bold style={s.cardTitle}>{tx('الفاتورة والدفع','Invoice & payment')}</T>
   <T lang={lang} style={[s.notice,{color:'#A3261A',backgroundColor:'#FBE6E3'}]}>{tx('نسخة تجريبية — لا قيمة مالية لهذه المستندات','TEST COPY — these documents have no financial value')}</T>
   {f.quote?<>
    {f.quote.items.filter(i=>i.kind==='service_fee').map((i,k)=><View key={k} style={[s.between,{flexDirection:row}]}><T lang={lang} style={{flex:1}}>{kind[i.kind]?.[ar?0:1]}: {i[lang]}</T><T lang="en" bold>{aed(i.amount)}</T></View>)}
-   <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('إجمالي أتعاب الشركة','Company fee total')} ({f.quote.number??''})</T><T lang="en" bold>{aed(f.quote.total)}</T></View>
+   <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('إجمالي أتعاب الشركة','Company fee total')} ({f.invoice?.number??''})</T><T lang="en" bold>{aed(f.quote.total)}</T></View>
    <T lang={lang} style={s.small}>{tx('الضريبة غير مهيأة ولم تُحتسب. هذه المستندات ليست فواتير ضريبية.','Tax is not configured and was not calculated. These are not tax invoices.')}</T>
-   {f.quote.status==='issued'?<Button lang={lang} primary label={tx('الموافقة على عرض السعر','Accept the quotation')} onPress={()=>act(async()=>{await acceptQuote(r.remoteId!,f.quote!.id,f.quote!.version);onChanged()})}/>:<T lang={lang} style={s.notice}>{tx('✓ وافقت على عرض السعر','✓ You accepted the quotation')}</T>}
-  </>:<T lang={lang}>{tx('بانتظار عرض السعر من الفريق','Waiting for the team to send a quotation')}</T>}
+  </>:<T lang={lang}>{tx('بانتظار إصدار الفاتورة من الفريق','Waiting for the team to issue your invoice')}</T>}
   {f.gov&&<GovSection lang={lang} r={r} gov={f.gov} act={act} onChanged={onChanged} setMessage={setMessage}/>}
   {f.invoice&&<>
    <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('حالة الدفع','Payment status')}</T><T lang={lang} style={s.badge}>{state[f.totals.state]?.[ar?0:1]}</T></View>

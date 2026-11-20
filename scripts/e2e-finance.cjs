@@ -37,22 +37,18 @@ const ok=(l,c)=>{console.log((c?'PASS ':'FAIL ')+l);if(!c)process.exitCode=1};
  await sp.getByLabel('رابط الدفع الرسمي (https)').fill('https://mol.gov.ae/pay');
  await sp.getByRole('button',{name:'إضافة بند'}).click();await fillLine(1,'650.50','أتعاب الخدمة','Service fee');
  await sp.getByRole('button',{name:'حفظ المسودة'}).click();await sp.waitForTimeout(1000);
- await sp.getByRole('button',{name:'إصدار عرض السعر'}).click();await sp.waitForTimeout(1500);
- ok('quote issued with a server number',/T-QUO-\d{4}-000001/.test(await sp.locator('body').innerText()));
+ await sp.getByRole('button',{name:'إصدار فاتورة تجريبية'}).click();await sp.waitForTimeout(1500);
+ ok('invoice issued directly with a server number (no quotation)',/T-INV-\d{4}-000001/.test(await sp.locator('body').innerText()));
  ok('quote total shown in AED with fils',(await sp.locator('body').innerText()).includes('AED 650.50'));
  // ---- customer sees the quote in the app and accepts it ----
  await refresh(cp);
  await cp.getByText('تفاصيل الطلب',{exact:true}).first().click();await cp.waitForTimeout(1500);
  let ct=await cp.locator('body').innerText();
- ok('customer sees quotation panel, lines and total',ct.includes('عرض السعر والدفع')&&ct.includes('AED 650.50')&&ct.includes('تُدفع مباشرة للجهة')&&ct.includes('AED 350.00')&&ct.includes('فتح رابط الدفع الرسمي'));
+ ok('customer sees quotation panel, lines and total',ct.includes('الفاتورة والدفع')&&ct.includes('AED 650.50')&&ct.includes('تُدفع مباشرة للجهة')&&ct.includes('AED 350.00')&&ct.includes('فتح رابط الدفع الرسمي'));
  ok('customer sees "tax not configured" (never zero tax)',ct.includes('الضريبة غير مهيأة')||ct.includes('غير مهيأة'));
  await cp.screenshot({path:'m1.png',fullPage:true});
- await cp.getByText('الموافقة على عرض السعر',{exact:true}).click();await cp.waitForTimeout(3500);
- ok('quote accepted (server)',(await J('GET',`/staff/v1/requests/${rid}/finance`,undefined,owner)).j.quotes[0].status==='accepted');
- // ---- staff issues the invoice; customer reports a partial payment with proof via the app UI ----
  await sp.reload();await sp.waitForTimeout(1500);
- await sp.getByRole('button',{name:'إصدار فاتورة تجريبية'}).click();await sp.waitForTimeout(1500);
- ok('invoice issued',/T-INV-\d{4}-000001/.test(await sp.locator('body').innerText()));
+ ok('no quotation document was produced',!(await J('GET',`/staff/v1/requests/${rid}/finance`,undefined,owner)).j.documents.some(d=>d.doc_type==='quote'));
  await refresh(cp);
  await cp.getByText('تفاصيل الطلب',{exact:true}).first().click();await cp.waitForTimeout(1500);
  await cp.getByText('إبلاغ عن دفعة (تحويل بنكي)',{exact:true}).click();await cp.waitForTimeout(600);
