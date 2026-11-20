@@ -1,6 +1,11 @@
 import React, {useMemo, useState} from 'react';
-import {Alert, AppState, BackHandler, Image, ImageBackground, Keyboard, Platform, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View} from 'react-native';
+import {Alert, AppState, BackHandler, Image, ImageBackground, Keyboard, Platform, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View} from 'react-native';
 import {Pressable} from './src/Touch';
+import {colors as C} from './src/theme';
+import {BlurTargetView} from 'expo-blur';
+import {TabBar} from './src/navigation/TabBar';
+import {TabBarLayoutProvider,ScrollView} from './src/navigation/TabBarLayout';
+import {activeTab,showsTabBar,type TabKey} from './src/navigation/tabs';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import {useFonts} from 'expo-font';
 import {IBMPlexSansArabic_500Medium} from '@expo-google-fonts/ibm-plex-sans-arabic/500Medium';
@@ -51,7 +56,6 @@ const emptyDraft:RequestDraft={name:'',phone:'',files:{},fields:{}};
 const keyFor=(serviceId:string,actionId:string)=>serviceId+'/'+actionId;
 const documentTypes:Record<string,string>={pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png'};
 const maxFileBytes=5*1024*1024;
-const C={background:'#F8F3ED',white:'#FFF9F4',ink:'#30251F',muted:'#76665B',line:'#E9DACC',orange:'#FF8A00',gold:'#FFB341',brown:'#3C281B'};
 const hero=require('./assets/brand/dubai_hero.webp');
 const officialLogo=require('./assets/brand/truthful_official_logo.jpg');
 // REJECTED_ASSET_QUARANTINE: no legacy service banner image is approved.
@@ -282,19 +286,9 @@ export default function App() {
    <SoftButton onPress={switchLang} style={styles.headRound}><Text maxFontSizeMultiplier={1.35} style={{fontWeight:'800',color:C.orange}}>{ar?'EN':'ع'}</Text></SoftButton>
    <SoftButton onPress={()=>go('profile')} label={t.profile} style={styles.headRound}><Icon name="user" color={C.ink}/></SoftButton>
  </View>;
- const nav=()=> <View style={[styles.nav,{flexDirection:row}]}>
-   {([['home','home'],['services','grid'],['request','plus'],['requests','folder'],['profile','user']] as const).map(([key,icon])=>{
-     const active=page===key||(page==='detail'&&key==='services');
-     return <Pressable key={key} accessibilityRole="button" accessibilityLabel={t[key]}
-       accessibilityState={{selected:active}} onPress={()=>key==='request'?(page==='detail'?(setClientDraft(null),startRequest()):page==='request'?undefined:(setClientDraft(null),openCatalogue(true))):
-         key==='services'?openCatalogue():go(key)} style={[styles.navItem,active&&key!=='request'&&{backgroundColor:'#F5E9CE',borderRadius:16,marginVertical:7}]}>
-       <View style={[key==='request'?styles.plus:styles.navIconBox,active&&key!=='request'&&{borderBottomWidth:0}]}>
-         <Icon name={icon} filled={active&&icon==='home'} size={key==='request'?32:26} color={key==='request'?'white':active?'#98500C':C.ink}/>
-       </View>
-       <Text maxFontSizeMultiplier={1.35} numberOfLines={1} style={[styles.navText,active&&styles.navTextActive,font(lang,active),lang==='ar'&&{fontFamily:'ReferenceArabic'}]}>{t[key]}</Text>
-     </Pressable>;
-   })}
- </View>;
+ const selectNav=(key:TabKey)=>key==='request'?(page==='detail'?(setClientDraft(null),startRequest()):page==='request'?undefined:(setClientDraft(null),openCatalogue(true))):key==='services'?openCatalogue():go(key);
+ const tabLabels:Record<TabKey,string>={home:t.home,services:t.services,request:t.request,requests:t.requests,profile:t.profile};
+ const blurTarget=React.useRef<React.ComponentRef<typeof View>>(null);
  const sectionHeader=(s:string)=><View style={[styles.sectionHead,{flexDirection:row}]}>
    <View style={styles.sectionMark}/><AppText lang={lang} style={styles.sectionTitle}>{s}</AppText>
  </View>;
@@ -561,9 +555,10 @@ export default function App() {
  };
  React.useEffect(()=>{const sub=BackHandler.addEventListener('hardwareBackPress',()=>backRef.current());return ()=>sub.remove();},[]);
  if(!fontsLoaded&&!fontError) return <View style={styles.safe}/>;
- return <SafeAreaProvider><SafeAreaView edges={['top','bottom','left','right']} style={[styles.safe,webViewportHeight!==undefined&&{height:webViewportHeight,flexGrow:0,flexShrink:0,flexBasis:'auto'}]}>
+ const barVisible=showsTabBar(page)&&!legal&&!(page==='requests'&&clientFocused);
+ return <SafeAreaProvider><TabBarLayoutProvider><SafeAreaView edges={barVisible?['top','left','right']:['top','bottom','left','right']} style={[styles.safe,webViewportHeight!==undefined&&{height:webViewportHeight,flexGrow:0,flexShrink:0,flexBasis:'auto'}]}>
    <StatusBar barStyle="dark-content"/>
-   <View key={page==='detail'?'detail:'+chosen.id:page} style={styles.screen}>
+   <BlurTargetView ref={blurTarget} key={page==='detail'?'detail:'+chosen.id:page} style={styles.screen}>
      {page==='welcome'?<WelcomeScreen lang={lang} onLanguage={setLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal}
        logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily}/>
      :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents')}/>:page==='services'?cataloguePage(false):page==='detail'?detailPage():page==='profile'?
@@ -574,17 +569,13 @@ export default function App() {
          onRequests={()=>go('requests')} onBrowse={()=>openCatalogue()} onLanguage={setLang}
          onLeave={()=>go('welcome')} logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily}/>
        :page==='requests'?<ClientWorkspace onRefresh={()=>void syncNow()} lang={lang} onLanguage={switchLang} onFocusChange={setClientFocused} records={clientRecords} save={saveClientRecords} onStart={()=>{setClientDraft(null);openCatalogue(true);}} onResume={resumeClient} drafts={savedDrafts.map(item=>({key:item.key,title:wording(item.action,lang),resume:()=>open(item.service,item.action.id)}))}/>:page==='request'&&action?<RequestWizard onLegal={setLegal} key={chosen.id+'/'+action.id+'/'+(clientDraft??clientSeed?.id??'new')} lang={lang} serviceId={chosen.id} action={action} create={createClientRequest} onDone={()=>{setClientSeed(null);go('requests');}} onKeep={kept=>setClientSeed(kept)} onBack={()=>{go('detail');setTab('about');}} defaults={{name:account.name,phone:account.phone}} initial={clientRecords.find(r=>r.id===clientDraft)??(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id?clientSeed:undefined)}/>:simplePage()}
-   </View>
+   </BlurTargetView>
    {legal&&<View style={StyleSheet.absoluteFill}><LegalScreen lang={lang} doc={legal==='terms'?TERMS:PRIVACY} onBack={()=>setLegal(null)} Text={AppText}/></View>}
-   {page!=='welcome'&&!legal&&!(page==='requests'&&clientFocused)&&<View style={styles.bottomDock}>
-     {page==='detail'&&detailCTA()}
-     {nav()}
-   </View>}
- </SafeAreaView></SafeAreaProvider>;
+   {barVisible&&<TabBar active={activeTab(page)} labels={tabLabels} onSelect={selectNav} blurTarget={blurTarget} accessory={page==='detail'?detailCTA():undefined} labelFont={sel=>({...font(lang,sel),...(lang==='ar'?{fontFamily:'ReferenceArabic'}:null)})}/>}
+ </SafeAreaView></TabBarLayoutProvider></SafeAreaProvider>;
 }
 const styles=StyleSheet.create({
- screen:{flex:1,minHeight:0,direction:'ltr'},
- bottomDock:{flexShrink:0,backgroundColor:C.white},
+ screen:{flex:1,minHeight:0,direction:'ltr',backgroundColor:C.background},
  safe:{flex:1,direction:'ltr',width:'100%',maxWidth:maxAppWidth,alignSelf:'center',backgroundColor:C.background},
  catalogueContent:{paddingBottom:24},
  homeIntro:{paddingHorizontal:16,paddingTop:14,gap:7},
@@ -610,11 +601,7 @@ const styles=StyleSheet.create({
  bannerTitle:{fontSize:14,fontWeight:'900',lineHeight:19,alignSelf:'stretch'},
  illustratedBanner:{width:'100%',minHeight:95,justifyContent:'center',overflow:'hidden'},
  bannerCaption:{width:'56%',padding:11,backgroundColor:C.white,gap:5},
- nav:{height:72,backgroundColor:C.white,borderTopWidth:1,borderColor:C.line,justifyContent:'space-around',paddingHorizontal:5},
- navItem:{flex:1,alignItems:'center',justifyContent:'center',gap:4},navIconBox:{height:31,minWidth:32,alignItems:'center',justifyContent:'center'},
  navActive:{borderBottomWidth:2,borderColor:C.orange},
- plus:{width:49,height:49,borderRadius:25,backgroundColor:C.orange,alignItems:'center',justifyContent:'center',marginTop:-21,boxShadow:'0 5px 14px #FF8A0030'},
- navText:{fontSize:13,color:C.ink},navTextActive:{fontWeight:'800',color:'#98500C'},
  catalogueHeader:{paddingBottom:12,backgroundColor:'#F5EBE0',borderBottomWidth:1,borderColor:C.line},
  inlineIcon:{alignItems:'center',gap:5},
  detailTop:{alignItems:'center',paddingHorizontal:15,paddingVertical:14,gap:10},
@@ -644,7 +631,7 @@ const styles=StyleSheet.create({
  uploadText:{fontWeight:'800',fontSize:12,color:C.brown},
  contextText:{fontSize:13,lineHeight:19,fontWeight:'700',color:'#784316',marginTop:6,marginBottom:6},
  warning:{fontSize:12,color:C.muted,marginTop:10,lineHeight:19},
- detailFooter:{paddingHorizontal:14,paddingVertical:8,backgroundColor:C.background,borderTopWidth:1,borderTopColor:C.line},
+ detailFooter:{paddingHorizontal:14,paddingVertical:8},
  changeAction:{alignSelf:'stretch',minHeight:44,marginTop:7},
  draftButton:{marginTop:12,minHeight:48},
  bigCTA:{minHeight:52,backgroundColor:C.orange},

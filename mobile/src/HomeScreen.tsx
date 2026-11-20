@@ -1,6 +1,7 @@
 import React from 'react';
-import {View, ScrollView, Linking, Image} from 'react-native';
+import {View, Linking, Image} from 'react-native';
 import {Pressable} from './Touch';
+import {ScrollView} from './navigation/TabBarLayout';
 import {Icon} from './Icons';
 import {ReferenceScale,RefText,RefSprite,useReference,ContactGlyph,officialLogo,palette} from './ReferenceUI';
 type Props={lang:'ar'|'en';onLanguage:()=>void;onServices:(business:boolean)=>void;onSearch:(query:string)=>void;onNotifications:()=>void;alerts?:boolean};

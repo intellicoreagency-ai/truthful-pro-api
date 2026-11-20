@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {BackHandler, Image, ScrollView, StyleSheet, TextInput, View} from 'react-native';
+import {BackHandler, Image, StyleSheet, TextInput, View} from 'react-native';
 import {Pressable} from './Touch';
+import {ScrollView} from './navigation/TabBarLayout';
 import {Icon, type IconName} from './Icons';
 import {chooseAccountPhoto, type AccountData} from './accountStorage';
 

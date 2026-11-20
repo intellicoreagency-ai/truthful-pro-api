@@ -25,3 +25,9 @@
 - [ ] Android: ripple visible on every button, tabs, cards, list rows; no dimming.
 - [ ] iOS: pressed highlight on the same controls; no ripple.
 - [ ] Both: font scale 100 % / 130 %, Arabic (RTL) and English, keyboard over each input, notch/cut-out and gesture-bar insets.
+
+## Navigation (Step 1)
+- Tokens: `mobile/src/theme.ts` (colours, 4 pt spacing, radii, HIG type scale, touch minimums).
+- Tabs: `mobile/src/navigation/tabs.ts` (five root destinations; `activeTab`, `showsTabBar`).
+- Translucent bottom tab bar: `mobile/src/navigation/TabBar.tsx` (`expo-blur` system-chrome blur + warm tint, hairline, 49 pt + home-indicator inset, 11 pt labels, raised primary action, Material ripple on Android). On Android the content behind the bar is wrapped in a `BlurTargetView`.
+- Layout: `mobile/src/navigation/TabBarLayout.tsx` — screens use its `ScrollView`, which scrolls content *under* the bar and keeps the last item clear of it; the bar's height is measured, so the "Start request" accessory on a service page sits inside the same blur.

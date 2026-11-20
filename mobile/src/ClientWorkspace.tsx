@@ -1,6 +1,7 @@
 import React,{useMemo,useState,useEffect,useRef} from 'react';
-import {View, Text, Image, TextInput, ScrollView, StyleSheet, Modal, Linking, BackHandler} from 'react-native';
+import {View, Text, Image, TextInput, StyleSheet, Modal, Linking, BackHandler} from 'react-native';
 import {Pressable} from './Touch';
+import {ScrollView} from './navigation/TabBarLayout';
 import {DashboardTop,DashboardCard,DetailDesign,MissingDesign,ShareDesign} from './ClientDesign';
 import {RefText,RefButton,RefHeader,ReferenceProgress,useReference,refStyles,palette,stageNumber} from './ReferenceUI';
 import {Icon,type IconName} from './Icons';
