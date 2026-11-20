@@ -28,7 +28,7 @@ async function login(phone = '+971501234567') {
 beforeAll(async () => {
   const p = await getPlatformProxy<Env>({ configPath: new URL('../wrangler.toml', import.meta.url).pathname, persist: false })
   dispose = p.dispose
-  env = { ...p.env, PEPPER: b64(32), DATA_KEY: b64(32), ENVIRONMENT: 'test', DEV_OTP_ECHO: '1' } as Env
+  env = { ...p.env, PEPPER: b64(32), DATA_KEY: b64(32), ENVIRONMENT: 'test', DEV_OTP_ECHO: '1', SCANNER_MODE: 'fake-test' } as Env
   const dir = new URL('../migrations/', import.meta.url)
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
     const sql = readFileSync(new URL(file, dir), 'utf8')
@@ -998,6 +998,292 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     const f2 = await sourceFile(await submit())
     expect((await hit('POST', `/staff/v1/files/${f2}/checks`, { ruleCode: 'name_match', outcome: 'pass' }, agent)).status).toBe(403)
     void me
+  })
+  // ---- malware-scan gate: no verdict means pending, never clean ----
+  const asEnv = (e: Env, method: string, path: string, token: string, raw?: Uint8Array, headers: Record<string, string> = {}) =>
+    app.fetch(new Request('https://api.test' + path, { method, headers: { authorization: `Bearer ${token}`, 'cf-connecting-ip': `10.9.${Math.floor(++k / 250)}.${k % 250}`, ...headers }, body: raw as BodyInit | undefined }), e)
+  it('without a scanner a file stays pending: staff cannot open it, rules cannot read it, the request cannot advance, the delivery cannot be published', async () => {
+    const noScan = { ...wenv(), SCANNER_MODE: undefined } as Env
+    const id = await submit()
+    const up = await asEnv(noScan, 'PUT', `/v1/requests/${id}/files`, cust, pdf(), { 'x-file-name': 'p.pdf' })
+    expect(up.status).toBe(201)
+    const fid = ((await up.json()) as { id: string }).id
+    expect((await env.DB.prepare('SELECT scan_status s FROM request_files WHERE id=?').bind(fid).first<{ s: string }>())!.s).toBe('pending')
+    expect((await hit('GET', `/staff/v1/files/${fid}`, undefined, owner)).status).toBe(423)
+    expect((await hit('GET', `/v1/files/${fid}`, undefined, cust)).status).toBe(200) // the customer may fetch back their own upload
+    expect((await hit('POST', `/staff/v1/files/${fid}/extracted`, { docType: 'passport', expiry: '2035-01-01' }, owner)).status).toBe(423)
+    expect((await hit('POST', `/staff/v1/files/${fid}/checks`, { ruleCode: 'name_match', outcome: 'fail' }, owner)).status).toBe(423)
+    await toReview(id)
+    const gate = await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'ready_for_authority' }, owner)
+    expect(gate.status).toBe(409); expect((await gate.json() as { error: string }).error).toBe('scan_pending')
+    // a pending delivery file cannot be published either
+    const staged = await asEnv(noScan, 'PUT', `/staff/v1/requests/${id}/files?kind=final`, owner, pdf(), { 'x-file-name': 'f.pdf' })
+    expect(staged.status).toBe(201)
+    const pub = await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, {}, owner)
+    expect(pub.status).toBe(409); expect((await pub.json() as { error: string }).error).toBe('scan_pending')
+  })
+  it('the database default for a file with no verdict is pending, never clean', async () => {
+    const id = await submit()
+    const { newId } = await import('../src/crypto')
+    const fid = newId()
+    const uid = (await env.DB.prepare('SELECT user_id u FROM requests WHERE id=?').bind(id).first<{ u: string }>())!.u
+    await env.DB.prepare("INSERT INTO request_files (id,request_id,user_id,r2_key,name,mime,size,sha256,created_at) VALUES (?,?,?,'k','n','application/pdf',1,'h',1)").bind(fid, id, uid).run()
+    expect((await env.DB.prepare('SELECT scan_status s FROM request_files WHERE id=?').bind(fid).first<{ s: string }>())!.s).toBe('pending')
+    expect(env.DB.prepare("INSERT INTO request_files (id,request_id,user_id,r2_key,name,mime,size,sha256,created_at,scan_status) VALUES ('x',?,?,'k','n','application/pdf',1,'h',1,'maybe')").bind(id, uid).run()).rejects.toThrow()
+  })
+  it('the explicit test scanner marks files clean and quarantines the EICAR test string (never stored)', async () => {
+    const id = await submit()
+    const clean = await hit('PUT', `/v1/requests/${id}/files`, undefined, cust, { 'x-file-name': 'ok.pdf' }, pdf())
+    const fid = ((await clean.json()) as { id: string }).id
+    expect((await env.DB.prepare('SELECT scan_status s, scan_engine e FROM request_files WHERE id=?').bind(fid).first<{ s: string; e: string }>())).toMatchObject({ s: 'clean', e: 'fake-test' })
+    expect((await hit('GET', `/staff/v1/files/${fid}`, undefined, owner)).status).toBe(200)
+    const before = (await env.DB.prepare('SELECT COUNT(*) n FROM request_files').first<{ n: number }>())!.n
+    const bad = new TextEncoder().encode('%PDF-1.4\nX5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\n%%EOF')
+    expect((await hit('PUT', `/v1/requests/${id}/files`, undefined, cust, { 'x-file-name': 'bad.pdf' }, bad)).status).toBe(422)
+    expect((await hit('PUT', `/staff/v1/requests/${id}/files?kind=final`, undefined, owner, { 'x-file-name': 'bad.pdf' }, bad)).status).toBe(422)
+    expect((await env.DB.prepare('SELECT COUNT(*) n FROM request_files').first<{ n: number }>())!.n).toBe(before)
+  })
+  it('production without a real scanner refuses uploads and reports not ready; the test scanner is ignored in production', async () => {
+    const id = await submit()
+    const prod = { ...wenv(), ENVIRONMENT: 'production', SCANNER_MODE: undefined } as Env
+    const prodFake = { ...wenv(), ENVIRONMENT: 'production', SCANNER_MODE: 'fake-test' } as Env
+    for (const e of [prod, prodFake]) {
+      const r = await asEnv(e, 'PUT', `/v1/requests/${id}/files`, cust, pdf(), { 'x-file-name': 'p.pdf' })
+      expect(r.status).toBe(503); expect((await r.json() as { error: string }).error).toBe('scanner_unavailable')
+      expect((await asEnv(e, 'PUT', `/staff/v1/requests/${id}/files?kind=final`, owner, pdf(), { 'x-file-name': 'p.pdf' })).status).toBe(503)
+      const h = await (await app.fetch(new Request('https://api.test/health'), e)).json() as { ready: boolean; scanner: string }
+      expect(h.ready).toBe(false); expect(h.scanner).toBe('none')
+    }
+    expect(((await (await app.fetch(new Request('https://api.test/health'), wenv())).json()) as { ready: boolean }).ready).toBe(true)
+  })
+  // ===== finance: manual pricing, TEST documents, manual payments (no tax, no gateway) =====
+  const ITEMS = [
+    { kind: 'government_fee', descriptionAr: 'رسوم الجهة', descriptionEn: 'Authority fee', amountFils: 35000 },
+    { kind: 'service_fee', descriptionAr: 'أتعاب الخدمة', descriptionEn: 'Service fee', amountFils: 50000 },
+    { kind: 'extra', descriptionAr: 'مصاريف ترجمة', descriptionEn: 'Translation expense', amountFils: 15000 },
+  ] // AED 1,000.00
+  const draftQuote = (id: string, items: unknown = ITEMS, token = owner) => hit('POST', `/staff/v1/requests/${id}/quotes`, { items }, token)
+  const fin = async (id: string) => (await (await hit('GET', `/staff/v1/requests/${id}/finance`, undefined, owner)).json()) as { quotes: { id: string; version: number; status: string; number: string | null; total_fils: number }[]; payments: { id: string; kind: string; status: string; amount_fils: number; receipt_id: string | null; refund_of: string | null }[]; documents: { id: string; doc_type: string; number: string; status: string; related_id: string | null }[]; totals: { total: number; paid: number; refunded: number; net: number; pending: number; remaining: number; state: string }; tax: { configured: boolean }; test: boolean }
+  const issueQuote = async (id: string, items: unknown = ITEMS) => { const q = (await (await draftQuote(id, items)).json()) as { id: string; version: number }; const r = await hit('POST', `/staff/v1/quotes/${q.id}/issue`, {}, owner); return { q, r } }
+  const acceptQuote = (id: string, q: { id: string; version: number }, token = cust) => hit('POST', `/v1/requests/${id}/quotes/${q.id}/accept`, { version: q.version }, token)
+  const invoiceOf = (id: string) => hit('POST', `/staff/v1/requests/${id}/invoice`, {}, owner)
+  const priced = async (id: string) => { const { q } = await issueQuote(id); await acceptQuote(id, q); const inv = await (await invoiceOf(id)).json() as { documentId: string; number: string }; return { q, inv } }
+  const proof = async (id: string) => ((await (await hit('PUT', `/v1/requests/${id}/files`, undefined, cust, { 'x-file-name': 'transfer.pdf' }, pdf())).json()) as { id: string }).id
+  let refSeq = 0
+  const pay = async (id: string, amount: number, o: { key?: string; ref?: string; token?: string; file?: string } = {}) =>
+    hit('POST', `/v1/requests/${id}/payments`, { amountFils: amount, method: 'bank_transfer', reference: o.ref ?? `TRX-${Date.now()}-${++refSeq}`, proofFileId: o.file ?? await proof(id), clientKey: o.key ?? `ckey-${Date.now()}-${refSeq}-${Math.random().toString(36).slice(2, 8)}` }, o.token ?? cust)
+  const approve = (pid: string, token = owner) => hit('POST', `/staff/v1/payments/${pid}/approve`, {}, token)
+
+  it('manual pricing: validated lines in integer fils, one open draft, drafts invisible to the customer', async () => {
+    const id = await submit()
+    for (const bad of [[], 'x', [{ ...ITEMS[0], amountFils: -1 }], [{ ...ITEMS[0], amountFils: 10.5 }], [{ ...ITEMS[0], descriptionEn: '' }], [{ ...ITEMS[0], kind: 'tax' }], [{ ...ITEMS[0], amountFils: 1e12 }], Array(31).fill(ITEMS[0])])
+      expect((await draftQuote(id, bad)).status).toBe(400)
+    const a = await draftQuote(id); expect(a.status).toBe(201)
+    const q = await a.json() as { id: string; version: number; totalFils: number }
+    expect(q.totalFils).toBe(100000)
+    const again = await draftQuote(id, [ITEMS[1]]); expect(again.status).toBe(200) // replaces the draft, same version
+    expect((await again.json() as { id: string; version: number })).toMatchObject({ id: q.id, version: 1 })
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM quotes WHERE request_id=? AND status='draft'").bind(id).first<{ n: number }>())!.n).toBe(1)
+    const cd = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { finance: { quotes: unknown[]; totals: { state: string } } }
+    expect(cd.finance.quotes).toHaveLength(0); expect(cd.finance.totals.state).toBe('unpriced')
+    expect(await (await fin(id)).totals.state).toBe('unpriced')
+  })
+  it('permissions: agents may draft but not issue; accountants issue; customers and other customers are kept out', async () => {
+    const id = await submit()
+    const agent = await staffToken('agent'), accountant = await staffToken('accountant')
+    expect((await draftQuote(id, ITEMS, cust)).status).toBe(401) // a customer token is not a staff token
+    const q = await (await draftQuote(id, ITEMS, agent)).json() as { id: string; version: number }
+    expect((await hit('POST', `/staff/v1/quotes/${q.id}/issue`, {}, agent)).status).toBe(403)
+    const iss = await hit('POST', `/staff/v1/quotes/${q.id}/issue`, {}, accountant)
+    expect(iss.status).toBe(201); expect((await iss.json() as { number: string }).number).toMatch(/^T-QUO-\d{4}-\d{6}$/)
+    const other = await login('+971521190030')
+    expect((await acceptQuote(id, q, other)).status).toBe(404)
+    expect((await pay(id, 1000, { token: other })).status).toBe(404)
+    const docId = (await fin(id)).documents[0]!.id
+    expect((await hit('GET', `/v1/documents/${docId}`, undefined, other)).status).toBe(404)
+    expect((await hit('GET', `/v1/documents/${docId}`, undefined, cust)).status).toBe(200)
+    expect((await hit('GET', `/staff/v1/documents/${docId}`, undefined, accountant)).status).toBe(200)
+  })
+  it('an issued quote is frozen; a new version supersedes it, voids the acceptance and needs a fresh approval', async () => {
+    const id = await submit()
+    const { q, r } = await issueQuote(id); expect(r.status).toBe(201)
+    // the database itself refuses edits to an issued quote
+    expect(env.DB.prepare('UPDATE quote_items SET amount_fils=1 WHERE quote_id=?').bind(q.id).run()).rejects.toThrow()
+    expect(env.DB.prepare('DELETE FROM quote_items WHERE quote_id=?').bind(q.id).run()).rejects.toThrow()
+    expect(env.DB.prepare('UPDATE quotes SET total_fils=1 WHERE id=?').bind(q.id).run()).rejects.toThrow()
+    expect(env.DB.prepare('DELETE FROM quotes WHERE id=?').bind(q.id).run()).rejects.toThrow()
+    expect((await invoiceOf(id)).status).toBe(409) // not accepted yet
+    expect((await acceptQuote(id, { id: q.id, version: 99 })).status).toBe(409) // wrong version
+    expect((await acceptQuote(id, q)).status).toBe(200)
+    const dup = await acceptQuote(id, q); expect((await dup.json() as { duplicate: boolean }).duplicate).toBe(true)
+    // re-pricing: a second version supersedes the first and the acceptance no longer counts
+    const v2 = await issueQuote(id, [ITEMS[0], { ...ITEMS[1], amountFils: 60000 }])
+    expect(v2.q.version).toBe(2)
+    const f = await fin(id); expect(f.quotes.map((x) => x.status)).toEqual(['superseded', 'issued'])
+    expect((await acceptQuote(id, q)).status).toBe(409) // the old one can no longer be accepted
+    expect((await invoiceOf(id)).status).toBe(409) // v2 is not accepted yet
+    expect((await acceptQuote(id, v2.q)).status).toBe(200)
+    expect((await invoiceOf(id)).status).toBe(201)
+    // with an invoice in force, re-pricing needs the invoice cancelled first
+    const v3 = (await (await draftQuote(id, [ITEMS[0]])).json()) as { id: string }
+    expect((await hit('POST', `/staff/v1/quotes/${v3.id}/issue`, {}, owner)).status).toBe(409)
+    expect((await invoiceOf(id)).status).toBe(409) // one active invoice only
+  })
+  it('financial documents are immutable and carry the test marking; tax is never zero-rated or described as a tax invoice', async () => {
+    const id = ((await (await hit('POST', '/v1/requests', { serviceId: 'emirates-id', data: { name: '<script>alert(1)</script>', title: { ar: 'خدمة', en: '<b>x</b>' } } }, cust)).json()) as { id: string }).id
+    await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, cust)
+    const { inv } = await priced(id)
+    expect(inv.number).toMatch(/^T-INV-\d{4}-\d{6}$/)
+    const f = await fin(id)
+    expect(f.tax.configured).toBe(false); expect(f.test).toBe(true)
+    expect('tax' in f.totals).toBe(false) // no tax figure exists anywhere
+    const doc = f.documents.find((d) => d.doc_type === 'invoice')!
+    expect(env.DB.prepare('UPDATE fin_documents SET snapshot=? WHERE id=?').bind('{}', doc.id).run()).rejects.toThrow()
+    expect(env.DB.prepare('UPDATE fin_documents SET number=? WHERE id=?').bind('X', doc.id).run()).rejects.toThrow()
+    expect(env.DB.prepare('UPDATE fin_documents SET total_fils=1 WHERE id=?').bind(doc.id).run()).rejects.toThrow()
+    expect(env.DB.prepare('DELETE FROM fin_documents WHERE id=?').bind(doc.id).run()).rejects.toThrow()
+    expect(env.DB.prepare("INSERT INTO fin_documents (id,request_id,doc_type,number,total_fils,snapshot,snapshot_hash,is_test,created_by,created_at) VALUES ('z',?,'invoice','LIVE-1',1,'{}','h',0,'x',1)").bind(id).run()).rejects.toThrow() // a live document cannot exist yet
+    const html = await (await hit('GET', `/staff/v1/documents/${doc.id}`, undefined, owner)).text()
+    expect(html).toContain('TEST COPY — NOT VALID FOR FINANCIAL USE'); expect(html).toContain('نسخة تجريبية — غير صالحة للاستخدام المالي')
+    expect(html).toContain('Tax is not configured'); expect(html).toContain('الضريبة غير مهيأة')
+    expect(html).toContain('AED 1,000.00'); expect(html).toContain('data:image/png;base64,')
+    expect(html).not.toMatch(/<h1>[^<]*Tax Invoice/i); expect(html).not.toMatch(/VAT\s*\(?\d|5\s*%/)
+    expect(html).not.toContain('<script>alert(1)</script>'); expect(html).toContain('&lt;script&gt;')
+    expect((await hit('GET', `/staff/v1/documents/${doc.id}`, undefined, cust)).status).toBe(401)
+    const ch = await hit('GET', `/v1/documents/${doc.id}`, undefined, cust)
+    expect(ch.headers.get('content-security-policy')).toContain("default-src 'none'"); expect(ch.headers.get('x-frame-options')).toBe('DENY')
+  })
+  it('partial payments, caps, duplicate registration and duplicate approval', async () => {
+    const id = await submit(); await priced(id)
+    const agent = await staffToken('agent')
+    const p1 = await pay(id, 60000); expect(p1.status).toBe(201)
+    const pid1 = (await p1.json() as { id: string }).id
+    let t = (await fin(id)).totals; expect(t).toMatchObject({ total: 100000, paid: 0, pending: 60000, remaining: 100000, state: 'awaiting_payment' }) // pending is not paid
+    // same key + same content = same payment; same key + other content = refused; reused transfer reference refused
+    const key = 'idem-pay-0001', ref = `TRX-DUP-${Date.now()}`
+    const a = await pay(id, 10000, { key, ref }); expect(a.status).toBe(201)
+    const b = await pay(id, 10000, { key, ref }); expect((await b.json() as { replay: boolean }).replay).toBe(true)
+    expect((await pay(id, 20000, { key, ref })).status).toBe(422)
+    expect((await pay(id, 5000, { ref })).status).toBe(409) // reference already used
+    // cannot exceed the invoice together with what is already pending/approved: 60000+10000 pending, only 30000 left
+    expect((await pay(id, 30001)).status).toBe(409)
+    expect((await pay(id, 30000)).status).toBe(201)
+    expect((await hit('POST', `/v1/requests/${id}/payments`, { amountFils: 1.5, method: 'bank_transfer', reference: 'TRX-9999', proofFileId: await proof(id), clientKey: 'k-float-0001' }, cust)).status).toBe(400)
+    // only an authorised member approves; an agent or the customer cannot
+    expect((await approve(pid1, agent)).status).toBe(403); expect((await approve(pid1, cust)).status).toBe(401)
+    const ok = await approve(pid1); expect(ok.status).toBe(200)
+    expect((await ok.json() as { receipt: string }).receipt).toMatch(/^T-RCT-\d{4}-\d{6}$/)
+    t = (await fin(id)).totals; expect(t).toMatchObject({ paid: 60000, remaining: 40000, state: 'partial' })
+    // approving again does not create a second receipt, nor change the totals
+    const dup = await approve(pid1); expect((await dup.json() as { duplicate: boolean }).duplicate).toBe(true)
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM fin_documents WHERE doc_type='receipt' AND related_id=?").bind(pid1).first<{ n: number }>())!.n).toBe(1)
+    // two simultaneous approvals: exactly one wins, one receipt
+    const rest = (await fin(id)).payments.filter((x) => x.status === 'pending_verification')
+    const [x, y] = await Promise.all([approve(rest[0]!.id), approve(rest[0]!.id)])
+    const flags = [(await x.json() as { duplicate: boolean }).duplicate, (await y.json() as { duplicate: boolean }).duplicate].sort()
+    expect(flags).toEqual([false, true])
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM fin_documents WHERE doc_type='receipt' AND related_id=?").bind(rest[0]!.id).first<{ n: number }>())!.n).toBe(1)
+    // pay the rest, get to "paid"; then nothing more can be registered
+    for (const p of (await fin(id)).payments.filter((q) => q.status === 'pending_verification')) expect((await approve(p.id)).status).toBe(200)
+    t = (await fin(id)).totals; expect(t).toMatchObject({ paid: 100000, remaining: 0, state: 'paid', pending: 0 })
+    expect((await pay(id, 1)).status).toBe(409)
+    // approved payments cannot be altered in the database
+    expect(env.DB.prepare('UPDATE payments SET amount_fils=1 WHERE id=?').bind(pid1).run()).rejects.toThrow()
+    expect(env.DB.prepare('DELETE FROM payments WHERE id=?').bind(pid1).run()).rejects.toThrow()
+  })
+  it('a payment cannot be approved beyond the invoice even if pending ones were registered earlier', async () => {
+    const id = await submit(); const { } = await priced(id)
+    const pids: string[] = []
+    for (const amt of [70000, 30000]) pids.push((await (await pay(id, amt)).json() as { id: string }).id)
+    // sneak an over-cap pending row in directly (as if registered before a refund reduced headroom), approval must still be blocked
+    const { newId } = await import('../src/crypto')
+    const inv = (await fin(id)).documents.find((d) => d.doc_type === 'invoice')!
+    const over = newId()
+    await env.DB.prepare("INSERT INTO payments (id,request_id,invoice_id,kind,amount_fils,method,reference,status,created_by_kind,created_by,created_at) VALUES (?,?,?,'payment',20000,'bank_transfer','OVER-0001','pending_verification','customer','x',1)").bind(over, id, inv.id).run()
+    expect((await approve(pids[0]!)).status).toBe(200); expect((await approve(pids[1]!)).status).toBe(200)
+    const r = await approve(over)
+    expect(r.status).toBe(409); expect((await r.json() as { error: string }).error).toBe('exceeds_balance')
+    expect((await fin(id)).totals.paid).toBe(100000)
+  })
+  it('proof must be scanned before approval; staff-recorded payments need a second approver (owner excepted); rejection frees the reference', async () => {
+    const id = await submit(); await priced(id)
+    const noScan = { ...wenv(), SCANNER_MODE: undefined } as Env
+    const up = await asEnv(noScan, 'PUT', `/v1/requests/${id}/files`, cust, pdf(), { 'x-file-name': 'p.pdf' })
+    const pf = ((await up.json()) as { id: string }).id
+    const pid = (await (await pay(id, 20000, { file: pf, ref: 'TRX-PEND-0001' })).json() as { id: string }).id
+    const r = await approve(pid); expect(r.status).toBe(423) // unscanned proof
+    expect((await hit('GET', `/staff/v1/payments/${pid}/proof`, undefined, owner)).status).toBe(423)
+    const rej = await hit('POST', `/staff/v1/payments/${pid}/reject`, { reason: 'Proof unreadable' }, owner); expect(rej.status).toBe(200)
+    expect((await approve(pid)).status).toBe(409) // a rejected payment cannot be approved
+    expect((await hit('POST', `/staff/v1/payments/${pid}/reject`, { reason: 'again' }, owner)).status).toBe(409)
+    const ev = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { events: { text_en: string }[] }
+    expect(ev.events.some((e) => e.text_en.includes('Proof unreadable'))).toBe(true)
+    expect((await pay(id, 20000, { ref: 'TRX-PEND-0001' })).status).toBe(201) // the reference is free again
+    // staff-recorded cash: the same non-owner cannot approve their own entry; the owner can
+    const mgr = await staffToken('manager')
+    const rec = await hit('POST', `/staff/v1/requests/${id}/payments`, { amountFils: 10000, method: 'cash' }, mgr)
+    expect(rec.status).toBe(201)
+    const cid = (await rec.json() as { id: string }).id
+    const own = await approve(cid, mgr); expect(own.status).toBe(403); expect((await own.json() as { error: string }).error).toBe('second_approver_required')
+    expect((await approve(cid)).status).toBe(200)
+    // a clean proof can be viewed by authorised finance staff only
+    const clean = await proof(id); const p2 = (await (await pay(id, 5000, { file: clean })).json() as { id: string }).id
+    expect((await hit('GET', `/staff/v1/payments/${p2}/proof`, undefined, owner)).status).toBe(200)
+    expect((await hit('GET', `/staff/v1/payments/${p2}/proof`, undefined, await staffToken('agent'))).status).toBe(403)
+  })
+  it('refunds: owner/manager only, never above what is paid or what that payment received, linked credit notes, originals untouched', async () => {
+    const id = await submit(); await priced(id)
+    const pids: string[] = []
+    for (const amt of [60000, 40000]) { const p = (await (await pay(id, amt)).json() as { id: string }).id; await approve(p); pids.push(p) }
+    const before = await env.DB.prepare("SELECT number,snapshot_hash,status FROM fin_documents WHERE related_id=? AND doc_type='receipt'").bind(pids[0]).first<{ number: string; snapshot_hash: string; status: string }>()
+    const refund = (amt: number, body: Record<string, unknown> = {}, token = owner) => hit('POST', `/staff/v1/requests/${id}/refunds`, { amountFils: amt, reason: 'Service not delivered as agreed', ...body }, token)
+    expect((await refund(1000, {}, await staffToken('accountant'))).status).toBe(403)
+    expect((await refund(1000, {}, await staffToken('agent'))).status).toBe(403)
+    expect((await refund(1000, {}, cust)).status).toBe(401)
+    expect((await refund(1000, { reason: 'short' })).status).toBe(400)
+    expect((await refund(100001)).status).toBe(409) // more than was paid
+    expect((await refund(40001, { paymentId: pids[1] })).status).toBe(409) // more than that payment received
+    const ok = await refund(25000, { paymentId: pids[1] }); expect(ok.status).toBe(201)
+    expect((await ok.json() as { creditNote: string }).creditNote).toMatch(/^T-CRN-\d{4}-\d{6}$/)
+    expect((await refund(15001, { paymentId: pids[1] })).status).toBe(409) // 25000 already refunded from that payment
+    expect((await refund(15000, { paymentId: pids[1] })).status).toBe(201)
+    let t = (await fin(id)).totals; expect(t).toMatchObject({ paid: 100000, refunded: 40000, net: 60000, remaining: 40000, state: 'partial' })
+    const after = await env.DB.prepare("SELECT number,snapshot_hash,status FROM fin_documents WHERE related_id=? AND doc_type='receipt'").bind(pids[0]).first<{ number: string; snapshot_hash: string; status: string }>()
+    expect(after).toEqual(before) // the original receipt is exactly as it was
+    expect((await fin(id)).payments.filter((p) => p.kind === 'refund').every((p) => p.refund_of === pids[1] && p.receipt_id)).toBe(true)
+    // refund the rest -> state "refunded"
+    expect((await refund(60000)).status).toBe(201)
+    t = (await fin(id)).totals; expect(t).toMatchObject({ net: 0, state: 'refunded' })
+    expect((await refund(1)).status).toBe(409)
+  })
+  it('cancelling an invoice voids it with a reason and a linked credit note; impossible while money is held; a new invoice can follow', async () => {
+    const id = await submit(); const { inv } = await priced(id)
+    const cancel = (reason = 'Customer changed the request scope', token = owner) => hit('POST', `/staff/v1/invoices/${inv.documentId}/cancel`, { reason }, token)
+    const p = (await (await pay(id, 50000)).json() as { id: string }).id
+    expect((await cancel()).status).toBe(409) // pending payment
+    await approve(p)
+    const held = await cancel(); expect((await held.json() as { error: string }).error).toBe('refund_first')
+    await hit('POST', `/staff/v1/requests/${id}/refunds`, { amountFils: 50000, reason: 'Refund before cancelling the invoice' }, owner)
+    expect((await cancel('short')).status).toBe(400)
+    expect((await cancel('x'.repeat(12), await staffToken('agent'))).status).toBe(403)
+    const done = await cancel(); expect(done.status).toBe(200)
+    expect((await done.json() as { number: string }).number).toMatch(/^T-CRN-/)
+    const docs = (await fin(id)).documents
+    const old = docs.find((d) => d.id === inv.documentId)!
+    expect(old.status).toBe('void'); expect(docs.some((d) => d.doc_type === 'credit_note' && d.related_id === inv.documentId)).toBe(true)
+    expect(env.DB.prepare("UPDATE fin_documents SET status='issued' WHERE id=?").bind(old.id).run()).rejects.toThrow() // a void document cannot be revived
+    expect((await cancel()).status).toBe(409)
+    expect((await pay(id, 1000)).status).toBe(409) // no invoice in force
+    expect((await invoiceOf(id)).status).toBe(201) // the accepted quote still stands: a new invoice may be issued
+    const invs = (await fin(id)).documents.filter((d) => d.doc_type === 'invoice').map((d) => d.number)
+    expect(new Set(invs).size).toBe(2)
+  })
+  it('document numbers are unique and gap-free per type', async () => {
+    const rows = await env.DB.prepare("SELECT doc_type t, number n FROM fin_documents ORDER BY doc_type, number").all<{ t: string; n: string }>()
+    const by: Record<string, number[]> = {}
+    for (const r of rows.results) (by[r.t] ??= []).push(Number(r.n.slice(-6)))
+    for (const nums of Object.values(by)) { expect(new Set(nums).size).toBe(nums.length); expect(nums[0]).toBe(1); expect(nums[nums.length - 1]).toBe(nums.length) }
+    expect(new Set(rows.results.map((r) => r.n)).size).toBe(rows.results.length)
   })
 })
 

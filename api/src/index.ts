@@ -5,6 +5,8 @@ import { MAX_FILES_PER_REQUEST, MAX_FILE_BYTES, REQUEST_STATUSES, isServiceId, i
 import { allow, audit, clientIp, jsonBody, requireAuth, securityHeaders, type C } from './security'
 import { sendOtp } from './sms'
 import { staff } from './staff'
+import { scanBytes, scannerMode, uploadsBlocked } from './scanner'
+import { insertPayment, isFils, renderDocument, totalsFor, type DocRow } from './finance'
 
 const ACCESS_TTL = 15 * 60 * 1000
 const REFRESH_TTL = 30 * 24 * 3600 * 1000
@@ -28,7 +30,8 @@ app.use('*', async (c, next) => {
 app.onError((e, c) => { console.error('unhandled', e instanceof Error ? e.message : 'unknown'); return c.json({ error: 'server_error' }, 500) })
 app.notFound((c) => c.json({ error: 'not_found' }, 404))
 
-app.get('/health', (c) => c.json({ ok: true }))
+// readiness: live launch is refused while no real malware scanner is integrated
+app.get('/health', (c) => c.json({ ok: true, scanner: scannerMode(c.env), ready: !uploadsBlocked(c.env) }))
 
 // ---------- Auth ----------
 app.post('/v1/auth/otp/request', async (c) => {
@@ -305,7 +308,7 @@ authed.get('/requests/:id', async (c) => {
   // Customers only ever see events marked visible; internal notes never leave the staff API.
   const events = await c.env.DB.prepare('SELECT id,text_ar,text_en,created_at FROM request_events WHERE request_id=? AND visible=1 ORDER BY created_at').bind(id).all()
   const missing = await c.env.DB.prepare('SELECT id,label_ar,label_en,note_ar,note_en,replacement_file_id,resolved_at FROM missing_documents WHERE request_id=? ORDER BY created_at').bind(id).all()
-  return c.json({ request: r, files: files.results, events: events.results, missing: missing.results })
+  return c.json({ request: r, files: files.results, events: events.results, missing: missing.results, finance: await customerFinance(c, id) })
 })
 authed.patch('/requests/:id', async (c) => {
   const id = c.req.param('id')
@@ -353,6 +356,68 @@ authed.delete('/requests/:id', async (c) => {
   return c.json({ ok: true })
 })
 
+/** What a customer may see of the money side: issued quotes, the active invoice, their payments and documents. Never drafts or staff identities. */
+async function customerFinance(c: C, requestId: string) {
+  const qs = await c.env.DB.prepare("SELECT id,version,status,total_fils,issued_at,accepted_at,document_id FROM quotes WHERE request_id=? AND status!='draft' ORDER BY version").bind(requestId).all<{ id: string; version: number; status: string; total_fils: number; issued_at: number | null; accepted_at: number | null; document_id: string | null }>()
+  const quotes = []
+  for (const q of qs.results) {
+    const items = await c.env.DB.prepare('SELECT kind,description_ar,description_en,amount_fils FROM quote_items WHERE quote_id=? ORDER BY position').bind(q.id).all()
+    const n = q.document_id ? await c.env.DB.prepare('SELECT number FROM fin_documents WHERE id=?').bind(q.document_id).first<{ number: string }>() : null
+    quotes.push({ id: q.id, version: q.version, status: q.status, number: n?.number ?? null, total_fils: q.total_fils, issued_at: q.issued_at, accepted_at: q.accepted_at, items: items.results })
+  }
+  const payments = await c.env.DB.prepare('SELECT id,kind,amount_fils,method,status,created_at,decided_at,decision_note,receipt_id FROM payments WHERE request_id=? ORDER BY created_at').bind(requestId).all()
+  const documents = await c.env.DB.prepare('SELECT id,doc_type,number,status,total_fils,created_at FROM fin_documents WHERE request_id=? ORDER BY created_at').bind(requestId).all()
+  return { quotes, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, requestId), tax: { configured: false }, test: true }
+}
+
+// The customer approves one specific quote version. A newer version needs a new approval; repeating is harmless.
+authed.post('/requests/:id/quotes/:qid/accept', async (c) => {
+  const id = c.req.param('id'), qid = c.req.param('qid'), uid = c.get('userId')
+  if (!isUuid(id) || !isUuid(qid) || !(await ownRequest(c, id))) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const q = await c.env.DB.prepare("SELECT id,version,status FROM quotes WHERE id=? AND request_id=? AND status!='draft'").bind(qid, id).first<{ id: string; version: number; status: string }>()
+  if (!q) return c.json({ error: 'not_found' }, 404)
+  if (b?.version !== q.version) return c.json({ error: 'stale_quote', current: q.version }, 409)
+  if (q.status === 'accepted') return c.json({ ok: true, duplicate: true })
+  if (q.status !== 'issued') return c.json({ error: 'quote_superseded' }, 409)
+  const now = Date.now()
+  const r = await c.env.DB.prepare("UPDATE quotes SET status='accepted', accepted_at=?, accepted_by=? WHERE id=? AND status='issued'").bind(now, uid, q.id).run()
+  if (!r.meta.changes) return c.json({ error: 'quote_superseded' }, 409)
+  await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, `وافق العميل على عرض السعر (النسخة ${q.version})`, `Customer accepted the quotation (version ${q.version})`, now).run()
+  await audit(c, 'finance.quote_accepted', uid, { requestId: id, version: q.version })
+  return c.json({ ok: true, duplicate: false })
+})
+
+// The customer reports a manual payment with proof. It stays "pending verification" until an authorised staff member approves it.
+authed.post('/requests/:id/payments', async (c) => {
+  const id = c.req.param('id'), uid = c.get('userId')
+  if (!isUuid(id) || !(await ownRequest(c, id))) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const key = c.req.header('idempotency-key') ?? (typeof b?.clientKey === 'string' ? b.clientKey : '')
+  const reference = typeof b?.reference === 'string' && /^[A-Za-z0-9 ._/-]{4,60}$/.test(b.reference.trim()) ? b.reference.trim() : null
+  const proof = typeof b?.proofFileId === 'string' && isUuid(b.proofFileId) ? b.proofFileId : null
+  if (!/^[A-Za-z0-9._:-]{8,80}$/.test(key) || !isFils(b?.amountFils) || !reference || !proof || b?.method !== 'bank_transfer') return c.json({ error: 'invalid_request' }, 400)
+  const file = await c.env.DB.prepare("SELECT 1 x FROM request_files WHERE id=? AND user_id=? AND request_id=? AND kind='source' AND deleted_at IS NULL AND scan_status IN ('pending','clean')").bind(proof, uid, id).first()
+  if (!file) return c.json({ error: 'invalid_proof' }, 400)
+  const prev = await c.env.DB.prepare('SELECT id,amount_fils,reference FROM payments WHERE request_id=? AND client_key=?').bind(id, key).first<{ id: string; amount_fils: number; reference: string | null }>()
+  if (prev) return prev.amount_fils === b.amountFils && prev.reference === reference ? c.json({ id: prev.id, status: 'pending_verification', replay: true }) : c.json({ error: 'idempotency_conflict' }, 422)
+  const t = await totalsFor(c.env, id)
+  if (!t.invoice) return c.json({ error: 'no_invoice' }, 409)
+  const pid = newId()
+  const res = await insertPayment(c.env, { id: pid, requestId: id, invoiceId: t.invoice.id, amount: b.amountFils, method: 'bank_transfer', reference, proofFileId: proof, clientKey: key, byKind: 'customer', by: uid, now: Date.now() })
+  if (!res.ok) return c.json({ error: res.error }, 409)
+  await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, 'أرسل العميل إثبات دفع بانتظار التحقق', 'Customer submitted payment proof, awaiting verification', Date.now()).run()
+  await audit(c, 'finance.payment_submitted', uid, { requestId: id, paymentId: pid })
+  return c.json({ id: pid, status: 'pending_verification' }, 201)
+})
+
+authed.get('/documents/:docId', async (c) => {
+  const did = c.req.param('docId')
+  const d = isUuid(did) ? await c.env.DB.prepare('SELECT d.doc_type,d.number,d.status,d.void_reason,d.created_at,d.total_fils,d.snapshot FROM fin_documents d JOIN requests r ON r.id=d.request_id WHERE d.id=? AND r.user_id=? AND r.deleted_at IS NULL').bind(did, c.get('userId')).first<DocRow>() : null
+  if (!d) return c.json({ error: 'not_found' }, 404)
+  return new Response(renderDocument(c.env, d), { headers: { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': "default-src 'none'; img-src data:; style-src 'unsafe-inline'; frame-ancestors 'none'", 'x-frame-options': 'DENY', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
+})
+
 // Receipt acknowledgement: a recorded command for one delivery version. Viewing or downloading never acknowledges.
 authed.post('/requests/:id/acknowledgments', async (c) => {
   const id = c.req.param('id'), uid = c.get('userId')
@@ -380,15 +445,18 @@ authed.put('/requests/:id/files', async (c) => {
   if (Number(c.req.header('content-length') ?? '0') > MAX_FILE_BYTES) return c.json({ error: 'too_large' }, 413)
   const bytes = new Uint8Array(await c.req.arrayBuffer())
   if (bytes.length === 0 || bytes.length > MAX_FILE_BYTES) return c.json({ error: 'too_large' }, 413)
+  if (uploadsBlocked(c.env)) return c.json({ error: 'scanner_unavailable' }, 503) // production without a real scanner: nothing unscanned is ever stored
   const kind = sniffFile(bytes) // trust the bytes, never the client-declared type
   if (!kind) return c.json({ error: 'unsupported_type' }, 415)
+  const scan = scanBytes(c.env, bytes)
+  if (scan.status === 'infected') { await audit(c, 'file.rejected_infected', uid); return c.json({ error: 'infected' }, 422) }
   const count = await c.env.DB.prepare('SELECT COUNT(*) n FROM request_files WHERE request_id=? AND deleted_at IS NULL').bind(id).first<{ n: number }>()
   if ((count?.n ?? 0) >= MAX_FILES_PER_REQUEST) return c.json({ error: 'too_many_files' }, 409)
   const fileId = newId(), key = `u/${uid}/${fileId}`
   await c.env.DOCS.put(key, await seal(c.env.DATA_KEY, `file:${uid}:${fileId}`, bytes), { httpMetadata: { contentType: 'application/octet-stream' } })
   const name = safeFileName(c.req.header('x-file-name') ? decodeURIComponent(c.req.header('x-file-name') as string) : null, kind.ext)
-  await c.env.DB.prepare('INSERT INTO request_files (id,request_id,user_id,r2_key,name,mime,size,sha256,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
-    .bind(fileId, id, uid, key, name, kind.mime, bytes.length, await sha256Hex(bytes), Date.now()).run()
+  await c.env.DB.prepare('INSERT INTO request_files (id,request_id,user_id,r2_key,name,mime,size,sha256,created_at,scan_status,scan_engine,scanned_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+    .bind(fileId, id, uid, key, name, kind.mime, bytes.length, await sha256Hex(bytes), Date.now(), scan.status, scan.engine, scan.status === 'pending' ? null : Date.now()).run()
   const missingId = c.req.query('missingId')
   if (missingId && isUuid(missingId)) {
     const m = await c.env.DB.prepare('UPDATE missing_documents SET replacement_file_id=?, resolved_at=? WHERE id=? AND request_id=? AND resolved_at IS NULL').bind(fileId, Date.now(), missingId, id).run()
@@ -409,7 +477,7 @@ authed.put('/requests/:id/files', async (c) => {
 authed.get('/files/:fileId', async (c) => {
   const fid = c.req.param('fileId'), uid = c.get('userId')
   if (!isUuid(fid)) return c.json({ error: 'not_found' }, 404)
-  const f = await c.env.DB.prepare("SELECT r2_key,name,mime FROM request_files WHERE id=? AND user_id=? AND deleted_at IS NULL AND (kind='source' OR delivery_id IN (SELECT id FROM deliveries WHERE status='published'))").bind(fid, uid).first<{ r2_key: string; name: string; mime: string }>()
+  const f = await c.env.DB.prepare("SELECT r2_key,name,mime FROM request_files WHERE id=? AND user_id=? AND deleted_at IS NULL AND scan_status IN ('pending','clean') AND (kind='source' OR delivery_id IN (SELECT id FROM deliveries WHERE status='published'))").bind(fid, uid).first<{ r2_key: string; name: string; mime: string }>()
   const obj = f ? await c.env.DOCS.get(f.r2_key) : null
   if (!f || !obj) return c.json({ error: 'not_found' }, 404)
   const plain = await open(c.env.DATA_KEY, `file:${uid}:${fid}`, new Uint8Array(await obj.arrayBuffer()))
