@@ -90,3 +90,13 @@
 @media (max-width: 900px) {
   .actions .btn { flex: 1 1 100%; justify-content: center; }
 }
+
+/* docs */
+.docsBody p, .docsBody li { max-width: 62ch; }
+.docPre { margin: 0 0 24px; padding: 14px 16px; background: var(--paper-raised); background-image: var(--grain); border: var(--rule); font-family: var(--mono); font-size: var(--fs-payload); line-height: 1.7; overflow-x: auto; white-space: pre; }
+.docsH2 { font-family: var(--display); font-weight: 900; font-size: var(--fs-title); line-height: 1; text-transform: uppercase; margin: 48px 0 14px; }
+.docsTable { width: 100%; border-collapse: collapse; margin: 0 0 24px; font-size: var(--fs-ui); }
+.docsTable th, .docsTable td { text-align: left; vertical-align: top; padding: 10px 12px 10px 0; border-bottom: var(--hair); }
+.docsTable th { font-family: var(--display); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: var(--rule); }
+.docsTable code, .docsBody p code { font-family: var(--mono); font-size: var(--fs-payload); }
+.docsNote { color: var(--ink-soft); font-size: var(--fs-small); }
