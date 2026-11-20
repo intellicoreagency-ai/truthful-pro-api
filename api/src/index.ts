@@ -6,6 +6,7 @@ import { allow, audit, clientIp, jsonBody, requireAuth, securityHeaders, type C 
 import { sendOtp } from './sms'
 import { staff } from './staff'
 import { scanBytes, scannerMode, uploadsBlocked } from './scanner'
+import { emailMode, confirmEmail, enqueueInvoiceEmail, flushAll, setCustomerEmail, validEmail } from './mail'
 import { autoInvoice, govFor, insertAuthorityPayment, insertPayment, isFils, renderDocument, totalsFor, type DocRow } from './finance'
 
 const ACCESS_TTL = 15 * 60 * 1000
@@ -32,8 +33,13 @@ app.use('*', async (c, next) => {
 app.onError((e, c) => { console.error('unhandled', e instanceof Error ? e.message : 'unknown'); return c.json({ error: 'server_error' }, 500) })
 app.notFound((c) => c.json({ error: 'not_found' }, 404))
 
+// The link in the welcome email. GET only changes the confirmation flag of the address the link was issued for.
+app.get('/v1/email/confirm', async (c) => {
+  const ok = await confirmEmail(c.env, c.req.query('token') ?? '')
+  return c.html(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial;text-align:center;margin:15vh 16px"><h2>${ok ? 'تم تأكيد بريدك الإلكتروني ✓<br>Email confirmed ✓' : 'الرابط غير صالح أو منتهي<br>Link invalid or expired'}</h2></body>`, ok ? 200 : 400)
+})
 // readiness: live launch is refused while no real malware scanner is integrated
-app.get('/health', (c) => c.json({ ok: true, scanner: scannerMode(c.env), ready: !uploadsBlocked(c.env) }))
+app.get('/health', (c) => c.json({ ok: true, scanner: scannerMode(c.env), ready: !uploadsBlocked(c.env), email: emailMode(c.env) !== 'none' }))
 
 // ---------- Auth ----------
 app.post('/v1/auth/otp/request', async (c) => {
@@ -200,14 +206,20 @@ authed.post('/auth/logout', async (c) => {
 
 // ---------- Profile, consent, privacy rights ----------
 authed.get('/me', async (c) => {
-  const u = await c.env.DB.prepare('SELECT id,display_name,language,created_at FROM users WHERE id=?').bind(c.get('userId')).first()
-  return c.json({ user: u })
+  const u = await c.env.DB.prepare('SELECT id,display_name,language,created_at,email_enc IS NOT NULL AS has_email,email_verified_at FROM users WHERE id=?').bind(c.get('userId')).first<{ has_email: number; email_verified_at: number | null }>()
+  return c.json({ user: u ? { ...u, email_set: !!u.has_email, email_verified: !!u.email_verified_at, has_email: undefined, email_verified_at: undefined } : u })
 })
 authed.patch('/me', async (c) => {
   const b = await jsonBody(c)
   const name = typeof b?.displayName === 'string' ? b.displayName.trim().slice(0, 80) : null
   const lang = b?.language === 'en' || b?.language === 'ar' ? b.language : null
   await c.env.DB.prepare('UPDATE users SET display_name=COALESCE(?,display_name), language=COALESCE(?,language) WHERE id=?').bind(name, lang, c.get('userId')).run()
+  if (b?.email !== undefined) {
+    if (!validEmail(b.email)) return c.json({ error: 'invalid_email' }, 400)
+    if (!(await allow(c.env, `email:${c.get('userId')}`, 5, 3600))) return c.json({ error: 'too_many_requests' }, 429)
+    await setCustomerEmail(c.env, c.get('userId'), b.email) // welcome email with the confirmation link goes first
+    await audit(c, 'email.set', c.get('userId'))
+  }
   return c.json({ ok: true })
 })
 authed.post('/consents', async (c) => {
@@ -253,7 +265,7 @@ authed.delete('/me', async (c) => {
     c.env.DB.prepare('UPDATE request_files SET deleted_at=?, name=?, r2_key=? WHERE user_id=?').bind(now, 'deleted', 'deleted', uid),
     c.env.DB.prepare("UPDATE requests SET deleted_at=?, data='{}' WHERE user_id=?").bind(now, uid),
     c.env.DB.prepare('UPDATE sessions SET revoked_at=? WHERE user_id=?').bind(now, uid),
-    c.env.DB.prepare("UPDATE users SET deleted_at=?, display_name=NULL, phone_enc='deleted', phone_hash='deleted:'||id WHERE id=?").bind(now, uid),
+    c.env.DB.prepare("UPDATE users SET deleted_at=?, display_name=NULL, email_enc=NULL, email_token_hash=NULL, phone_enc='deleted', phone_hash='deleted:'||id WHERE id=?").bind(now, uid),
   ])
   await audit(c, 'privacy.delete', uid)
   return c.json({ ok: true })
@@ -508,4 +520,4 @@ authed.delete('/files/:fileId', async (c) => {
 
 app.route('/v1', authed)
 app.route('/staff/v1', staff)
-export default app
+export default { fetch: app.fetch, scheduled: (_e: ScheduledController, env: Env, ctx: ExecutionContext) => { ctx.waitUntil(flushAll(env)) } }

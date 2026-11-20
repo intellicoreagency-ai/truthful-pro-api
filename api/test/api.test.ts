@@ -1225,6 +1225,43 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
       }
     } finally { globalThis.fetch = real }
   })
+  it('email: welcome email first with a confirmation link; the invoice is emailed when the customer starts the transaction, only to a confirmed address', async () => {
+    const { mailbox } = await import('../src/mail')
+    mailbox.length = 0
+    const e = { ...wenv(), EMAIL_MODE: 'capture', PUBLIC_BASE_URL: 'https://api.test' } as Env
+    const json = (o: unknown) => new TextEncoder().encode(JSON.stringify(o))
+    const J = (method: string, path: string, token: string, body: unknown) => asEnv(e, method, path, token, json(body), { 'content-type': 'application/json' })
+    await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: 25000 }, owner)
+    const t = await login('+971521190077')
+    expect((await J('PATCH', '/v1/me', t, { email: 'not-an-email' })).status).toBe(400)
+    expect((await J('PATCH', '/v1/me', t, { email: 'Hind.Test@Example.com' })).status).toBe(200)
+    expect(mailbox).toHaveLength(1)
+    expect(mailbox[0]!.to).toBe('hind.test@example.com'); expect(mailbox[0]!.subject).toContain('Welcome')
+    expect(((await (await hit('GET', '/v1/me', undefined, t)).json()) as { user: { email_set: boolean; email_verified: boolean } }).user).toMatchObject({ email_set: true, email_verified: false })
+    // the customer starts the transaction: the invoice is created at once but NOT emailed to an unconfirmed address
+    const id = ((await (await hit('POST', '/v1/requests', { serviceId: 'emirates-id', data: { name: 'H', title: { ar: 'ت', en: 'T' } } }, t)).json()) as { id: string }).id
+    await J('PATCH', `/v1/requests/${id}`, t, { status: 'submitted' })
+    expect((await fin(id)).documents.map((d) => d.doc_type)).toEqual(['invoice'])
+    expect(mailbox).toHaveLength(1)
+    // confirming the address (link in the welcome email) releases the invoice email, after the welcome email
+    const link = /confirm\?token=([^"&]+)/.exec(mailbox[0]!.html)![1]!
+    expect((await asEnv(e, 'GET', '/v1/email/confirm?token=bogus', '')).status).toBe(400)
+    expect((await asEnv(e, 'GET', `/v1/email/confirm?token=${link}`, '')).status).toBe(200)
+    expect((await asEnv(e, 'GET', `/v1/email/confirm?token=${link}`, '')).status).toBe(400) // one use
+    expect(mailbox.map((m) => m.subject.split(' ')[0])).toEqual([mailbox[0]!.subject.split(' ')[0], 'فاتورة'])
+    const inv = mailbox[1]!
+    expect(inv.to).toBe('hind.test@example.com'); expect(inv.html).toContain('T-INV-'); expect(inv.html).toContain('250.00'); expect(inv.html).toContain('TEST COPY')
+    expect(inv.html).not.toContain('350.00') // government fees are never part of our invoice
+    // it is sent once only
+    await asEnv(e, 'GET', `/v1/email/confirm?token=${link}`, '')
+    expect(mailbox).toHaveLength(2)
+    // without EMAIL_MODE nothing is ever sent
+    mailbox.length = 0
+    const t2 = await login('+971521190078')
+    await hit('PATCH', '/v1/me', { email: 'nobody@example.com' }, t2)
+    expect(mailbox).toHaveLength(0)
+    await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: null }, owner)
+  })
   it('permissions: agents may draft but not issue; accountants issue; customers and other customers are kept out', async () => {
     const id = await submit()
     const agent = await staffToken('agent'), accountant = await staffToken('accountant')

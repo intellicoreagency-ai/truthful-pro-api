@@ -65,12 +65,13 @@ type Props={
   onExport:()=>Promise<boolean>;
   onDelete:()=>Promise<boolean>;
   onSignOut:()=>Promise<void>;
+  onEmail?:(email:string)=>Promise<void>;
   logo:number;
   Text:React.ComponentType<{lang:Language;children:React.ReactNode;style?:object;numberOfLines?:number}>;
   inputFont:string;
 };
 
-export function AccountScreen({lang,account,update,requests,documents,favorites,onFavorite,onRequests,onBrowse,onLanguage,onLeave,signedIn,onLegal,onExport,onDelete,onSignOut,logo,Text:T,inputFont}:Props) {
+export function AccountScreen({lang,account,update,requests,documents,favorites,onFavorite,onRequests,onBrowse,onLanguage,onLeave,signedIn,onLegal,onExport,onDelete,onSignOut,onEmail,logo,Text:T,inputFont}:Props) {
   const ar=lang==='ar';
   const row=ar?'row-reverse':'row';
   const forward=ar?'back':'next';
@@ -137,7 +138,11 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
   const fields:readonly [Field,string][] = section==='company'
     ? [['company',t.companyName],['license',t.license]]
     : [['name',t.name],['email',t.email],['phone',t.phone]];
-  const saveFields=()=>setMessage(update(edits)?t.saved:t.storageError);
+  const saveFields=()=>{
+    const ok=update(edits);setMessage(ok?t.saved:t.storageError);
+    const mail=(edits.email??'').trim();
+    if(ok&&signedIn&&onEmail&&/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(mail))void onEmail(mail).then(()=>setMessage(lang==='ar'?'أرسلنا رسالة ترحيب إلى بريدك، يرجى تأكيده.':'We sent a welcome email: please confirm your address.')).catch(()=>setMessage(lang==='ar'?'تعذر حفظ البريد على الخادم.':'Could not save the email on the server.'));
+  };
 
   return <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets contentContainerStyle={s.page}>
     <View style={[s.header,{flexDirection:row}]}>

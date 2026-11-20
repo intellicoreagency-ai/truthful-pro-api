@@ -17,6 +17,12 @@ export interface Env {
   SCANNER_TOKEN?: string        // bearer token for that service (Worker secret)
   SCANNER_MODE?: string         // 'fake-test' enables the explicit test scanner (ignored in production); anything else = no scanner
   GOV_PAY_HOSTS?: string        // extra allowed suffixes for official payment links, e.g. ".rta.ae,.dubaipolice.gov.ae" (default: .gov.ae)
+  EMAIL_MODE?: string           // 'brevo' sends real email (needs BREVO_API_KEY + EMAIL_FROM); 'capture' is tests only; otherwise nothing is sent
+  BREVO_API_KEY?: string        // secret
+  EMAIL_FROM?: string           // a sender address verified in Brevo
+  EMAIL_FROM_NAME?: string
+  PUBLIC_BASE_URL?: string      // e.g. https://api.example.com (used in the email confirmation link)
+  COMPANY_PAYMENT_NOTE?: string // optional bank details / instructions shown in the invoice email
   COMPANY_NAME_AR?: string
   COMPANY_NAME_EN?: string
   OWNER_PHONE?: string          // E.164; the first sign-in with this number creates the owner account

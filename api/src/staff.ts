@@ -6,6 +6,7 @@ import { MAX_FILE_BYTES, isUuid, normalizePhone, safeFileName, sniffFile } from 
 import { allow, audit, clientIp, jsonBody, type C } from './security'
 import { RULES, passportValidity } from './rules'
 import { scanBytes, uploadsBlocked } from './scanner'
+import { enqueueInvoiceEmail } from './mail'
 import { approvePayment, documentStatements, govFor, insertAuthorityPayment, insertPayment, insertRefund, isFils, parseGovUrl, parseItems, renderDocument, totalsFor, type DocRow } from './finance'
 import { newSecret, otpauthUri, verifyTotp } from './totp'
 import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server'
@@ -902,6 +903,7 @@ guarded.post('/quotes/:qid/issue', roles(...FIN), async (c) => {
     ])
   } catch { return c.json({ error: 'invoice_exists' }, 409) }
   await visibleEvent(c, r.id, 'صدرت فاتورة بأتعاب الشركة (نسخة تجريبية)', 'An invoice for the Company fee was issued (test copy)')
+  await enqueueInvoiceEmail(c.env, r.user_id, docId).catch(() => null)
   await audit(c, 'finance.invoice_issue', null, { requestId: r.id, version: q.version, by: c.get('staffId') })
   return c.json({ ok: true, documentId: docId, number: await numberOf(c, docId), version: q.version }, 201)
 })

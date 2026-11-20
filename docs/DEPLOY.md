@@ -115,3 +115,7 @@ Workers cannot run ClamAV, so `scanner-service/` holds a small bridge to a ClamA
 4. Check `/health` reports `"scanner":"clamav","ready":true`, then test with an EICAR file: it must be refused (422).
 
 Behaviour: only an explicit `clean` releases a file; an outage, timeout or odd answer leaves it `pending` (staff cannot open it) and an owner/manager can `POST /staff/v1/files/:id/rescan` once the scanner is back. In production the Worker accepts only an `https://` scanner URL. Note: a file uploaded while the scanner is down is stored encrypted as pending until rescanned.
+
+## Customer email (welcome + invoice)
+
+Off by default. To enable: set `EMAIL_MODE=brevo`, `BREVO_API_KEY` (secret), `EMAIL_FROM` (a sender verified in Brevo), optionally `EMAIL_FROM_NAME`, `PUBLIC_BASE_URL` (the API origin, used in the confirmation link) and `COMPANY_PAYMENT_NOTE` (bank details shown in the invoice email). Flow: the customer saves their email in the app -> welcome email with a confirmation link -> once confirmed, the invoice for the Company fee is emailed (automatically at submission, or when staff issue it). A 10-minute cron retries failures. Invoices are never sent to an unconfirmed address. `/health` reports `email:true` when configured. Add Brevo to the privacy notice's list of processors and review the template wording with the lawyer.

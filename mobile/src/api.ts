@@ -74,6 +74,8 @@ export async function logout(){try{if(mem.access)await call('POST','/v1/auth/log
 export const me=async()=>json<{user:{id:string;display_name:string|null;language:'ar'|'en'}}>(await call('GET','/v1/me'));
 export const recordConsent=(type:'terms'|'privacy'|'document_processing',version:string,accepted:boolean)=>call('POST','/v1/consents',{body:{type,version,accepted}});
 export const exportMyData=async()=>json<unknown>(await call('GET','/v1/me/export'));
+/** Saves the email on the server: a welcome email with a confirmation link is sent; invoices are emailed only after it is confirmed. */
+export async function setServerEmail(email:string){await call('PATCH','/v1/me',{body:{email}})}
 export async function deleteAccount(){await call('DELETE','/v1/me',{body:{confirm:'DELETE'}});await clearTokens()}
 
 // ---- requests ----

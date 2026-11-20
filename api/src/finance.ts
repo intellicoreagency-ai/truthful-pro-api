@@ -1,4 +1,5 @@
 import type { Env } from './types'
+import { enqueueInvoiceEmail } from './mail'
 import { LOGO_DATA_URI } from './logo'
 import { sha256Hex } from './crypto'
 
@@ -208,7 +209,7 @@ export async function insertAuthorityPayment(env: Env, p: { id: string; requestI
 
 /** Issues the invoice for the Company's own fee for this service, once, when a request is submitted. No fee configured for the service -> nothing happens (staff price it manually). */
 export async function autoInvoice(env: Env, requestId: string): Promise<{ documentId: string } | null> {
-  const r = await env.DB.prepare("SELECT r.id,r.service_id,r.data,u.display_name FROM requests r JOIN users u ON u.id=r.user_id WHERE r.id=? AND r.deleted_at IS NULL AND r.status!='draft'").bind(requestId).first<{ id: string; service_id: string; data: string; display_name: string | null }>()
+  const r = await env.DB.prepare("SELECT r.id,r.user_id,r.service_id,r.data,u.display_name FROM requests r JOIN users u ON u.id=r.user_id WHERE r.id=? AND r.deleted_at IS NULL AND r.status!='draft'").bind(requestId).first<{ id: string; user_id: string; service_id: string; data: string; display_name: string | null }>()
   if (!r) return null
   const fee = await env.DB.prepare('SELECT fee_fils FROM service_fees WHERE service_id=?').bind(r.service_id).first<{ fee_fils: number }>()
   if (!fee) return null
@@ -228,6 +229,7 @@ export async function autoInvoice(env: Env, requestId: string): Promise<{ docume
       ...(await documentStatements(env, { id: docId, requestId, type: 'invoice', relatedId: qid, totalFils: fee.fee_fils, snapshot, createdBy: 'system', now })),
       env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'staff','status',?,?,1,?)").bind(crypto.randomUUID(), requestId, 'صدرت فاتورة أتعاب الشركة تلقائياً (نسخة تجريبية)', 'The invoice for the Company fee was issued automatically (test copy)', now),
     ])
+    await enqueueInvoiceEmail(env, r.user_id, docId).catch(() => null) // emailed (after the welcome email) once the customer's address is confirmed
     return { documentId: docId }
   } catch { return null }
 }

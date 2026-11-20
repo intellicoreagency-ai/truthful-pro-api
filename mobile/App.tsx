@@ -21,7 +21,7 @@ import {AccountScreen} from './src/AccountScreen';
 import {readAccount,saveAccount,emptyAccount,type AccountData} from './src/accountStorage';
 import {LegalScreen} from './src/LegalScreen';
 import {TERMS,PRIVACY} from './src/legal';
-import {apiEnabled,hasSession,loadTokens,logout,me,pullRequests,pushRequest,needsSync,exportMyData,deleteAccount,setSessionExpiredHandler} from './src/api';
+import {apiEnabled,hasSession,loadTokens,logout,me,pullRequests,pushRequest,needsSync,exportMyData,deleteAccount,setServerEmail,setSessionExpiredHandler} from './src/api';
 
 type Language='ar'|'en';
 type Page='welcome'|'home'|'services'|'detail'|'requests'|'profile'|'request';
@@ -565,7 +565,7 @@ export default function App() {
      {page==='welcome'?<WelcomeScreen lang={lang} onLanguage={setLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal}
        logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily}/>
      :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents')}/>:page==='services'?cataloguePage(false):page==='detail'?detailPage():page==='profile'?
-       <AccountScreen lang={lang} account={account} update={updateAccount} signedIn={signedIn} onLegal={setLegal} onExport={async()=>{await saveDataExport(await exportMyData());return true}} onDelete={async()=>{await deleteAccount();await wipeLocal();setSignedIn(false);go('welcome');return true}} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);go('welcome')}} requests={clientRecords.length+savedDrafts.length}
+       <AccountScreen lang={lang} account={account} update={updateAccount} signedIn={signedIn} onEmail={setServerEmail} onLegal={setLegal} onExport={async()=>{await saveDataExport(await exportMyData());return true}} onDelete={async()=>{await deleteAccount();await wipeLocal();setSignedIn(false);go('welcome');return true}} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);go('welcome')}} requests={clientRecords.length+savedDrafts.length}
          documents={Object.entries(drafts).flatMap(([key,item])=>Object.entries(item.files).map(([id,file])=>({key:key+'/'+id,name:file.name})))}
          favorites={catalogueServices.filter(item=>account.favorites.includes(item.id)).map(item=>({id:item.id,label:title(item)}))}
          onFavorite={id=>{const item=catalogueServices.find(service=>service.id===id);if(item) open(item);}}
