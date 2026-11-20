@@ -223,7 +223,8 @@ describe('whatsapp verification (free, user-initiated)', () => {
   }
 
   it('is unavailable until the business number is configured', async () => {
-    const r = await call('POST', '/v1/auth/wa/start', { body: { phone: '+971521120001' } })
+    const bare = { ...env, WA_BUSINESS_NUMBER: undefined } as Env // ignore anything in a local .dev.vars
+    const r = await app.fetch(new Request('https://api.test/v1/auth/wa/start', { method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '10.2.0.1' }, body: JSON.stringify({ phone: '+971521120001' }) }), bare)
     expect(r.status).toBe(503)
   })
   it('logs in when the real owner of the number sends the code', async () => {
