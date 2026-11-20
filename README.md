@@ -1,36 +1,19 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TRUTHFUL PRO API v0.1
+Cloudflare Worker with private D1 and R2 bindings.
 
-## Getting Started
+## Endpoints
+- GET /health: verifies D1 query and R2 binding existence
+- GET /v1/services: public, active verified services only, audience=individual|company optional
+- Other routes: 404; unsafe methods: 405
 
-First, run the development server:
+No authentication, customer request, or file-upload endpoints exist in this bootstrap release. Do not use real customer data until authorization, encryption, retention and privacy obligations are implemented.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Deploy
+Use the existing Cloudflare Worker truthful-pro-api. Configure Workers Builds to deploy this repository with command `npx wrangler deploy`. Do not create a new Worker, D1 database, or R2 bucket.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Next.js marketing site and docs
+This repository also contains the Truthful Pro marketing site, docs and a mock verification endpoint, built with Next.js (`src/`, `package.json`). It is separate from the Cloudflare Worker above (`worker.js`, `wrangler.jsonc`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm install && npm run dev` runs the site locally.
+- `/` is the landing page, `/docs` the API docs, `POST /api/verify` the mock endpoint (returns `"mock": true`).
+- Design context: `PRODUCT.md` and `DESIGN.md`.

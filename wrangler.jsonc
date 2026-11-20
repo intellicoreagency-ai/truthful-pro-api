@@ -1,0 +1,7 @@
+{
+  "name": "truthful-pro-api",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-15",
+  "d1_databases": [{"binding":"DB","database_name":"truthful-pro-db","database_id":"36b78bdc-12f9-478b-99a7-74e2c991de9d"}],
+  "r2_buckets": [{"binding":"DOCUMENTS","bucket_name":"truthful-pro-documents"}]
+}
