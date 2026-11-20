@@ -21,6 +21,8 @@ export interface Env {
   BREVO_API_KEY?: string        // secret
   EMAIL_FROM?: string           // a sender address verified in Brevo
   EMAIL_FROM_NAME?: string
+  EMAIL_TEMPLATE_WELCOME?: string // optional Brevo transactional template id (welcome + confirm); params: confirm_url
+  EMAIL_TEMPLATE_INVOICE?: string // optional Brevo transactional template id (invoice); params: invoice_number, amount, request_title_ar/en, payment_note, is_test
   PUBLIC_BASE_URL?: string      // e.g. https://api.example.com (used in the email confirmation link)
   COMPANY_PAYMENT_NOTE?: string // optional bank details / instructions shown in the invoice email
   COMPANY_NAME_AR?: string

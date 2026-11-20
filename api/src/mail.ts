@@ -3,7 +3,7 @@ import { newId, openText, randomToken, sha256Hex, sealText } from './crypto'
 
 // Customer email: a welcome email (with the confirmation link) first, then the invoice when the customer starts the transaction.
 // Nothing is sent unless EMAIL_MODE is configured ('brevo'); tests use 'capture'. Invoices go only to a CONFIRMED address.
-export type Mail = { to: string; subject: string; html: string; text: string }
+export type Mail = { to: string; subject: string; html: string; text: string; template?: { kind: 'welcome' | 'invoice'; params: Record<string, string | boolean> } }
 export const mailbox: Mail[] = [] // 'capture' mode only (never used in production)
 
 export const emailMode = (env: Env): 'none' | 'brevo' | 'capture' =>
@@ -19,7 +19,9 @@ async function transmit(env: Env, m: Mail): Promise<boolean> {
   try {
     const r = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST', headers: { 'api-key': env.BREVO_API_KEY as string, 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ sender: { email: env.EMAIL_FROM, name: env.EMAIL_FROM_NAME ?? env.COMPANY_NAME_EN ?? 'Truthful Clearance Services' }, to: [{ email: m.to }], subject: m.subject, htmlContent: m.html, textContent: m.text }),
+      // If the owner edits the design in Brevo (a transactional template id is configured), use it with the data as parameters; otherwise send the built-in HTML.
+      body: JSON.stringify((() => { const tid = m.template ? Number(m.template.kind === 'welcome' ? env.EMAIL_TEMPLATE_WELCOME : env.EMAIL_TEMPLATE_INVOICE) : NaN
+        return Number.isInteger(tid) && tid > 0 && m.template ? { to: [{ email: m.to }], templateId: tid, params: m.template.params } : { sender: { email: env.EMAIL_FROM, name: env.EMAIL_FROM_NAME ?? env.COMPANY_NAME_EN ?? 'Truthful Clearance Services' }, to: [{ email: m.to }], subject: m.subject, htmlContent: m.html, textContent: m.text } })()),
       signal: AbortSignal.timeout(15000),
     })
     return r.ok
@@ -99,6 +101,7 @@ async function welcomeMail(env: Env, userId: string, to: string): Promise<Mail |
     html: wrap(env, `<h2>مرحباً بك!</h2><p>شكراً لتسجيلك لدينا. يرجى تأكيد بريدك الإلكتروني ليصلك عليه إصدار فواتير أتعابنا.</p><p><a href="${esc(link)}" style="background:#9a6b1f;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">تأكيد البريد الإلكتروني</a></p>`,
       `<h2>Welcome!</h2><p>Thank you for registering. Please confirm your email so we can send you the invoice for our fee.</p><p><a href="${esc(link)}" style="background:#9a6b1f;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Confirm my email</a></p>`),
     text: `Welcome to ${co}. Confirm your email: ${link}`,
+    template: { kind: 'welcome', params: { confirm_url: link } },
   }
 }
 
@@ -115,5 +118,6 @@ async function invoiceMail(env: Env, userId: string, docId: string, to: string):
     html: wrap(env, `${test}<h2>فاتورة أتعاب الشركة</h2><p>الطلب: <b>${esc(title.ar ?? '')}</b><br>رقم الفاتورة: <b dir="ltr">${esc(d.number)}</b><br>المبلغ المستحق: <b dir="ltr">${aed}</b></p><p>الدفع مقدماً بالتحويل البنكي أو نقداً. ${bank}</p><p>الرسوم الحكومية تُدفع مباشرة للجهة عبر رابطها الرسمي ولا تشملها هذه الفاتورة. تجد الفاتورة الكاملة في التطبيق.</p>`,
       `${test}<h2>Invoice for the Company fee</h2><p>Request: <b>${esc(title.en ?? '')}</b><br>Invoice: <b>${esc(d.number)}</b><br>Amount due: <b>${aed}</b></p><p>Payable in advance by bank transfer or cash. ${bank}</p><p>Government fees are paid directly to the authority through its official link and are not part of this invoice. The full invoice is in the app.</p>`),
     text: `Invoice ${d.number}: ${aed}. Payable in advance by bank transfer or cash. Government fees are paid directly to the authority.`,
+    template: { kind: 'invoice', params: { invoice_number: d.number, amount: aed, request_title_ar: String(title.ar ?? ''), request_title_en: String(title.en ?? ''), payment_note: env.COMPANY_PAYMENT_NOTE ?? '', is_test: true } },
   }
 }
