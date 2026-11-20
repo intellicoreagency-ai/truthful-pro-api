@@ -18,7 +18,12 @@ export function Requests({ params, go }: { params: URLSearchParams; go: (hash: s
   const { data, loading, error, reload } = useAsync(() => api.requests({ status: view === 'board' ? '' : status, assignee, q: dq }), [status, assignee, dq, view])
   const [err, setErr] = useState(false)
   const statuses: Status[] = ['submitted', 'review', 'needs_documents', 'authority', 'decision', 'completed', 'rejected', 'cancelled']
-  const move = async (r: ListItem, to: Status) => { setErr(false); try { await api.setStatus(r.id, to, {}); reload() } catch { setErr(true) } }
+  const move = async (r: ListItem, to: Status) => {
+    setErr(false)
+    const reference = to === 'authority' ? window.prompt(t('refNeeded'))?.trim() : undefined
+    if (to === 'authority' && !reference) return
+    try { await api.setStatus(r.id, to, { reference }); reload() } catch { setErr(true); reload() }
+  }
 
   const card = (r: ListItem) => {
     const next = NEXT[r.status]

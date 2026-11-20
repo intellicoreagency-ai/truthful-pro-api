@@ -54,5 +54,15 @@ assert.equal(reopened.completedAt,undefined);assert.equal(reopened.deliveredAt,u
 // 6. Rejection reason from staff is shown.
 assert.equal(toClientRequest(row({status:'rejected',staff_data:JSON.stringify({issue:'Expired passport'})}),{files:[]}).issue,'Expired passport');
 
+// 7. Receipt confirmation is per delivery version.
+const dRow=(o:any)=>row({status:'completed',staff_data:JSON.stringify({completedAt:'2026-12-02T08:00:00.000Z'}),...o});
+const dFiles={files:[file(F1),file(F2,{kind:'final'})]};
+let a=toClientRequest(dRow({delivery_version:1,acknowledged_version:null,acknowledged_at:null}),dFiles);
+assert.equal(a.deliveryVersion,1);assert.equal(a.acknowledgedAt,undefined);
+a=toClientRequest(dRow({delivery_version:1,acknowledged_version:1,acknowledged_at:1_700_000_200_000}),dFiles);
+assert.ok(a.acknowledgedAt&&a.acknowledgedAt.startsWith('2023-11-14'));
+a=toClientRequest(dRow({delivery_version:2,acknowledged_version:1,acknowledged_at:1_700_000_200_000}),dFiles,a);
+assert.equal(a.acknowledgedAt,undefined,'a replacement delivery asks for a new confirmation; the old one is not carried over');assert.equal(a.deliveryVersion,2);
+
 assert.ok(isServerId(U));assert.ok(!isServerId('abc-123'));
 console.log('PASS: server-to-app mapping (status, timeline, requested documents, delivery, dates, pending uploads).');

@@ -234,7 +234,7 @@ guarded.patch('/team/:id', roles('owner'), async (c) => {
 })
 
 // ---------- requests ----------
-type Row = { id: string; user_id: string; service_id: string; status: string; data: string; staff_data: string; assignee_id: string | null; created_at: number; updated_at: number; display_name: string | null; phone_enc: string; assignee_name?: string | null }
+type Row = { version: number; delivery_version: number; id: string; user_id: string; service_id: string; status: string; data: string; staff_data: string; assignee_id: string | null; created_at: number; updated_at: number; display_name: string | null; phone_enc: string; assignee_name?: string | null }
 const canSee = (c: C, assignee: string | null) => c.get('staffRole') !== 'agent' || assignee === null || assignee === c.get('staffId')
 
 guarded.get('/stats', roles(...OPS), async (c) => {
@@ -269,10 +269,14 @@ guarded.get('/requests', roles(...OPS), async (c) => {
 async function loadRequest(c: C, id: string) {
   if (!isUuid(id)) return null
   const r = await c.env.DB.prepare(
-    `SELECT r.id,r.user_id,r.service_id,r.status,r.data,r.staff_data,r.assignee_id,r.created_at,r.updated_at,u.display_name,u.phone_enc
+    `SELECT r.id,r.user_id,r.service_id,r.status,r.data,r.staff_data,r.assignee_id,r.created_at,r.updated_at,r.version,r.delivery_version,u.display_name,u.phone_enc
      FROM requests r JOIN users u ON u.id=r.user_id WHERE r.id=? AND r.deleted_at IS NULL AND r.status!='draft'`).bind(id).first<Row>()
   return r && canSee(c, r.assignee_id) ? r : null
 }
+
+/** Optimistic lock: when the client says which version it saw, a newer change by someone else is a conflict, never an overwrite. */
+const conflict = (c: C, r: Row, b: Record<string, unknown> | null) =>
+  b && typeof b.expectedVersion === 'number' && b.expectedVersion !== r.version ? c.json({ error: 'version_conflict', current: r.version }, 409) : null
 
 async function addEvent(c: C, requestId: string, kind: string, ar: string, en: string, visible: boolean) {
   await c.env.DB.prepare('INSERT INTO request_events (id,request_id,actor,staff_id,kind,text_ar,text_en,visible,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
@@ -286,15 +290,17 @@ guarded.get('/requests/:id', roles(...OPS), async (c) => {
   const events = await c.env.DB.prepare('SELECT id,actor,kind,text_ar,text_en,visible,created_at FROM request_events WHERE request_id=? ORDER BY created_at').bind(r.id).all()
   const missing = await c.env.DB.prepare('SELECT id,label_ar,label_en,note_ar,note_en,replacement_file_id,resolved_at FROM missing_documents WHERE request_id=? ORDER BY created_at').bind(r.id).all()
   let data: any = {}, sd: any = {}; try { data = JSON.parse(r.data) } catch {} try { sd = JSON.parse(r.staff_data) } catch {}
+  const ackV = await c.env.DB.prepare('SELECT MAX(delivery_version) v, MAX(acknowledged_at) at FROM receipt_acks WHERE request_id=?').bind(r.id).first<{ v: number | null; at: number | null }>()
   const phone = await openText(c.env.DATA_KEY, 'user-phone', r.phone_enc).catch(() => '')
   await audit(c, 'staff.view_request', null, { requestId: r.id, by: c.get('staffId') })
-  return c.json({ request: { id: r.id, serviceId: r.service_id, status: r.status, assigneeId: r.assignee_id, createdAt: r.created_at, updatedAt: r.updated_at, data, staff: sd }, customer: { id: r.user_id, name: data.name || r.display_name || '', phone }, files: files.results, events: events.results, missing: missing.results, transitions: TRANSITIONS[r.status] ?? [] })
+  return c.json({ request: { id: r.id, serviceId: r.service_id, status: r.status, assigneeId: r.assignee_id, createdAt: r.created_at, updatedAt: r.updated_at, version: r.version, deliveryVersion: r.delivery_version, acknowledgedVersion: ackV?.v ?? 0, acknowledgedAt: ackV?.at ?? null, data, staff: sd }, customer: { id: r.user_id, name: data.name || r.display_name || '', phone }, files: files.results, events: events.results, missing: missing.results, transitions: TRANSITIONS[r.status] ?? [] })
 })
 
 guarded.post('/requests/:id/assign', roles(...OPS), async (c) => {
   const r = await loadRequest(c, c.req.param('id'))
   if (!r) return c.json({ error: 'not_found' }, 404)
   const b = await jsonBody(c)
+  const cf = conflict(c, r, b); if (cf) return cf
   let to: string | null = typeof b?.staffId === 'string' ? b.staffId : null
   if (c.get('staffRole') === 'agent') to = to === null || to === c.get('staffId') ? to : 'forbidden' // agents may only take or release their own
   if (to === 'forbidden') return c.json({ error: 'forbidden' }, 403)
@@ -302,7 +308,7 @@ guarded.post('/requests/:id/assign', roles(...OPS), async (c) => {
     const m = await c.env.DB.prepare('SELECT name FROM staff WHERE id=? AND active=1 AND role IN (?,?,?)').bind(to, 'owner', 'manager', 'agent').first<{ name: string }>()
     if (!m) return c.json({ error: 'invalid_request' }, 400)
   }
-  await c.env.DB.prepare('UPDATE requests SET assignee_id=?, updated_at=? WHERE id=?').bind(to, Date.now(), r.id).run()
+  await c.env.DB.prepare('UPDATE requests SET assignee_id=?, version=version+1, updated_at=? WHERE id=?').bind(to, Date.now(), r.id).run()
   await addEvent(c, r.id, 'assign', to ? 'تم إسناد الطلب لموظف' : 'أُلغي إسناد الطلب', to ? 'Request assigned' : 'Request unassigned', false)
   return c.json({ ok: true })
 })
@@ -311,19 +317,31 @@ guarded.post('/requests/:id/status', roles(...OPS), async (c) => {
   const r = await loadRequest(c, c.req.param('id'))
   if (!r) return c.json({ error: 'not_found' }, 404)
   const b = await jsonBody(c)
+  const cf = conflict(c, r, b); if (cf) return cf
   const to = typeof b?.status === 'string' ? b.status : ''
   if (!(TRANSITIONS[r.status] ?? []).includes(to)) return c.json({ error: 'invalid_transition', allowed: TRANSITIONS[r.status] ?? [] }, 409)
   let sd: any = {}; try { sd = JSON.parse(r.staff_data) } catch {}
   const now = new Date().toISOString()
+  // "With authority" is a fact that needs evidence of the actual submission; a rejection needs an understandable reason.
+  if (to === 'authority') {
+    const ref = typeof b?.reference === 'string' ? b.reference.trim() : ''
+    if (ref.length < 3 || ref.length > 100) return c.json({ error: 'reference_required' }, 400)
+    sd.authorityRef = ref; sd.authorityAt = now
+  }
+  if (to === 'rejected') {
+    const why = typeof b?.reason === 'string' ? b.reason.trim() : ''
+    if (why.length < 3) return c.json({ error: 'reason_required' }, 400)
+    sd.issue = why.slice(0, 300)
+  }
   if (typeof b?.expectedAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.expectedAt)) sd.expectedAt = b.expectedAt
   if (to === 'completed') sd.completedAt = now
-  if (to === 'rejected' && typeof b?.reason === 'string') sd.issue = b.reason.slice(0, 300)
-  await c.env.DB.prepare('UPDATE requests SET status=?, staff_data=?, assignee_id=COALESCE(assignee_id,?), updated_at=? WHERE id=?').bind(to, JSON.stringify(sd), c.get('staffId'), Date.now(), r.id).run()
+  await c.env.DB.prepare('UPDATE requests SET status=?, staff_data=?, assignee_id=COALESCE(assignee_id,?), version=version+1, updated_at=? WHERE id=?').bind(to, JSON.stringify(sd), c.get('staffId'), Date.now(), r.id).run()
   const [ar, en] = LABEL[to] as [string, string]
   await addEvent(c, r.id, 'status', ar, en, true)
+  if (to === 'authority') await addEvent(c, r.id, 'note', `Submitted to authority. Reference: ${sd.authorityRef}`, `Submitted to authority. Reference: ${sd.authorityRef}`, false)
   if (typeof b?.note === 'string' && b.note.trim()) await addEvent(c, r.id, 'note', b.note.trim().slice(0, 500), b.note.trim().slice(0, 500), false)
   await audit(c, 'staff.status', null, { requestId: r.id, to, by: c.get('staffId') })
-  return c.json({ ok: true, status: to })
+  return c.json({ ok: true, status: to, version: r.version + 1 })
 })
 
 guarded.post('/requests/:id/missing', roles(...OPS), async (c) => {
@@ -331,12 +349,13 @@ guarded.post('/requests/:id/missing', roles(...OPS), async (c) => {
   if (!r) return c.json({ error: 'not_found' }, 404)
   if (!(TRANSITIONS[r.status] ?? []).includes('needs_documents')) return c.json({ error: 'invalid_transition' }, 409)
   const b = await jsonBody(c)
+  const cf = conflict(c, r, b); if (cf) return cf
   const items = Array.isArray(b?.items) ? (b.items as any[]).slice(0, 10) : []
   const ok = items.length > 0 && items.every((i) => typeof i?.labelAr === 'string' && typeof i?.labelEn === 'string' && i.labelAr.trim() && i.labelEn.trim())
   if (!ok) return c.json({ error: 'invalid_request' }, 400)
   const stmts = items.map((i) => c.env.DB.prepare('INSERT INTO missing_documents (id,request_id,label_ar,label_en,note_ar,note_en,created_at) VALUES (?,?,?,?,?,?,?)')
     .bind(newId(), r.id, String(i.labelAr).slice(0, 120), String(i.labelEn).slice(0, 120), String(i.noteAr ?? '').slice(0, 300), String(i.noteEn ?? '').slice(0, 300), Date.now()))
-  stmts.push(c.env.DB.prepare("UPDATE requests SET status='needs_documents', updated_at=? WHERE id=?").bind(Date.now(), r.id))
+  stmts.push(c.env.DB.prepare("UPDATE requests SET status='needs_documents', version=version+1, updated_at=? WHERE id=?").bind(Date.now(), r.id))
   await c.env.DB.batch(stmts)
   await addEvent(c, r.id, 'missing', 'طُلب استكمال مستندات', 'Additional documents requested', true)
   return c.json({ ok: true })
@@ -382,6 +401,7 @@ guarded.put('/requests/:id/files', roles(...OPS), async (c) => {
   const label = (c.req.header('x-file-label') ? decodeURIComponent(c.req.header('x-file-label') as string) : '').slice(0, 120) || null
   await c.env.DB.prepare('INSERT INTO request_files (id,request_id,user_id,r2_key,name,mime,size,sha256,created_at,kind,label) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
     .bind(fid, r.id, r.user_id, key, name, t.mime, bytes.length, await sha256Hex(bytes), Date.now(), kind, label).run()
+  if (kind === 'final') await c.env.DB.prepare('UPDATE requests SET delivery_version=delivery_version+1, version=version+1, updated_at=? WHERE id=?').bind(Date.now(), r.id).run() // a new delivery needs a new acknowledgement
   await addEvent(c, r.id, 'file', kind === 'final' ? 'أُضيف ملف التسليم' : 'أُضيفت فاتورة', kind === 'final' ? 'Delivery file added' : 'Invoice added', true)
   await audit(c, 'staff.file_upload', null, { fileId: fid, requestId: r.id, kind, by: c.get('staffId') })
   return c.json({ id: fid, name, kind }, 201)
@@ -538,6 +558,7 @@ guarded.post('/requests/:id/override', roles('owner', 'manager'), async (c) => {
   const r = await loadRequest(c, c.req.param('id'))
   if (!r) return c.json({ error: 'not_found' }, 404)
   const b = await jsonBody(c)
+  const cf = conflict(c, r, b); if (cf) return cf
   const reason = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 500) : ''
   if (reason.length < 3) return c.json({ error: 'reason_required' }, 400)
   const me = await c.env.DB.prepare('SELECT name FROM staff WHERE id=?').bind(c.get('staffId')).first<{ name: string }>()
@@ -553,7 +574,7 @@ guarded.post('/requests/:id/override', roles('owner', 'manager'), async (c) => {
   if (typeof b?.expectedAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.expectedAt)) { sd.expectedAt = b.expectedAt; done.push('expected date') }
   if (typeof b?.customerName === 'string' && b.customerName.trim()) { data.name = b.customerName.trim().slice(0, 80); dataChanged = true; done.push('customer name') }
   if (!done.length) return c.json({ error: 'nothing_to_change' }, 400)
-  await c.env.DB.prepare('UPDATE requests SET status=?, staff_data=?, data=?, updated_at=? WHERE id=?')
+  await c.env.DB.prepare('UPDATE requests SET status=?, staff_data=?, data=?, version=version+1, updated_at=? WHERE id=?')
     .bind(status, JSON.stringify(sd), dataChanged ? JSON.stringify(data) : r.data, Date.now(), r.id).run()
   if (status !== r.status) { const [ar, en] = LABEL[status] as [string, string]; await addEvent(c, r.id, 'status', ar, en, true) }
   const txt = `OVERRIDE by ${me?.name ?? c.get('staffId')}: ${done.join(', ')}. Reason: ${reason}`

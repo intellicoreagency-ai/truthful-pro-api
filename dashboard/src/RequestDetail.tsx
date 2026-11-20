@@ -14,7 +14,7 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
   const act = async (fn: () => Promise<unknown>) => {
     setMsg(null)
     try { await fn(); setMsg({ ok: true, text: t('saved') }); reload() }
-    catch (e) { setMsg({ ok: false, text: e instanceof ApiError && e.code === 'invalid_transition' ? t('invalidTransition') : t('failed') }) }
+    catch (e) { setMsg({ ok: false, text: e instanceof ApiError && e.code === 'invalid_transition' ? t('invalidTransition') : e instanceof ApiError && e.code === 'version_conflict' ? t('conflict') : t('failed') }); if (e instanceof ApiError && e.status === 409) reload() }
   }
   const openFile = async (f: FileRow) => {
     try { const b = await api.fileBlob(f.id); setPreview({ url: URL.createObjectURL(b), mime: f.mime, name: f.name }) } catch { setMsg({ ok: false, text: t('failed') }) }
@@ -39,8 +39,8 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
         if (!showNext && mine) return null
         return (
           <div className="quick" role="group" aria-label={t('actions')}>
-            {showNext && <button className="btn primary" onClick={() => act(() => api.setStatus(r.id, next as Status, {}))}>{t('nextStep')}: {STATUS_LABEL[next as Status][lang]}</button>}
-            {!mine && <button className="btn" onClick={() => act(() => api.assign(r.id, me.id))}>{t('assignToMe')}</button>}
+            {showNext && <button className="btn primary" onClick={() => { const ref = next === 'authority' ? window.prompt(t('refNeeded'))?.trim() : undefined; if (next === 'authority' && !ref) return; void act(() => api.setStatus(r.id, next as Status, { reference: ref, expectedVersion: r.version })) }}>{t('nextStep')}: {STATUS_LABEL[next as Status][lang]}</button>}
+            {!mine && <button className="btn" onClick={() => act(() => api.assign(r.id, me.id, r.version))}>{t('assignToMe')}</button>}
           </div>
         )
       })()}
@@ -71,6 +71,15 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
               </div>
             ))}
           </Card>
+          {r.deliveryVersion > 0 && (
+            <Card title={t('delivery2')}>
+              <dl className="kv">
+                <dt>{t('deliveryVer')}</dt><dd>{r.deliveryVersion}</dd>
+                <dt>{t('ackDone')}</dt><dd>{r.acknowledgedVersion >= r.deliveryVersion && r.acknowledgedAt ? <span className="badge b-completed">✓ {fmt(r.acknowledgedAt)}</span> : <span className="badge b-needs_documents">{t('ackWait')}</span>}</dd>
+              </dl>
+            </Card>
+          )}
+          {r.staff.authorityRef && <Card title={t('authorityAt')}><p dir="ltr" style={{ margin: 0, textAlign: lang === 'ar' ? 'right' : 'left' }}><b>{r.staff.authorityRef}</b></p></Card>}
           {d.missing.length > 0 && (
             <Card title={t('missingList')}>
               {d.missing.map((m) => (
@@ -115,6 +124,8 @@ function Actions({ d, me, act }: { d: Detail; me: { id: string }; act: (fn: () =
   const [to, setTo] = useState<Status | ''>('')
   const [note, setNote] = useState('')
   const [expected, setExpected] = useState('')
+  const [reference, setReference] = useState('')
+  const [rejReason, setRejReason] = useState('')
   const [internal, setInternal] = useState('')
   const [rows, setRows] = useState([{ ar: '', en: '', note: '' }])
   const [label, setLabel] = useState('')
@@ -138,9 +149,11 @@ function Actions({ d, me, act }: { d: Detail; me: { id: string }; act: (fn: () =
             <Field label={t('newStatus')}><select value={to} onChange={(e) => setTo(e.target.value as Status)}>
                 <option value="">—</option>{d.transitions.map((s) => <option key={s} value={s}>{STATUS_LABEL[s][lang]}</option>)}
               </select></Field>
+            {to === 'authority' && <Field label={t('authorityRef')}><input dir="ltr" value={reference} onChange={(e) => setReference(e.target.value)} /></Field>}
+            {to === 'rejected' && <Field label={t('rejectReason')}><input value={rejReason} onChange={(e) => setRejReason(e.target.value)} /></Field>}
             <Field label={t('expected')}><input type="date" value={expected} onChange={(e) => setExpected(e.target.value)} /></Field>
             <Field label={t('note')}><textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-            <button className="btn primary" disabled={!to} onClick={() => act(async () => { await api.setStatus(r.id, to as Status, { note: note || undefined, expectedAt: expected || undefined }); setTo(''); setNote('') })}>{t('apply')}</button>
+            <button className="btn primary" disabled={!to || (to === 'authority' && reference.trim().length < 3) || (to === 'rejected' && rejReason.trim().length < 3)} onClick={() => act(async () => { await api.setStatus(r.id, to as Status, { note: note || undefined, expectedAt: expected || undefined, reference: reference.trim() || undefined, reason: rejReason.trim() || undefined, expectedVersion: r.version }); setTo(''); setNote(''); setReference(''); setRejReason('') })}>{t('apply')}</button>
           </>
         )}
       </Card>
@@ -156,7 +169,7 @@ function Actions({ d, me, act }: { d: Detail; me: { id: string }; act: (fn: () =
           <div className="row">
             <button className="btn sm" onClick={() => setRows([...rows, { ar: '', en: '', note: '' }])}>{t('addRow')}</button>
             <button className="btn primary sm" disabled={!rows.every((x) => x.ar.trim() && x.en.trim())}
-              onClick={() => act(async () => { await api.missing(r.id, rows.map((x) => ({ labelAr: x.ar.trim(), labelEn: x.en.trim(), noteAr: x.note.trim(), noteEn: x.note.trim() }))); setRows([{ ar: '', en: '', note: '' }]) })}>{t('send')}</button>
+              onClick={() => act(async () => { await api.missing(r.id, rows.map((x) => ({ labelAr: x.ar.trim(), labelEn: x.en.trim(), noteAr: x.note.trim(), noteEn: x.note.trim() })), r.version); setRows([{ ar: '', en: '', note: '' }]) })}>{t('send')}</button>
           </div>
         </Card>
       )}
@@ -198,7 +211,7 @@ function OverrideCard({ d, act }: { d: Detail; act: (fn: () => Promise<unknown>)
       <Field label={t('customerName')}><input value={name} placeholder={d.customer.name} onChange={(e) => setName(e.target.value)} /></Field>
       <Field label={t('reason')}><textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
       <button className="btn danger" disabled={!changed || reason.trim().length < 3}
-        onClick={() => { if (!window.confirm(t('overrideConfirm'))) return; void act(async () => { await api.override(r.id, { reason: reason.trim(), status: status || undefined, expectedAt: expected || undefined, customerName: name.trim() || undefined }); setStatus(''); setExpected(''); setName(''); setReason('') }) }}>
+        onClick={() => { if (!window.confirm(t('overrideConfirm'))) return; void act(async () => { await api.override(r.id, { reason: reason.trim(), status: status || undefined, expectedAt: expected || undefined, customerName: name.trim() || undefined, expectedVersion: r.version }); setStatus(''); setExpected(''); setName(''); setReason('') }) }}>
         {t('overrideApply')}
       </button>
     </section>

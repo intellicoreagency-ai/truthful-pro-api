@@ -93,7 +93,7 @@ export async function pushRequest(r:ClientRequest,getBytes:(f:ClientFile)=>Promi
   if(r.sample)return r;
   let remoteId=r.remoteId;
   if(!remoteId){
-    const c=await json<{id:string}>(await call('POST','/v1/requests',{body:{serviceId:r.serviceId,data:toServerData(r),renewalOf:r.renewalOf?remoteIdOf(r.renewalOf):undefined}}));
+    const c=await json<{id:string}>(await call('POST','/v1/requests',{body:{serviceId:r.serviceId,data:toServerData(r),renewalOf:r.renewalOf?remoteIdOf(r.renewalOf):undefined,clientKey:r.id}}));
     remoteId=c.id;
   }
   const files:ClientFile[]=[];
@@ -105,6 +105,8 @@ export async function pushRequest(r:ClientRequest,getBytes:(f:ClientFile)=>Promi
   const patch:Record<string,unknown>={data:toServerData(next)};
   if(r.status==='submitted'||r.status==='cancelled')patch.status=r.status; // clients may only submit or cancel
   await call('PATCH',`/v1/requests/${remoteId}`,{body:patch});
+  // The customer confirmed receipt on this device: record it for the delivery they saw (idempotent; a stale version is ignored).
+  if(r.acknowledgedAt&&r.deliveryVersion){try{await call('POST',`/v1/requests/${remoteId}/acknowledgments`,{body:{deliveryVersion:r.deliveryVersion}})}catch(e){if(!(e instanceof ApiError&&e.status===409))throw e}}
   return{...next,syncedAt:new Date().toISOString()};
 }
 

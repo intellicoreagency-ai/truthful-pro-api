@@ -54,7 +54,7 @@ export type FileRow = { id: string; name: string; mime: string; size: number; ki
 export type EventRow = { id: string; actor: string; kind: string; text_ar: string; text_en: string; visible: number; created_at: number }
 export type MissingRow = { id: string; label_ar: string; label_en: string; note_ar: string; note_en: string; replacement_file_id: string | null; resolved_at: number | null }
 export type Detail = {
-  request: { id: string; serviceId: string; status: Status; assigneeId: string | null; createdAt: number; updatedAt: number; data: { title?: Bi; name?: string; phone?: string; fields?: Record<string, string>; termsVersion?: string; termsAcceptedAt?: string }; staff: { expectedAt?: string; completedAt?: string; issue?: string } }
+  request: { id: string; serviceId: string; status: Status; assigneeId: string | null; createdAt: number; updatedAt: number; version: number; deliveryVersion: number; acknowledgedVersion: number; acknowledgedAt: number | null; data: { title?: Bi; name?: string; phone?: string; fields?: Record<string, string>; termsVersion?: string; termsAcceptedAt?: string }; staff: { expectedAt?: string; completedAt?: string; issue?: string; authorityRef?: string; authorityAt?: string } }
   customer: { id: string; name: string; phone: string }; files: FileRow[]; events: EventRow[]; missing: MissingRow[]; transitions: Status[]
 }
 export type TeamRow = { id: string; name: string; role: Role; active: number; created_at: number }
@@ -115,11 +115,11 @@ export const api = {
   overview: async () => j<Overview>(await call('GET', '/staff/v1/overview')),
   customers: async (q: string) => (await j<{ customers: CustomerRow[] }>(await call('GET', '/staff/v1/customers?q=' + encodeURIComponent(q)))).customers,
   customer: async (id: string) => j<CustomerDetail>(await call('GET', `/staff/v1/customers/${id}`)),
-  override: (id: string, body: { reason: string; status?: Status; expectedAt?: string; customerName?: string }) => call('POST', `/staff/v1/requests/${id}/override`, { body }),
+  override: (id: string, body: { reason: string; status?: Status; expectedAt?: string; customerName?: string; expectedVersion?: number }) => call('POST', `/staff/v1/requests/${id}/override`, { body }),
   request: async (id: string) => j<Detail>(await call('GET', `/staff/v1/requests/${id}`)),
-  assign: (id: string, staffId: string | null) => call('POST', `/staff/v1/requests/${id}/assign`, { body: { staffId } }),
-  setStatus: (id: string, status: Status, extra: { note?: string; expectedAt?: string; reason?: string }) => call('POST', `/staff/v1/requests/${id}/status`, { body: { status, ...extra } }),
-  missing: (id: string, items: { labelAr: string; labelEn: string; noteAr?: string; noteEn?: string }[]) => call('POST', `/staff/v1/requests/${id}/missing`, { body: { items } }),
+  assign: (id: string, staffId: string | null, expectedVersion?: number) => call('POST', `/staff/v1/requests/${id}/assign`, { body: { staffId, expectedVersion } }),
+  setStatus: (id: string, status: Status, extra: { note?: string; expectedAt?: string; reason?: string; reference?: string; expectedVersion?: number }) => call('POST', `/staff/v1/requests/${id}/status`, { body: { status, ...extra } }),
+  missing: (id: string, items: { labelAr: string; labelEn: string; noteAr?: string; noteEn?: string }[], expectedVersion?: number) => call('POST', `/staff/v1/requests/${id}/missing`, { body: { items, expectedVersion } }),
   note: (id: string, text: string) => call('POST', `/staff/v1/requests/${id}/notes`, { body: { text } }),
   upload: (id: string, file: File, kind: 'final' | 'invoice', label: string) =>
     call('PUT', `/staff/v1/requests/${id}/files?kind=${kind}`, { raw: file, headers: { 'x-file-name': encodeURIComponent(file.name), 'x-file-label': encodeURIComponent(label) } }),

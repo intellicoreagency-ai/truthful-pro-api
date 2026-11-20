@@ -256,7 +256,7 @@ authed.delete('/me', async (c) => {
 
 // ---------- Requests ----------
 authed.get('/requests', async (c) => {
-  const r = await c.env.DB.prepare('SELECT id,service_id,status,data,staff_data,renewal_of,created_at,updated_at FROM requests WHERE user_id=? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 200').bind(c.get('userId')).all()
+  const r = await c.env.DB.prepare('SELECT id,service_id,status,data,staff_data,renewal_of,created_at,updated_at,version,delivery_version,(SELECT MAX(delivery_version) FROM receipt_acks a WHERE a.request_id=requests.id) acknowledged_version,(SELECT MAX(acknowledged_at) FROM receipt_acks a WHERE a.request_id=requests.id) acknowledged_at FROM requests WHERE user_id=? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 200').bind(c.get('userId')).all()
   return c.json({ requests: r.results })
 })
 authed.post('/requests', async (c) => {
@@ -265,13 +265,31 @@ authed.post('/requests', async (c) => {
   const data = b?.data && typeof b.data === 'object' ? JSON.stringify(b.data) : '{}'
   if (data.length > 16 * 1024) return c.json({ error: 'too_large' }, 413)
   const renewalOf = typeof b?.renewalOf === 'string' && isUuid(b.renewalOf) ? b.renewalOf : null
+  const uid = c.get('userId')
   if (renewalOf) {
-    const own = await c.env.DB.prepare('SELECT 1 x FROM requests WHERE id=? AND user_id=?').bind(renewalOf, c.get('userId')).first()
+    const own = await c.env.DB.prepare('SELECT 1 x FROM requests WHERE id=? AND user_id=?').bind(renewalOf, uid).first()
     if (!own) return c.json({ error: 'invalid_request' }, 400)
+    // One active renewal per source request: asking again returns the existing one.
+    const active = await c.env.DB.prepare("SELECT id FROM requests WHERE user_id=? AND renewal_of=? AND deleted_at IS NULL AND status NOT IN ('completed','cancelled','rejected') LIMIT 1").bind(uid, renewalOf).first<{ id: string }>()
+    if (active) return c.json({ id: active.id, existing: true }, 200)
+  }
+  // Idempotent create: the same key replays the same request; the same key with different content is refused.
+  const keyRaw = c.req.header('idempotency-key') ?? (typeof b?.clientKey === 'string' ? b.clientKey : '')
+  const key = /^[A-Za-z0-9._:-]{8,80}$/.test(keyRaw) ? keyRaw : null
+  const hash = await sha256Hex(`${b.serviceId}|${renewalOf ?? ''}`)
+  if (key) {
+    const prev = await c.env.DB.prepare('SELECT id,client_hash FROM requests WHERE user_id=? AND client_key=?').bind(uid, key).first<{ id: string; client_hash: string | null }>()
+    if (prev) return prev.client_hash === hash ? c.json({ id: prev.id, replay: true }, 200) : c.json({ error: 'idempotency_conflict' }, 422)
   }
   const id = newId(), now = Date.now()
-  await c.env.DB.prepare('INSERT INTO requests (id,user_id,service_id,status,data,renewal_of,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)')
-    .bind(id, c.get('userId'), b.serviceId, 'draft', data, renewalOf, now, now).run()
+  try {
+    await c.env.DB.prepare('INSERT INTO requests (id,user_id,service_id,status,data,renewal_of,created_at,updated_at,client_key,client_hash) VALUES (?,?,?,?,?,?,?,?,?,?)')
+      .bind(id, uid, b.serviceId, 'draft', data, renewalOf, now, now, key, hash).run()
+  } catch (e) { // lost a race with the same key: return the winner
+    const prev = key ? await c.env.DB.prepare('SELECT id FROM requests WHERE user_id=? AND client_key=?').bind(uid, key).first<{ id: string }>() : null
+    if (prev) return c.json({ id: prev.id, replay: true }, 200)
+    throw e
+  }
   return c.json({ id }, 201)
 })
 
@@ -281,7 +299,7 @@ const ownRequest = (c: C, id: string) =>
 authed.get('/requests/:id', async (c) => {
   const id = c.req.param('id')
   if (!isUuid(id)) return c.json({ error: 'not_found' }, 404)
-  const r = await c.env.DB.prepare('SELECT id,service_id,status,data,staff_data,renewal_of,created_at,updated_at FROM requests WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(id, c.get('userId')).first()
+  const r = await c.env.DB.prepare('SELECT id,service_id,status,data,staff_data,renewal_of,created_at,updated_at,version,delivery_version,(SELECT MAX(delivery_version) FROM receipt_acks a WHERE a.request_id=requests.id) acknowledged_version,(SELECT MAX(acknowledged_at) FROM receipt_acks a WHERE a.request_id=requests.id) acknowledged_at FROM requests WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(id, c.get('userId')).first()
   if (!r) return c.json({ error: 'not_found' }, 404)
   const files = await c.env.DB.prepare('SELECT id,name,mime,size,kind,label,created_at FROM request_files WHERE request_id=? AND deleted_at IS NULL').bind(id).all()
   // Customers only ever see events marked visible; internal notes never leave the staff API.
@@ -299,7 +317,7 @@ authed.patch('/requests/:id', async (c) => {
   const status = b?.status === 'submitted' || b?.status === 'cancelled' ? b.status : null
   if (b?.status !== undefined && !status) return c.json({ error: 'invalid_status' }, 400)
   const before = await ownRequest(c, id)
-  await c.env.DB.prepare('UPDATE requests SET data=COALESCE(?,data), status=COALESCE(?,status), updated_at=? WHERE id=? AND user_id=?').bind(data, status, Date.now(), id, c.get('userId')).run()
+  await c.env.DB.prepare('UPDATE requests SET data=COALESCE(?,data), status=COALESCE(?,status), version=version+1, updated_at=? WHERE id=? AND user_id=?').bind(data, status, Date.now(), id, c.get('userId')).run()
   if (status && before?.status !== status) {
     const [ar, en] = status === 'submitted' ? ['تم إرسال الطلب', 'Request submitted'] : ['أُلغي الطلب', 'Request cancelled']
     await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, ar, en, Date.now()).run()
@@ -318,6 +336,25 @@ authed.delete('/requests/:id', async (c) => {
     c.env.DB.prepare("UPDATE requests SET deleted_at=?, data='{}' WHERE id=?").bind(Date.now(), id),
   ])
   return c.json({ ok: true })
+})
+
+// Receipt acknowledgement: a recorded command for one delivery version. Viewing or downloading never acknowledges.
+authed.post('/requests/:id/acknowledgments', async (c) => {
+  const id = c.req.param('id'), uid = c.get('userId')
+  if (!isUuid(id)) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const r = await c.env.DB.prepare('SELECT status,delivery_version FROM requests WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(id, uid).first<{ status: string; delivery_version: number }>()
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  if (r.status !== 'completed' || r.delivery_version < 1) return c.json({ error: 'nothing_to_acknowledge' }, 409)
+  if (b?.deliveryVersion !== r.delivery_version) return c.json({ error: 'stale_delivery', current: r.delivery_version }, 409) // a newer delivery needs its own confirmation
+  const now = Date.now()
+  const ins = await c.env.DB.prepare('INSERT OR IGNORE INTO receipt_acks (id,request_id,user_id,delivery_version,acknowledged_at) VALUES (?,?,?,?,?)').bind(newId(), id, uid, r.delivery_version, now).run()
+  const row = await c.env.DB.prepare('SELECT acknowledged_at FROM receipt_acks WHERE request_id=? AND delivery_version=?').bind(id, r.delivery_version).first<{ acknowledged_at: number }>()
+  if (ins.meta.changes) {
+    await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, 'أكد العميل استلام الملفات', 'Customer confirmed receipt of the files', now).run()
+    await audit(c, 'delivery.ack', uid, { requestId: id, version: r.delivery_version })
+  }
+  return c.json({ ok: true, deliveryVersion: r.delivery_version, acknowledgedAt: row?.acknowledged_at ?? now, duplicate: !ins.meta.changes })
 })
 
 // ---------- Files (encrypted before they reach storage) ----------
@@ -345,7 +382,7 @@ authed.put('/requests/:id/files', async (c) => {
       const cur = await ownRequest(c, id)
       if ((left?.n ?? 0) === 0 && cur?.status === 'needs_documents') { // all supplied: back to staff review
         await c.env.DB.batch([
-          c.env.DB.prepare("UPDATE requests SET status='review', updated_at=? WHERE id=?").bind(Date.now(), id),
+          c.env.DB.prepare("UPDATE requests SET status='review', version=version+1, updated_at=? WHERE id=?").bind(Date.now(), id),
           c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, 'أرسل العميل المستندات المطلوبة', 'Customer sent the requested documents', Date.now()),
         ])
       }

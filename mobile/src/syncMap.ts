@@ -1,7 +1,7 @@
 // Pure mapping between what the server stores and what the app shows. No React Native imports, so it can be tested in Node.
 import type {ClientFile,ClientRequest,MissingDocument,Status} from './clientModel';
 
-export type ServerRow={id:string;service_id:string;status:Status;data:string;staff_data?:string;renewal_of:string|null;created_at:number;updated_at:number};
+export type ServerRow={id:string;service_id:string;status:Status;data:string;staff_data?:string;renewal_of:string|null;created_at:number;updated_at:number;delivery_version?:number;acknowledged_version?:number|null;acknowledged_at?:number|null};
 export type ServerFile={id:string;name:string;mime:string;size:number;kind?:'source'|'final'|'invoice';label?:string|null;created_at:number};
 export type ServerEvent={id:string;text_ar:string;text_en:string;created_at:number};
 export type ServerMissing={id:string;label_ar:string;label_en:string;note_ar:string;note_en:string;replacement_file_id:string|null;resolved_at:number|null};
@@ -52,5 +52,9 @@ export function toClientRequest(row:ServerRow,det:ServerDetail,local?:ClientRequ
   if(completedAt)out.completedAt=completedAt;else delete out.completedAt;
   if(row.status==='completed'&&finals.length)out.deliveredAt=completedAt;else delete out.deliveredAt;
   if(sd.issue)out.issue=sd.issue;else delete out.issue;
+  // Receipt confirmation belongs to one delivery version: a newer delivery needs a new confirmation.
+  const dv=row.delivery_version??0;
+  if(dv>0)out.deliveryVersion=dv;else delete out.deliveryVersion;
+  if(dv>0&&(row.acknowledged_version??0)>=dv&&row.acknowledged_at)out.acknowledgedAt=iso(row.acknowledged_at);else delete out.acknowledgedAt;
   return out;
 }

@@ -707,3 +707,120 @@ describe('staff WhatsApp login code (authentication template)', () => {
     expect(r.status).toBe(401)
   })
 })
+
+describe('workflow spec: idempotency, versions, authority evidence, acknowledgements', () => {
+  const OWNER = '+971521190001'
+  const wenv = () => ({ ...env, OWNER_PHONE: OWNER, OWNER_SETUP_KEY: 'owner-setup-key-0123456789', WA_BUSINESS_NUMBER: '971500000000', WA_APP_SECRET: 'w-secret' } as Env)
+  let k = 0
+  const hit = (method: string, path: string, body?: unknown, token?: string, headers: Record<string, string> = {}, raw?: Uint8Array) => {
+    const h: Record<string, string> = { 'cf-connecting-ip': `10.8.${Math.floor(++k / 250)}.${k % 250}`, ...headers }
+    if (body !== undefined) h['content-type'] = 'application/json'
+    if (token) h.authorization = `Bearer ${token}`
+    return app.fetch(new Request('https://api.test' + path, { method, headers: h, body: raw ? (raw as BodyInit) : body === undefined ? undefined : JSON.stringify(body) }), wenv())
+  }
+  const login = async (phone: string) => {
+    const st = await (await hit('POST', '/v1/auth/wa/start', { phone })).json() as { challengeId: string; pollToken: string; code: string }
+    const raw = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ from: phone.replace('+', ''), type: 'text', text: { body: st.code } }] } }] }] })
+    const kx = await crypto.subtle.importKey('raw', new TextEncoder().encode('w-secret'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+    const sig = 'sha256=' + Buffer.from(await crypto.subtle.sign('HMAC', kx, new TextEncoder().encode(raw))).toString('hex')
+    await app.fetch(new Request('https://api.test/webhooks/whatsapp', { method: 'POST', headers: { 'x-hub-signature-256': sig, 'content-type': 'application/json', 'cf-connecting-ip': '10.8.99.99' }, body: raw }), wenv())
+    return ((await (await hit('POST', '/v1/auth/wa/poll', { phone, challengeId: st.challengeId, pollToken: st.pollToken })).json()) as { accessToken: string }).accessToken
+  }
+  let owner = '', cust = ''
+  const submit = async (token = cust) => {
+    const id = ((await (await hit('POST', '/v1/requests', { serviceId: 'emirates-id', data: { name: 'Z', title: { ar: 'ت', en: 'T' } } }, token)).json()) as { id: string }).id
+    await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, token)
+    return id
+  }
+  const detail = async (id: string) => (await (await hit('GET', `/staff/v1/requests/${id}`, undefined, owner)).json()) as { request: { version: number; deliveryVersion: number; acknowledgedVersion: number; staff: { authorityRef?: string } } }
+
+  it('sets up', async () => {
+    const { hotp } = await import('../src/totp')
+    await env.DB.prepare('DELETE FROM staff_sessions').run(); await env.DB.prepare('DELETE FROM staff_passkeys').run(); await env.DB.prepare('DELETE FROM staff').run()
+    const s = await (await hit('POST', '/staff/v1/auth/setup/start', { phone: OWNER, setupKey: 'owner-setup-key-0123456789' })).json() as { secret: string }
+    owner = ((await (await hit('POST', '/staff/v1/auth/setup/confirm', { phone: OWNER, code: await hotp(s.secret, Math.floor(Date.now() / 30000)) })).json()) as { accessToken: string }).accessToken
+    cust = await login('+971521190010')
+  })
+  it('creating a request twice with the same key gives one request; a different body with that key is refused', async () => {
+    const key = 'idem-key-0001'
+    const a = await hit('POST', '/v1/requests', { serviceId: 'emirates-id' }, cust, { 'idempotency-key': key })
+    const b = await hit('POST', '/v1/requests', { serviceId: 'emirates-id' }, cust, { 'idempotency-key': key })
+    expect(a.status).toBe(201); expect(b.status).toBe(200)
+    const ja = await a.json() as { id: string }, jb = await b.json() as { id: string; replay: boolean }
+    expect(jb.id).toBe(ja.id); expect(jb.replay).toBe(true)
+    expect((await hit('POST', '/v1/requests', { serviceId: 'trade-licenses' }, cust, { 'idempotency-key': key })).status).toBe(422)
+    const n = await env.DB.prepare("SELECT COUNT(*) n FROM requests WHERE client_key=?").bind(key).first<{ n: number }>()
+    expect(n!.n).toBe(1)
+    const other = await login('+971521190011') // another customer may use the same key independently
+    expect((await hit('POST', '/v1/requests', { serviceId: 'emirates-id' }, other, { 'idempotency-key': key })).status).toBe(201)
+    const body = await hit('POST', '/v1/requests', { serviceId: 'emirates-id', clientKey: 'body-key-0002' }, cust)
+    const body2 = await hit('POST', '/v1/requests', { serviceId: 'emirates-id', clientKey: 'body-key-0002' }, cust)
+    expect((await body.json() as { id: string }).id).toBe((await body2.json() as { id: string }).id)
+  })
+  it('does not create a second active renewal of the same request', async () => {
+    const src = await submit()
+    const r1 = await (await hit('POST', '/v1/requests', { serviceId: 'emirates-id', renewalOf: src }, cust)).json() as { id: string }
+    const r2 = await hit('POST', '/v1/requests', { serviceId: 'emirates-id', renewalOf: src }, cust)
+    expect(r2.status).toBe(200); const j2 = await r2.json() as { id: string; existing: boolean }
+    expect(j2.id).toBe(r1.id); expect(j2.existing).toBe(true)
+  })
+  it('rejects a stale expectedVersion instead of overwriting, and customers bump the version too', async () => {
+    const id = await submit()
+    const v0 = (await detail(id)).request.version
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'review', expectedVersion: v0 }, owner)).status).toBe(200)
+    const stale = await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'needs_documents', expectedVersion: v0 }, owner)
+    expect(stale.status).toBe(409); expect((await stale.json() as { error: string }).error).toBe('version_conflict')
+    expect((await hit('POST', `/staff/v1/requests/${id}/assign`, { staffId: null, expectedVersion: v0 }, owner)).status).toBe(409)
+    expect((await hit('POST', `/staff/v1/requests/${id}/override`, { status: 'completed', reason: 'because', expectedVersion: v0 }, owner)).status).toBe(409)
+    const v1 = (await detail(id)).request.version
+    expect(v1).toBeGreaterThan(v0)
+    // a customer action (cancel) while staff holds v1 makes v1 stale
+    await hit('PATCH', `/v1/requests/${id}`, { status: 'cancelled' }, cust)
+    expect((await hit('POST', `/staff/v1/requests/${id}/notes`, { text: 'still allowed' }, owner)).status).toBe(200) // internal notes never conflict
+  })
+  it('will not move to "with authority" without a submission reference, nor reject without a reason', async () => {
+    const id = await submit()
+    await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'review' }, owner)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'x' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'AUTH-2026-00123' }, owner)).status).toBe(200)
+    expect((await detail(id)).request.staff.authorityRef).toBe('AUTH-2026-00123')
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'rejected' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'decision' }, owner)).status).toBe(200)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'rejected', reason: 'Expired passport' }, owner)).status).toBe(200)
+    const d = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { request: { status: string; staff_data: string } }
+    expect(d.request.status).toBe('rejected'); expect(JSON.parse(d.request.staff_data).issue).toBe('Expired passport')
+  })
+  it('records receipt acknowledgement once per delivery version; viewing never acknowledges', async () => {
+    const id = await submit()
+    const ack = (v: number) => hit('POST', `/v1/requests/${id}/acknowledgments`, { deliveryVersion: v }, cust)
+    expect((await ack(1)).status).toBe(409) // not completed
+    for (const s of ['review']) await hit('POST', `/staff/v1/requests/${id}/status`, { status: s }, owner)
+    await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'REF-123' }, owner)
+    await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'decision' }, owner)
+    await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'completed' }, owner)
+    expect((await ack(1)).status).toBe(409) // completed but nothing delivered
+    const up = await hit('PUT', `/staff/v1/requests/${id}/files?kind=final`, undefined, owner, { 'x-file-name': 'a.pdf' }, pdf())
+    expect(up.status).toBe(201)
+    const f = await up.json() as { id: string }
+    await hit('GET', `/v1/files/${f.id}`, undefined, cust) // customer downloads
+    expect((await detail(id)).request.acknowledgedVersion).toBe(0) // ...which is not an acknowledgement
+    expect((await ack(2)).status).toBe(409) // wrong/stale version
+    const a1 = await ack(1); const j1 = await a1.json() as { duplicate: boolean; acknowledgedAt: number }
+    expect(a1.status).toBe(200); expect(j1.duplicate).toBe(false)
+    const a2 = await ack(1); const j2 = await a2.json() as { duplicate: boolean; acknowledgedAt: number }
+    expect(j2.duplicate).toBe(true); expect(j2.acknowledgedAt).toBe(j1.acknowledgedAt)
+    expect((await env.DB.prepare('SELECT COUNT(*) n FROM receipt_acks WHERE request_id=?').bind(id).first<{ n: number }>())!.n).toBe(1)
+    // a replacement delivery needs its own confirmation; the old one is not carried over
+    await hit('PUT', `/staff/v1/requests/${id}/files?kind=final`, undefined, owner, { 'x-file-name': 'b.pdf' }, pdf())
+    let det = await detail(id); expect(det.request.deliveryVersion).toBe(2); expect(det.request.acknowledgedVersion).toBe(1)
+    expect((await ack(1)).status).toBe(409)
+    expect((await ack(2)).status).toBe(200)
+    det = await detail(id); expect(det.request.acknowledgedVersion).toBe(2)
+    const cd = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { request: { delivery_version: number; acknowledged_version: number } }
+    expect(cd.request.delivery_version).toBe(2); expect(cd.request.acknowledged_version).toBe(2)
+    // another customer cannot acknowledge it
+    const other = await login('+971521190012')
+    expect((await hit('POST', `/v1/requests/${id}/acknowledgments`, { deliveryVersion: 2 }, other)).status).toBe(404)
+  })
+})
