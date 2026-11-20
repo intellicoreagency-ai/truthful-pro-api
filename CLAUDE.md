@@ -1,0 +1,1 @@
+This project is built using Expo (React Native) and TypeScript. It is a mobile app for iOS and Android. NEVER generate HTML, CSS, or web-based code. Always use React Native components (View, Text, etc.) and StyleSheet or NativeWind for styling. Follow the Apple design guidelines from .claude/skills/apple-design/SKILL.md.
