@@ -4,6 +4,7 @@ import type { Env, Vars } from './types'
 import { hmacHex, newId, open, openText, randomToken, seal, sealText, sha256Hex, timingSafeEqual } from './crypto'
 import { MAX_FILE_BYTES, isUuid, normalizePhone, safeFileName, sniffFile } from './validate'
 import { allow, audit, clientIp, jsonBody, type C } from './security'
+import { newSecret, otpauthUri, verifyTotp } from './totp'
 
 type Role = Vars['staffRole']
 const ACCESS_TTL = 15 * 60 * 1000
@@ -71,11 +72,84 @@ staff.post('/auth/wa/poll', async (c) => {
     }
   }
   if (!member || !member.active) { await audit(c, 'staff.denied', null); return c.json({ status: 'not_staff' }, 403) }
+  return openSession(c, member.id, member.role)
+})
+
+async function openSession(c: C, staffId: string, role: Role) {
   const access = randomToken(32), refresh = randomToken(32), now = Date.now()
   await c.env.DB.prepare('INSERT INTO staff_sessions (id,staff_id,access_hash,refresh_hash,access_expires_at,refresh_expires_at,created_at) VALUES (?,?,?,?,?,?,?)')
-    .bind(newId(), member.id, await sha256Hex(access), await sha256Hex(refresh), now + ACCESS_TTL, now + REFRESH_TTL, now).run()
-  await audit(c, 'staff.login', null, { staffId: member.id })
-  return c.json({ status: 'verified', accessToken: access, refreshToken: refresh, expiresIn: ACCESS_TTL / 1000, role: member.role })
+    .bind(newId(), staffId, await sha256Hex(access), await sha256Hex(refresh), now + ACCESS_TTL, now + REFRESH_TTL, now).run()
+  await audit(c, 'staff.login', null, { staffId })
+  return c.json({ status: 'verified', accessToken: access, refreshToken: refresh, expiresIn: ACCESS_TTL / 1000, role })
+}
+
+// ---------- authenticator-app sign-in (free, no WhatsApp/SMS needed) ----------
+const ENROLL_TTL = 24 * 3600 * 1000
+const tooMany = async (c: C, phoneHash: string, tag: string) =>
+  !(await allow(c.env, `${tag}:p:${phoneHash}`, 8, 900)) || !(await allow(c.env, `${tag}:i:${clientIp(c)}`, 30, 900))
+
+/** Step 1 of enrolment: prove you hold the one-time setup key, receive the authenticator secret (shown once). */
+staff.post('/auth/setup/start', async (c) => {
+  const b = await jsonBody(c)
+  const phone = normalizePhone(b?.phone), key = typeof b?.setupKey === 'string' ? b.setupKey : ''
+  if (!phone || key.length < 12) return c.json({ error: 'invalid_request' }, 400)
+  const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
+  if (await tooMany(c, phoneHash, 'tsetup')) return c.json({ error: 'too_many_requests' }, 429)
+  let m = await c.env.DB.prepare('SELECT id,role,active,totp_enabled,enroll_hash,enroll_expires FROM staff WHERE phone_hash=?').bind(phoneHash)
+    .first<{ id: string; role: Role; active: number; totp_enabled: number; enroll_hash: string | null; enroll_expires: number | null }>()
+  let ok = false
+  if (!m) { // first-ever owner: configured number + setup key, and only while no staff exists
+    const any = await c.env.DB.prepare('SELECT 1 x FROM staff LIMIT 1').first()
+    ok = !any && !!c.env.OWNER_PHONE && phone === c.env.OWNER_PHONE && !!c.env.OWNER_SETUP_KEY && timingSafeEqual(key, c.env.OWNER_SETUP_KEY)
+    if (ok) {
+      const sid = newId()
+      await c.env.DB.prepare("INSERT INTO staff (id,phone_hash,phone_enc,name,role,created_at) VALUES (?,?,?,?,'owner',?)")
+        .bind(sid, phoneHash, await sealText(c.env.DATA_KEY, 'staff-phone', phone), 'Owner', Date.now()).run()
+      m = { id: sid, role: 'owner', active: 1, totp_enabled: 0, enroll_hash: null, enroll_expires: null }
+    }
+  } else if (m.active && !m.totp_enabled) { // a member added by the owner, holding their one-time enrolment key
+    ok = !!m.enroll_hash && (m.enroll_expires ?? 0) > Date.now() && timingSafeEqual(await sha256Hex(key), m.enroll_hash)
+    if (!ok && m.role === 'owner' && c.env.OWNER_SETUP_KEY && timingSafeEqual(key, c.env.OWNER_SETUP_KEY)) ok = true // owner re-trying before finishing
+  }
+  if (!ok || !m) { await audit(c, 'staff.setup_denied', null); return c.json({ error: 'invalid_setup' }, 403) } // same answer for every failure
+  const secret = newSecret()
+  await c.env.DB.prepare('UPDATE staff SET totp_secret_enc=?, totp_last_step=0 WHERE id=?').bind(await sealText(c.env.DATA_KEY, 'staff-totp', secret), m.id).run()
+  await audit(c, 'staff.setup_start', null, { staffId: m.id })
+  return c.json({ secret, uri: otpauthUri(secret, phone) })
+})
+
+/** Step 2: enter the first code from the app. Enables authenticator sign-in, burns the setup key and opens a session. */
+staff.post('/auth/setup/confirm', async (c) => {
+  const b = await jsonBody(c)
+  const phone = normalizePhone(b?.phone), code = typeof b?.code === 'string' ? b.code.trim() : ''
+  if (!phone) return c.json({ error: 'invalid_request' }, 400)
+  const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
+  if (await tooMany(c, phoneHash, 'tconf')) return c.json({ error: 'too_many_requests' }, 429)
+  const m = await c.env.DB.prepare('SELECT id,role,active,totp_enabled,totp_secret_enc FROM staff WHERE phone_hash=?').bind(phoneHash)
+    .first<{ id: string; role: Role; active: number; totp_enabled: number; totp_secret_enc: string | null }>()
+  if (!m || !m.active || m.totp_enabled || !m.totp_secret_enc) return c.json({ error: 'invalid_code' }, 401)
+  const step = await verifyTotp(await openText(c.env.DATA_KEY, 'staff-totp', m.totp_secret_enc), code)
+  if (step === null) { await audit(c, 'staff.totp_fail', null); return c.json({ error: 'invalid_code' }, 401) }
+  const r = await c.env.DB.prepare('UPDATE staff SET totp_enabled=1, totp_last_step=?, enroll_hash=NULL, enroll_expires=NULL WHERE id=? AND totp_enabled=0').bind(step, m.id).run()
+  if (!r.meta.changes) return c.json({ error: 'invalid_code' }, 401)
+  return openSession(c, m.id, m.role)
+})
+
+staff.post('/auth/totp', async (c) => {
+  const b = await jsonBody(c)
+  const phone = normalizePhone(b?.phone), code = typeof b?.code === 'string' ? b.code.trim() : ''
+  if (!phone || !/^\d{6}$/.test(code)) return c.json({ error: 'invalid_code' }, 401)
+  const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
+  if (await tooMany(c, phoneHash, 'totp')) return c.json({ error: 'too_many_requests' }, 429)
+  const m = await c.env.DB.prepare('SELECT id,role,active,totp_enabled,totp_secret_enc,totp_last_step FROM staff WHERE phone_hash=?').bind(phoneHash)
+    .first<{ id: string; role: Role; active: number; totp_enabled: number; totp_secret_enc: string | null; totp_last_step: number }>()
+  // Unknown number, disabled member and wrong code all look identical.
+  const secret = m?.active && m.totp_enabled && m.totp_secret_enc ? await openText(c.env.DATA_KEY, 'staff-totp', m.totp_secret_enc) : null
+  const step = secret ? await verifyTotp(secret, code) : await verifyTotp('JBSWY3DPEHPK3PXP', code)
+  if (!m || !secret || step === null || step <= m.totp_last_step) { await audit(c, 'staff.totp_fail', null); return c.json({ error: 'invalid_code' }, 401) }
+  const r = await c.env.DB.prepare('UPDATE staff SET totp_last_step=? WHERE id=? AND totp_last_step<?').bind(step, m.id, step).run() // a code works once
+  if (!r.meta.changes) return c.json({ error: 'invalid_code' }, 401)
+  return openSession(c, m.id, m.role)
 })
 
 staff.post('/auth/refresh', async (c) => {
@@ -137,8 +211,10 @@ guarded.post('/team', roles('owner'), async (c) => {
   const id = newId()
   await c.env.DB.prepare('INSERT INTO staff (id,phone_hash,phone_enc,name,role,created_at) VALUES (?,?,?,?,?,?)')
     .bind(id, phoneHash, await sealText(c.env.DATA_KEY, 'staff-phone', phone), name, b?.role, Date.now()).run()
+  const enrollKey = randomToken(18)
+  await c.env.DB.prepare('UPDATE staff SET enroll_hash=?, enroll_expires=? WHERE id=?').bind(await sha256Hex(enrollKey), Date.now() + ENROLL_TTL, id).run()
   await audit(c, 'staff.add', null, { staffId: id, by: c.get('staffId') })
-  return c.json({ id }, 201)
+  return c.json({ id, enrollKey, enrollExpiresInHours: 24 }, 201) // shown once; give it to the new member privately
 })
 guarded.patch('/team/:id', roles('owner'), async (c) => {
   const id = c.req.param('id')

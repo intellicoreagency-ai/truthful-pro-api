@@ -6,7 +6,7 @@ transactions, and follows customers up. It sits on the same API/database as the 
 ## Decisions (my calls; change any of them)
 - **Form:** a responsive web app (Arabic RTL + English), installable on phones/desktop. Staff work on desktops and phones; one codebase, no store review.
 - **Stack:** React + TypeScript + Vite, served by the same Cloudflare Worker (static assets) with the API under `/staff/v1`. No new vendor.
-- **Staff sign-in:** same free WhatsApp verification as customers, but only for numbers an owner has added as staff. Roles:
+- **Staff sign-in:** authenticator app (TOTP: free, no WhatsApp/SMS, SIM-swap proof), only for numbers an owner has added; WhatsApp stays as an optional second method. Customers use WhatsApp. Roles:
   `owner` (everything), `manager` (operations, customers, sales, reports), `agent` (assigned requests), `accountant` (finance and invoices).
 - **Privacy:** staff see only what their role needs; every view/download of a customer document is written to the audit log.
 
@@ -32,6 +32,6 @@ transactions, and follows customers up. It sits on the same API/database as the 
 
 ## Not decided yet / needs the owner
 - Fee schedule for quotes/invoices.
-- The owner's own mobile number (becomes `OWNER_PHONE`, the only way the first owner account is created).
+- Provided (20 Nov 2026): the owner's mobile has calls/SMS only, no WhatsApp, hence authenticator-app sign-in. It is deployed as a secret, not stored in the repo.
 - Payment provider (if online payment is wanted).
 - OCR provider and where documents may be processed.

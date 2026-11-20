@@ -410,3 +410,106 @@ describe('staff operations hub', () => {
     expect((await hit('GET', '/staff/v1/me', { token: accountant })).status).toBe(401)
   })
 })
+
+describe('authenticator-app sign-in for staff (no WhatsApp needed)', () => {
+  const OWNER = '+971521150001', KEY = 'owner-setup-key-0123456789'
+  const tenv = () => ({ ...env, OWNER_PHONE: OWNER, OWNER_SETUP_KEY: KEY } as Env)
+  let n = 0
+  const hit = (method: string, path: string, body?: unknown, token?: string, e: Env = tenv()) => {
+    const headers: Record<string, string> = { 'cf-connecting-ip': `10.4.${Math.floor(++n / 250)}.${n % 250}` }
+    if (body !== undefined) headers['content-type'] = 'application/json'
+    if (token) headers.authorization = `Bearer ${token}`
+    return app.fetch(new Request('https://api.test' + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }), e)
+  }
+  const step = () => Math.floor(Date.now() / 1000 / 30)
+  let secret = '', ownerToken = ''
+
+  beforeAll(async () => { await env.DB.prepare('DELETE FROM staff_sessions').run(); await env.DB.prepare('DELETE FROM staff').run() })
+
+  it('refuses setup without the right key or number', async () => {
+    expect((await hit('POST', '/staff/v1/auth/setup/start', { phone: OWNER, setupKey: 'wrong-key-wrong-key' })).status).toBe(403)
+    expect((await hit('POST', '/staff/v1/auth/setup/start', { phone: '+971521159999', setupKey: KEY })).status).toBe(403)
+    expect((await hit('POST', '/staff/v1/auth/setup/start', { phone: OWNER, setupKey: 'short' })).status).toBe(400)
+    expect((await hit('POST', '/staff/v1/auth/setup/start', { phone: OWNER, setupKey: KEY }, undefined, { ...tenv(), OWNER_SETUP_KEY: undefined } as Env)).status).toBe(403)
+  })
+  it('enrols the owner: secret shown, first code confirms and signs in', async () => {
+    const s = await hit('POST', '/staff/v1/auth/setup/start', { phone: OWNER, setupKey: KEY })
+    expect(s.status).toBe(200)
+    const j = await s.json() as { secret: string; uri: string }
+    secret = j.secret
+    expect(j.uri).toMatch(/^otpauth:\/\/totp\/.+secret=[A-Z2-7]+/)
+    const { hotp } = await import('../src/totp')
+    expect((await hit('POST', '/staff/v1/auth/setup/confirm', { phone: OWNER, code: '000000' })).status).toBe(401)
+    const ok = await hit('POST', '/staff/v1/auth/setup/confirm', { phone: OWNER, code: await hotp(secret, step()) })
+    expect(ok.status).toBe(200)
+    const sess = await ok.json() as { accessToken: string; role: string }
+    expect(sess.role).toBe('owner'); ownerToken = sess.accessToken
+    expect((await hit('GET', '/staff/v1/me', undefined, ownerToken)).status).toBe(200)
+  })
+  it('cannot be re-enrolled once enabled, even with the setup key', async () => {
+    expect((await hit('POST', '/staff/v1/auth/setup/start', { phone: OWNER, setupKey: KEY })).status).toBe(403)
+  })
+  it('logs in with a code, rejects replays, accepts the next step', async () => {
+    const { hotp } = await import('../src/totp')
+    // the setup confirmation already used step(); that same code must not work again
+    expect((await hit('POST', '/staff/v1/auth/totp', { phone: OWNER, code: await hotp(secret, step()) })).status).toBe(401)
+    const next = await hit('POST', '/staff/v1/auth/totp', { phone: OWNER, code: await hotp(secret, step() + 1) })
+    expect(next.status).toBe(200)
+    expect((await hit('POST', '/staff/v1/auth/totp', { phone: OWNER, code: await hotp(secret, step() + 1) })).status).toBe(401) // replay
+    expect((await hit('POST', '/staff/v1/auth/totp', { phone: OWNER, code: await hotp(secret, step() - 1) })).status).toBe(401) // older than last used
+  })
+  it('answers identically for unknown numbers and wrong codes, and throttles guessing', async () => {
+    const a = await hit('POST', '/staff/v1/auth/totp', { phone: '+971521159998', code: '123456' })
+    const b = await hit('POST', '/staff/v1/auth/totp', { phone: OWNER, code: '123456' })
+    expect(a.status).toBe(401); expect(b.status).toBe(401)
+    expect(await a.text()).toBe(await b.text())
+    const codes: number[] = []
+    for (let i = 0; i < 10; i++) codes.push((await hit('POST', '/staff/v1/auth/totp', { phone: '+971521159997', code: '654321' })).status)
+    expect(codes.slice(-1)[0]).toBe(429)
+  })
+  it('lets the owner invite a member with a one-time key that expires and burns after use', async () => {
+    const { hotp } = await import('../src/totp')
+    const phone = '+971521150002'
+    const add = await hit('POST', '/staff/v1/team', { phone, name: 'Sara', role: 'agent' }, ownerToken)
+    expect(add.status).toBe(201)
+    const { enrollKey } = await add.json() as { enrollKey: string }
+    expect((await hit('POST', '/staff/v1/auth/setup/start', { phone, setupKey: 'not-the-right-key-xyz' })).status).toBe(403)
+    const st = await (await hit('POST', '/staff/v1/auth/setup/start', { phone, setupKey: enrollKey })).json() as { secret: string }
+    const conf = await hit('POST', '/staff/v1/auth/setup/confirm', { phone, code: await hotp(st.secret, step()) })
+    expect(conf.status).toBe(200); expect((await conf.json() as { role: string }).role).toBe('agent')
+    expect((await hit('POST', '/staff/v1/auth/setup/start', { phone, setupKey: enrollKey })).status).toBe(403) // key burnt
+    // expiry
+    const p2 = '+971521150003'
+    const k2 = (await (await hit('POST', '/staff/v1/team', { phone: p2, name: 'Omar', role: 'agent' }, ownerToken)).json() as { enrollKey: string }).enrollKey
+    await env.DB.prepare('UPDATE staff SET enroll_expires=? WHERE name=?').bind(Date.now() - 1, 'Omar').run()
+    expect((await hit('POST', '/staff/v1/auth/setup/start', { phone: p2, setupKey: k2 })).status).toBe(403)
+  })
+  it('a disabled member cannot sign in with a valid code', async () => {
+    const { hotp } = await import('../src/totp')
+    const team = await (await hit('GET', '/staff/v1/team', undefined, ownerToken)).json() as { team: { id: string; name: string }[] }
+    const sara = team.team.find((t) => t.name === 'Sara')!
+    expect((await hit('PATCH', `/staff/v1/team/${sara.id}`, { active: false }, ownerToken)).status).toBe(200)
+    const row = await env.DB.prepare('SELECT totp_secret_enc FROM staff WHERE id=?').bind(sara.id).first<{ totp_secret_enc: string }>()
+    const { openText } = await import('../src/crypto')
+    const s = await openText(env.DATA_KEY, 'staff-totp', row!.totp_secret_enc)
+    expect((await hit('POST', '/staff/v1/auth/totp', { phone: '+971521150002', code: await hotp(s, step() + 1) })).status).toBe(401)
+  })
+  it('keeps the TOTP secret encrypted at rest', async () => {
+    const r = await env.DB.prepare('SELECT totp_secret_enc FROM staff WHERE totp_secret_enc IS NOT NULL LIMIT 1').first<{ totp_secret_enc: string }>()
+    expect(r!.totp_secret_enc).not.toContain(secret)
+  })
+})
+
+describe('totp implementation', () => {
+  it('matches the RFC 4226 / 6238 reference vectors', async () => {
+    const { hotp, base32, unbase32 } = await import('../src/totp')
+    const secret = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ' // ASCII "12345678901234567890"
+    expect(await hotp(secret, 0)).toBe('755224')
+    expect(await hotp(secret, 1)).toBe('287082')
+    expect(await hotp(secret, 9)).toBe('520489')
+    // RFC 6238, SHA-1, T=59s -> counter 1 -> 94287082 -> last 6 digits
+    expect(await hotp(secret, Math.floor(59 / 30))).toBe('287082')
+    expect(await hotp(secret, Math.floor(1111111109 / 30))).toBe('081804')
+    expect(base32(unbase32(secret))).toBe(secret)
+  })
+})

@@ -8,9 +8,10 @@ export function Team({ meId }: { meId: string }) {
   const { data, loading, reload } = useAsync(() => api.team(), [])
   const [phone, setPhone] = useState(''); const [name, setName] = useState(''); const [role, setRole] = useState<Role>('agent')
   const [msg, setMsg] = useState<string | null>(null)
+  const [key, setKey] = useState<{ name: string; value: string } | null>(null)
   const add = async () => {
     setMsg(null)
-    try { await api.addMember(phone.trim().replace(/^0/, '+971'), name, role); setPhone(''); setName(''); reload() } catch (e) { setMsg(e instanceof ApiError && e.status === 403 ? t('failed') : t('failed')) }
+    try { const r = await api.addMember(phone.trim().replace(/^0/, '+971'), name, role); setKey({ name, value: r.enrollKey }); setPhone(''); setName(''); reload() } catch (e) { setMsg(e instanceof ApiError && e.status === 403 ? t('failed') : t('failed')) }
   }
   return (
     <>
@@ -24,6 +25,16 @@ export function Team({ meId }: { meId: string }) {
           </div>
         ))}
       </Card>
+      {key && (
+        <Card title={`${t('enrollTitle')}: ${key.name}`}>
+          <p>{t('enrollBody')}</p>
+          <p><span className="code">{key.value}</span></p>
+          <div className="row">
+            <button className="btn sm" onClick={() => void navigator.clipboard?.writeText(key.value)}>{t('copy')}</button>
+            <button className="btn primary sm" onClick={() => setKey(null)}>{t('done')}</button>
+          </div>
+        </Card>
+      )}
       <Card title={t('addMember')}>
         {msg && <div className="msg">{msg}</div>}
         <Field label={t('name')}><input value={name} onChange={(e) => setName(e.target.value)} /></Field>

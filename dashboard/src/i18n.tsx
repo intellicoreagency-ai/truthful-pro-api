@@ -20,6 +20,9 @@ const dict = {
     created: 'تاريخ الإنشاء', updated: 'آخر تحديث', terms: 'نسخة الشروط المقبولة', expectedAt: 'المتوقع', service: 'الخدمة',
     addMember: 'إضافة عضو', name: 'الاسم', role: 'الدور', active: 'نشط', disable: 'إيقاف', enable: 'تفعيل', onlyYou: 'أنت المالك وصاحب كل الصلاحيات حالياً. أضف أعضاء عندما يكبر الفريق.',
     owner: 'مالك', manager: 'مدير', agent: 'موظف', accountant: 'محاسب', you: 'أنت', lang: 'EN',
+    tabCode: 'تطبيق المصادقة', tabSetup: 'أول دخول', tabWa: 'واتساب', code6: 'الرمز المكوّن من 6 أرقام', signIn: 'دخول', codeHint: 'افتح تطبيق المصادقة (Google Authenticator أو Microsoft Authenticator) وأدخل الرمز الظاهر لحسابك.',
+    setupHint: 'أدخل رقمك ومفتاح الإعداد الذي سلّمك إياه المالك، ثم امسح الرمز بتطبيق المصادقة وأدخل أول رمز.', setupKey: 'مفتاح الإعداد', continue: 'متابعة', scanQr: 'امسح الرمز بتطبيق المصادقة، أو أدخل المفتاح يدوياً:', openApp: 'فتح في التطبيق', firstCode: 'أدخل أول رمز من التطبيق لإنهاء التفعيل', e_code: 'الرمز غير صحيح أو مستخدم من قبل.', e_setup: 'مفتاح الإعداد غير صحيح أو منتهي.',
+    enrollTitle: 'مفتاح إعداد العضو', enrollBody: 'سلّم هذا المفتاح للعضو بشكل خاص. يظهر مرة واحدة فقط وينتهي خلال 24 ساعة. يستخدمه في «أول دخول».', done: 'تم', copy: 'نسخ', copied: 'نُسخ',
   },
   en: {
     brand: 'TRUTHFUL PRO', team: 'Team dashboard', overview: 'Overview', requests: 'Requests', members: 'Team', logout: 'Sign out',
@@ -38,6 +41,9 @@ const dict = {
     created: 'Created', updated: 'Last update', terms: 'Terms version accepted', expectedAt: 'Expected', service: 'Service',
     addMember: 'Add member', name: 'Name', role: 'Role', active: 'Active', disable: 'Disable', enable: 'Enable', onlyYou: 'You are the owner with every permission. Add members when the team grows.',
     owner: 'Owner', manager: 'Manager', agent: 'Agent', accountant: 'Accountant', you: 'You', lang: 'عربي',
+    tabCode: 'Authenticator app', tabSetup: 'First sign-in', tabWa: 'WhatsApp', code6: '6-digit code', signIn: 'Sign in', codeHint: 'Open your authenticator app (Google Authenticator or Microsoft Authenticator) and enter the code shown for your account.',
+    setupHint: 'Enter your number and the setup key the owner gave you, scan the code with your authenticator app, then enter the first code.', setupKey: 'Setup key', continue: 'Continue', scanQr: 'Scan this code with your authenticator app, or enter the key manually:', openApp: 'Open in app', firstCode: 'Enter the first code from the app to finish', e_code: 'The code is wrong or was already used.', e_setup: 'The setup key is wrong or expired.',
+    enrollTitle: 'Member setup key', enrollBody: 'Give this key to the member privately. It is shown once and expires in 24 hours. They use it under “First sign-in”.', done: 'Done', copy: 'Copy', copied: 'Copied',
   },
 } as const
 export type Key = keyof typeof dict.ar

@@ -39,9 +39,26 @@ The old SMS route (`/v1/auth/otp/*`, Twilio) is still in the API but the app no 
 ```bash
 cd dashboard && npm ci && npm run build        # produces dashboard/dist, served by the API Worker at /
 ```
-Set `OWNER_PHONE` (the owner's mobile, E.164, e.g. `+9715XXXXXXXX`) as a secret: `npx wrangler secret put OWNER_PHONE`.
-The first WhatsApp sign-in with that number creates the owner account; nobody else can become owner. The owner adds team members
-later from the dashboard's Team page (managers, agents, accountants). Until then the owner is the only person who can sign in.
+### Owner sign-in (authenticator app: free, no WhatsApp or SMS needed)
+The owner's number may have no WhatsApp (this one does not), so team members sign in with an **authenticator app**
+(Google Authenticator, Microsoft Authenticator, Authy, 1Password...). One-time setup:
+```bash
+npx wrangler secret put OWNER_PHONE        # the owner's mobile, E.164 (kept out of the repo on purpose)
+npx wrangler secret put OWNER_SETUP_KEY    # openssl rand -base64 24   (write it down once; it is only used for enrolment)
+```
+Then open the dashboard -> **First sign-in** tab -> enter the owner's number and the setup key -> scan the QR with the authenticator app ->
+type the first code. After that the owner signs in with *Authenticator app* (number + 6-digit code). Once enrolled, the setup key
+can no longer re-enrol anyone, so it is safe to delete the secret afterwards.
+Each code works once; guessing is rate-limited; unknown numbers and wrong codes get identical answers.
+
+**Adding team members later:** Team page -> Add member -> the dashboard shows a one-time key (valid 24 h). Give it to them privately; they use
+it under *First sign-in* to enrol their own authenticator app. Disabling a member ends their sessions immediately.
+
+**Lost phone / locked-out owner:** there is deliberately no self-service reset. An operator with Cloudflare access runs
+`npx wrangler d1 execute DB --remote --command "UPDATE staff SET totp_enabled=0, totp_secret_enc=NULL WHERE role='owner'"`
+and re-enrols with the setup key (set `OWNER_SETUP_KEY` again if you deleted it).
+
+WhatsApp sign-in for staff still exists as an optional second method for members who have WhatsApp.
 Use a separate custom domain for the dashboard in Cloudflare (e.g. `ops.<your-domain>`) pointing at this Worker.
 Local smoke test: start `wrangler dev`, then `node scripts/e2e-dashboard.cjs` (needs `playwright` and the vars in `.dev.vars`).
 

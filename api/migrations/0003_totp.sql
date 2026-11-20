@@ -1,0 +1,5 @@
+ALTER TABLE staff ADD COLUMN totp_secret_enc TEXT;
+ALTER TABLE staff ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0 CHECK (totp_enabled IN (0,1));
+ALTER TABLE staff ADD COLUMN totp_last_step INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE staff ADD COLUMN enroll_hash TEXT;
+ALTER TABLE staff ADD COLUMN enroll_expires INTEGER;

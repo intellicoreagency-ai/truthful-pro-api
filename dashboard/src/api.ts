@@ -66,6 +66,15 @@ export const api = {
     if (r.status === 'verified' && r.accessToken && r.refreshToken) store(r.accessToken, r.refreshToken)
     return r.status
   },
+  async totpLogin(phone: string, code: string) {
+    const r = await j<{ accessToken: string; refreshToken: string }>(await call('POST', '/staff/v1/auth/totp', { auth: false, body: { phone, code } }))
+    store(r.accessToken, r.refreshToken)
+  },
+  setupStart: async (phone: string, setupKey: string) => j<{ secret: string; uri: string }>(await call('POST', '/staff/v1/auth/setup/start', { auth: false, body: { phone, setupKey } })),
+  async setupConfirm(phone: string, code: string) {
+    const r = await j<{ accessToken: string; refreshToken: string }>(await call('POST', '/staff/v1/auth/setup/confirm', { auth: false, body: { phone, code } }))
+    store(r.accessToken, r.refreshToken)
+  },
   me: async () => j<{ staff: { id: string; name: string; role: Role } }>(await call('GET', '/staff/v1/me')),
   logout: async () => { try { await call('POST', '/staff/v1/auth/logout') } catch { /* */ } signOutLocal() },
   stats: async () => j<Stats>(await call('GET', '/staff/v1/stats')),
@@ -82,6 +91,6 @@ export const api = {
     call('PUT', `/staff/v1/requests/${id}/files?kind=${kind}`, { raw: file, headers: { 'x-file-name': encodeURIComponent(file.name), 'x-file-label': encodeURIComponent(label) } }),
   fileBlob: async (id: string) => (await call('GET', `/staff/v1/files/${id}`)).blob(),
   team: async () => (await j<{ team: TeamRow[] }>(await call('GET', '/staff/v1/team'))).team,
-  addMember: (phone: string, name: string, role: Role) => call('POST', '/staff/v1/team', { body: { phone, name, role } }),
+  addMember: async (phone: string, name: string, role: Role) => j<{ id: string; enrollKey: string; enrollExpiresInHours: number }>(await call('POST', '/staff/v1/team', { body: { phone, name, role } })),
   setMember: (id: string, patch: { role?: Role; active?: boolean }) => call('PATCH', `/staff/v1/team/${id}`, { body: patch }),
 }
