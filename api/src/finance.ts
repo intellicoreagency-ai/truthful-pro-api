@@ -4,29 +4,45 @@ import { sha256Hex } from './crypto'
 
 // Money: integer fils (1 AED = 100 fils). No floating point, no tax. Tax is NOT configured: it is never treated as zero.
 export const MAX_FILS = 100_000_000
-export type ItemKind = 'government_fee' | 'service_fee' | 'extra'
+export type ItemKind = 'government_fee' | 'service_fee' // 'extra' no longer exists: the company only charges its own fee
 export type Item = { kind: ItemKind; ar: string; en: string; amount: number }
 export type DocType = 'quote' | 'invoice' | 'receipt' | 'credit_note'
 
 export const isFils = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n) && n > 0 && n <= MAX_FILS
 
-/** Validates staff-entered quote lines. Returns null when anything is off. */
-export function parseItems(raw: unknown): { items: Item[]; total: number } | null {
+/**
+ * Validates staff-entered statement lines.
+ * - service_fee: the company's own fee (the only thing the company collects) -> `total`
+ * - government_fee: the official tariff, paid by the customer straight to the authority -> `gov` (information only)
+ */
+export function parseItems(raw: unknown): { items: Item[]; total: number; gov: number } | null {
   if (!Array.isArray(raw) || raw.length < 1 || raw.length > 30) return null
   const items: Item[] = []
-  let total = 0
+  let total = 0, gov = 0
   for (const r of raw as Record<string, unknown>[]) {
     const kind = r?.kind
-    if (kind !== 'government_fee' && kind !== 'service_fee' && kind !== 'extra') return null
+    if (kind !== 'government_fee' && kind !== 'service_fee') return null
     const ar = typeof r.descriptionAr === 'string' ? r.descriptionAr.trim() : '', en = typeof r.descriptionEn === 'string' ? r.descriptionEn.trim() : ''
     const amount = r.amountFils
     if (!ar || !en || ar.length > 200 || en.length > 200) return null
     if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount < 0 || amount > MAX_FILS) return null // zero is allowed for a free line, never negative
-    total += amount
-    if (total > MAX_FILS) return null
+    if (kind === 'service_fee') total += amount; else gov += amount
+    if (total > MAX_FILS || gov > MAX_FILS) return null
     items.push({ kind, ar, en, amount })
   }
-  return { items, total }
+  return { items, total, gov }
+}
+
+/** Official payment links: https only, no credentials, host must end with an allowed suffix (default `.gov.ae`; extend with GOV_PAY_HOSTS). */
+export function parseGovUrl(env: Env, raw: unknown): string | null | undefined {
+  if (raw === undefined || raw === null || raw === '') return null
+  if (typeof raw !== 'string' || raw.length > 500) return undefined
+  let u: URL
+  try { u = new URL(raw.trim()) } catch { return undefined }
+  if (u.protocol !== 'https:' || u.username || u.password || u.port) return undefined
+  const suffixes = ['.gov.ae', ...(env.GOV_PAY_HOSTS ?? '').split(',').map((x) => x.trim().toLowerCase()).filter((x) => x.startsWith('.'))]
+  const host = u.hostname.toLowerCase()
+  return suffixes.some((suf) => host.endsWith(suf)) ? u.toString() : undefined
 }
 
 export const fmtAed = (fils: number): string => {
@@ -69,17 +85,19 @@ export async function totalsFor(env: Env, requestId: string): Promise<Totals> {
 // ---------- rendering (self-contained HTML; every value is escaped) ----------
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
 const TITLES: Record<DocType, [string, string]> = {
-  quote: ['عرض سعر', 'Quotation'], invoice: ['فاتورة (نسخة تجريبية)', 'Invoice (test copy)'],
+  quote: ['عرض أتعاب وبيان الرسوم الحكومية', 'Fee quotation & official fees statement'], invoice: ['فاتورة (نسخة تجريبية)', 'Invoice (test copy)'],
   receipt: ['إيصال استلام دفعة', 'Payment receipt'], credit_note: ['إشعار دائن / استرداد', 'Credit note / refund'],
 }
-const KIND: Record<ItemKind, [string, string]> = { government_fee: ['رسوم حكومية', 'Government fee'], service_fee: ['أتعاب الخدمة', 'Service fee'], extra: ['مصاريف إضافية', 'Extra expense'] }
+const KIND: Record<ItemKind, [string, string]> = { government_fee: ['رسوم حكومية', 'Government fee'], service_fee: ['أتعاب الشركة', 'Company fee'] }
 
 export type DocRow = { doc_type: DocType; number: string; status: string; void_reason: string | null; created_at: number; total_fils: number; snapshot: string }
 export function renderDocument(env: Env, row: DocRow): string {
   let s: any = {}; try { s = JSON.parse(row.snapshot) } catch { /* */ }
   const [tAr, tEn] = TITLES[row.doc_type]
   const date = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dubai' }).format(new Date(row.created_at))
-  const lines = (s.lines ?? []) as { kind: ItemKind; ar: string; en: string; amount: number }[]
+  const all = (s.lines ?? []) as { kind: ItemKind; ar: string; en: string; amount: number }[]
+  const lines = all.filter((l) => l.kind === 'service_fee'), govLines = all.filter((l) => l.kind === 'government_fee')
+  const govRows = govLines.map((l) => `<tr><td>${esc(l.ar)}<br><small dir="ltr">${esc(l.en)}</small></td><td class="n" dir="ltr">${esc(fmtAed(l.amount))}</td></tr>`).join('')
   const rows = lines.map((l) => `<tr><td>${esc(KIND[l.kind]?.[0])}<br><small>${esc(KIND[l.kind]?.[1])}</small></td><td>${esc(l.ar)}<br><small dir="ltr">${esc(l.en)}</small></td><td class="n" dir="ltr">${esc(fmtAed(l.amount))}</td></tr>`).join('')
   const t = s.totals ?? {}
   const trow = (ar: string, en: string, v: number | undefined, strong = false) => v === undefined ? '' : `<tr class="${strong ? 'strong' : ''}"><td colspan="2">${esc(ar)} · <span dir="ltr">${esc(en)}</span></td><td class="n" dir="ltr">${esc(fmtAed(v))}</td></tr>`
@@ -108,8 +126,9 @@ tr.strong td{font-weight:800;background:#fff0d6}.meta td{border:0;padding:2px 8p
 <header><div><h1>${esc(tAr)} <small dir="ltr">· ${esc(tEn)}</small></h1><div dir="ltr"><b>${esc(row.number)}</b> · ${esc(date)}</div>${row.status === 'void' ? `<div class="void">ملغى · VOID — ${esc(row.void_reason)}</div>` : ''}</div><img src="${LOGO_DATA_URI}" alt=""></header>
 <div class="banner">نسخة تجريبية — غير صالحة للاستخدام المالي · <span dir="ltr">TEST COPY — NOT VALID FOR FINANCIAL USE</span></div>
 <table class="meta"><tr><td>${esc(co[0])}<br><small dir="ltr">${esc(co[1])}</small><br><small>بيانات المنشأة (الرخصة، العنوان) غير معتمدة بعد · Company details not yet approved</small></td><td>العميل · Customer<br><b>${esc(s.customerName || '—')}</b><br><small>${esc(s.requestTitle?.ar ?? '')} · <span dir="ltr">${esc(s.requestTitle?.en ?? '')}</span></small><br><small dir="ltr">Request #${esc(s.requestRef ?? '')}</small></td></tr>${meta.map((m) => `<tr><td>${esc(m[0])} · <span dir="ltr">${esc(m[1])}</span></td><td dir="ltr">${esc(m[2])}</td></tr>`).join('')}</table>
-${rows ? `<table><tr><td><b>النوع · Type</b></td><td><b>الوصف · Description</b></td><td class="n"><b>المبلغ · Amount</b></td></tr>${rows}</table>` : ''}
+${rows ? `<table><tr><td colspan="3"><b>أتعاب الشركة (هي وحدها المطلوبة منك للشركة) · <span dir="ltr">Company fees (the only amount payable to the Company)</span></b></td></tr><tr><td><b>النوع · Type</b></td><td><b>الوصف · Description</b></td><td class="n"><b>المبلغ · Amount</b></td></tr>${rows}</table>` : ''}
 <table>${trow('الإجمالي', 'Total', t.total, true)}${trow('المدفوع', 'Paid', t.paid)}${trow('المسترد', 'Refunded', t.refunded)}${trow('المتبقي', 'Remaining', t.remaining, true)}${t.amount !== undefined ? trow('مبلغ هذا المستند', 'Amount of this document', t.amount, true) : ''}</table>
+${govRows ? `<table><tr><td colspan="2"><b>الرسوم الحكومية حسب التعرفة الرسمية — تُدفع مباشرة إلى الجهة الحكومية ولا تُحصّلها الشركة ولا تدخل في هذا المستند · <span dir="ltr">Official government fees — paid by you directly to the authority; not collected by the Company and not included in this document</span></b></td></tr>${govRows}<tr class="strong"><td>الإجمالي الحكومي · Government total</td><td class="n" dir="ltr">${esc(fmtAed(s.govTotal ?? 0))}</td></tr></table>` : ''}
 <div class="tax">الضريبة غير مهيأة في هذه المرحلة ولم تُحتسب، وهذا المستند ليس فاتورة ضريبية.<br><span dir="ltr">Tax is not configured and has not been calculated. This is not a tax invoice.</span></div>
 </div></body></html>`
 }
@@ -157,4 +176,32 @@ export async function insertRefund(env: Env, p: { id: string; requestId: string;
        AND (? IS NULL OR ? <= COALESCE((SELECT amount_fils FROM payments WHERE id=? AND kind='payment' AND status='approved' AND invoice_id=?),0) - COALESCE((SELECT SUM(amount_fils) FROM payments WHERE refund_of=? AND kind='refund' AND status='approved'),0))`
   ).bind(p.id, p.requestId, p.invoiceId, p.amount, p.by, p.now, p.by, p.now, p.reason, p.refundOf, p.invoiceId, p.requestId, p.amount, p.invoiceId, p.refundOf, p.amount, p.refundOf, p.invoiceId, p.refundOf).run()
   return r.meta.changes > 0
+}
+
+// ---------- the customer's own payment to the authority (tracked; never part of the company's balance) ----------
+export type GovState = 'none' | 'unpaid' | 'reported' | 'paid'
+export async function govFor(env: Env, requestId: string) {
+  const q = await env.DB.prepare("SELECT id,version,gov_fils,gov_pay_url FROM quotes WHERE request_id=? AND status IN ('issued','accepted') ORDER BY version DESC LIMIT 1").bind(requestId).first<{ id: string; version: number; gov_fils: number; gov_pay_url: string | null }>()
+  if (!q || q.gov_fils <= 0) return { quoteId: q?.id ?? null, total: 0, payUrl: null as string | null, verified: 0, reported: 0, remaining: 0, state: 'none' as GovState }
+  const a = await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN status='verified' THEN amount_fils END),0) v, COALESCE(SUM(CASE WHEN status='reported' THEN amount_fils END),0) r FROM authority_payments WHERE quote_id=?").bind(q.id).first<{ v: number; r: number }>()
+  const v = a?.v ?? 0, r = a?.r ?? 0
+  return { quoteId: q.id, total: q.gov_fils, payUrl: q.gov_pay_url, verified: v, reported: r, remaining: Math.max(0, q.gov_fils - v - r), state: (v >= q.gov_fils ? 'paid' : v + r > 0 ? 'reported' : 'unpaid') as GovState }
+}
+
+/** Registers a payment made to the authority. It cannot exceed the official total of the live statement together with what is already registered. */
+export async function insertAuthorityPayment(env: Env, p: { id: string; requestId: string; quoteId: string; amount: number; reference: string; proofFileId: string | null; clientKey: string | null; byKind: 'customer' | 'staff'; by: string; now: number }): Promise<{ ok: true } | { ok: false; error: 'exceeds_government_total' | 'client_key_conflict' | 'reference_used' }> {
+  try {
+    const r = await env.DB.prepare(
+      `INSERT INTO authority_payments (id,request_id,quote_id,amount_fils,reference,proof_file_id,status,client_key,reported_by_kind,reported_by,created_at)
+       SELECT ?,?,?,?,?,?,'reported',?,?,?,?
+       WHERE EXISTS (SELECT 1 FROM quotes WHERE id=? AND request_id=? AND status IN ('issued','accepted') AND gov_fils>0)
+         AND ? <= (SELECT gov_fils FROM quotes WHERE id=?) - COALESCE((SELECT SUM(amount_fils) FROM authority_payments WHERE quote_id=? AND status IN ('reported','verified')),0)`
+    ).bind(p.id, p.requestId, p.quoteId, p.amount, p.reference, p.proofFileId, p.clientKey, p.byKind, p.by, p.now, p.quoteId, p.requestId, p.amount, p.quoteId, p.quoteId).run()
+    return r.meta.changes ? { ok: true } : { ok: false, error: 'exceeds_government_total' }
+  } catch (e) {
+    const m = String((e as Error).message)
+    if (m.includes('client_key')) return { ok: false, error: 'client_key_conflict' }
+    if (m.includes('reference')) return { ok: false, error: 'reference_used' }
+    throw e
+  }
 }

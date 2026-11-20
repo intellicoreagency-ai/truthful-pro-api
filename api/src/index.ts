@@ -6,7 +6,7 @@ import { allow, audit, clientIp, jsonBody, requireAuth, securityHeaders, type C 
 import { sendOtp } from './sms'
 import { staff } from './staff'
 import { scanBytes, scannerMode, uploadsBlocked } from './scanner'
-import { insertPayment, isFils, renderDocument, totalsFor, type DocRow } from './finance'
+import { govFor, insertAuthorityPayment, insertPayment, isFils, renderDocument, totalsFor, type DocRow } from './finance'
 
 const ACCESS_TTL = 15 * 60 * 1000
 const REFRESH_TTL = 30 * 24 * 3600 * 1000
@@ -360,16 +360,17 @@ authed.delete('/requests/:id', async (c) => {
 
 /** What a customer may see of the money side: issued quotes, the active invoice, their payments and documents. Never drafts or staff identities. */
 async function customerFinance(c: C, requestId: string) {
-  const qs = await c.env.DB.prepare("SELECT id,version,status,total_fils,issued_at,accepted_at,document_id FROM quotes WHERE request_id=? AND status!='draft' ORDER BY version").bind(requestId).all<{ id: string; version: number; status: string; total_fils: number; issued_at: number | null; accepted_at: number | null; document_id: string | null }>()
+  const qs = await c.env.DB.prepare("SELECT id,version,status,total_fils,gov_fils,issued_at,accepted_at,document_id FROM quotes WHERE request_id=? AND status!='draft' ORDER BY version").bind(requestId).all<{ id: string; version: number; status: string; total_fils: number; gov_fils: number; issued_at: number | null; accepted_at: number | null; document_id: string | null }>()
   const quotes = []
   for (const q of qs.results) {
     const items = await c.env.DB.prepare('SELECT kind,description_ar,description_en,amount_fils FROM quote_items WHERE quote_id=? ORDER BY position').bind(q.id).all()
     const n = q.document_id ? await c.env.DB.prepare('SELECT number FROM fin_documents WHERE id=?').bind(q.document_id).first<{ number: string }>() : null
-    quotes.push({ id: q.id, version: q.version, status: q.status, number: n?.number ?? null, total_fils: q.total_fils, issued_at: q.issued_at, accepted_at: q.accepted_at, items: items.results })
+    quotes.push({ id: q.id, version: q.version, status: q.status, number: n?.number ?? null, total_fils: q.total_fils, gov_fils: q.gov_fils, issued_at: q.issued_at, accepted_at: q.accepted_at, items: items.results })
   }
   const payments = await c.env.DB.prepare('SELECT id,kind,amount_fils,method,status,created_at,decided_at,decision_note,receipt_id FROM payments WHERE request_id=? ORDER BY created_at').bind(requestId).all()
   const documents = await c.env.DB.prepare('SELECT id,doc_type,number,status,total_fils,created_at FROM fin_documents WHERE request_id=? ORDER BY created_at').bind(requestId).all()
-  return { quotes, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, requestId), tax: { configured: false }, test: true }
+  const authority = await c.env.DB.prepare('SELECT id,amount_fils,reference,status,created_at,note FROM authority_payments WHERE request_id=? ORDER BY created_at').bind(requestId).all()
+  return { quotes, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, requestId), gov: await govFor(c.env, requestId), authorityPayments: authority.results, tax: { configured: false }, test: true }
 }
 
 // The customer approves one specific quote version. A newer version needs a new approval; repeating is harmless.
@@ -411,6 +412,31 @@ authed.post('/requests/:id/payments', async (c) => {
   await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, 'أرسل العميل إثبات دفع بانتظار التحقق', 'Customer submitted payment proof, awaiting verification', Date.now()).run()
   await audit(c, 'finance.payment_submitted', uid, { requestId: id, paymentId: pid })
   return c.json({ id: pid, status: 'pending_verification' }, 201)
+})
+
+// The customer reports that THEY paid the government fees directly to the authority (official receipt/payment number, optional proof).
+authed.post('/requests/:id/authority-payments', async (c) => {
+  const id = c.req.param('id'), uid = c.get('userId')
+  if (!isUuid(id) || !(await ownRequest(c, id))) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const key = c.req.header('idempotency-key') ?? (typeof b?.clientKey === 'string' ? b.clientKey : '')
+  const reference = typeof b?.reference === 'string' && /^[A-Za-z0-9 ._/-]{4,60}$/.test(b.reference.trim()) ? b.reference.trim() : null
+  const proof = typeof b?.proofFileId === 'string' && isUuid(b.proofFileId) ? b.proofFileId : null
+  if (!/^[A-Za-z0-9._:-]{8,80}$/.test(key) || !isFils(b?.amountFils) || !reference) return c.json({ error: 'invalid_request' }, 400)
+  if (proof) {
+    const f = await c.env.DB.prepare("SELECT 1 x FROM request_files WHERE id=? AND user_id=? AND request_id=? AND kind='source' AND deleted_at IS NULL AND scan_status IN ('pending','clean')").bind(proof, uid, id).first()
+    if (!f) return c.json({ error: 'invalid_proof' }, 400)
+  }
+  const prev = await c.env.DB.prepare('SELECT id,amount_fils,reference FROM authority_payments WHERE request_id=? AND client_key=?').bind(id, key).first<{ id: string; amount_fils: number; reference: string }>()
+  if (prev) return prev.amount_fils === b.amountFils && prev.reference === reference ? c.json({ id: prev.id, status: 'reported', replay: true }) : c.json({ error: 'idempotency_conflict' }, 422)
+  const g = await govFor(c.env, id)
+  if (!g.quoteId || g.total <= 0) return c.json({ error: 'no_government_fees' }, 409)
+  const pid = newId()
+  const res = await insertAuthorityPayment(c.env, { id: pid, requestId: id, quoteId: g.quoteId, amount: b.amountFils, reference, proofFileId: proof, clientKey: key, byKind: 'customer', by: uid, now: Date.now() })
+  if (!res.ok) return c.json({ error: res.error }, 409)
+  await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, 'أبلغ العميل عن دفع الرسوم الحكومية للجهة، بانتظار التحقق', 'Customer reported paying the government fees to the authority, awaiting verification', Date.now()).run()
+  await audit(c, 'finance.authority_reported', uid, { requestId: id, paymentId: pid })
+  return c.json({ id: pid, status: 'reported' }, 201)
 })
 
 authed.get('/documents/:docId', async (c) => {

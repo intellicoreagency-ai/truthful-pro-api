@@ -6,7 +6,7 @@ import { MAX_FILE_BYTES, isUuid, normalizePhone, safeFileName, sniffFile } from 
 import { allow, audit, clientIp, jsonBody, type C } from './security'
 import { RULES, passportValidity } from './rules'
 import { scanBytes, uploadsBlocked } from './scanner'
-import { approvePayment, documentStatements, insertPayment, insertRefund, isFils, parseItems, renderDocument, totalsFor, type DocRow } from './finance'
+import { approvePayment, documentStatements, govFor, insertAuthorityPayment, insertPayment, insertRefund, isFils, parseGovUrl, parseItems, renderDocument, totalsFor, type DocRow } from './finance'
 import { newSecret, otpauthUri, verifyTotp } from './totp'
 import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server'
 import { b64, unb64, otpCode } from './crypto'
@@ -815,12 +815,13 @@ const numberOf = async (c: C, docId: string | null) => docId ? (await c.env.DB.p
 guarded.get('/requests/:id/finance', roles(...FIN_VIEW), async (c) => {
   const r = await finRequest(c, c.req.param('id'))
   if (!r) return c.json({ error: 'not_found' }, 404)
-  const qs = await c.env.DB.prepare('SELECT id,version,status,total_fils,issued_at,accepted_at,document_id FROM quotes WHERE request_id=? ORDER BY version').bind(r.id).all<{ id: string; version: number; status: string; total_fils: number; issued_at: number | null; accepted_at: number | null; document_id: string | null }>()
+  const qs = await c.env.DB.prepare('SELECT id,version,status,total_fils,gov_fils,gov_pay_url,issued_at,accepted_at,document_id FROM quotes WHERE request_id=? ORDER BY version').bind(r.id).all<{ id: string; version: number; status: string; total_fils: number; gov_fils: number; gov_pay_url: string | null; issued_at: number | null; accepted_at: number | null; document_id: string | null }>()
   const quotes = []
   for (const q of qs.results) quotes.push({ ...q, number: await numberOf(c, q.document_id), items: await itemsOf(c, q.id) })
   const payments = await c.env.DB.prepare('SELECT id,kind,amount_fils,method,reference,status,created_by_kind,created_at,decided_at,decision_note,reason,receipt_id,proof_file_id,refund_of FROM payments WHERE request_id=? ORDER BY created_at').bind(r.id).all()
   const documents = await c.env.DB.prepare('SELECT id,doc_type,number,status,void_reason,total_fils,created_at,related_id FROM fin_documents WHERE request_id=? ORDER BY created_at').bind(r.id).all()
-  return c.json({ quotes, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, r.id), tax: { configured: false }, test: true })
+  const authority = await c.env.DB.prepare('SELECT id,amount_fils,reference,status,reported_by_kind,created_at,verified_at,note,proof_file_id FROM authority_payments WHERE request_id=? ORDER BY created_at').bind(r.id).all()
+  return c.json({ quotes, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, r.id), gov: await govFor(c.env, r.id), authorityPayments: authority.results, tax: { configured: false }, test: true })
 })
 
 // Draft a quote (manual pricing: nothing is pre-priced). Replaces the open draft or starts the next version.
@@ -831,25 +832,27 @@ guarded.post('/requests/:id/quotes', roles(...FIN_VIEW), async (c) => {
   const b = await jsonBody(c)
   const parsed = parseItems(b?.items)
   if (!parsed) return c.json({ error: 'invalid_items' }, 400)
+  const govUrl = parseGovUrl(c.env, b?.govPayUrl)
+  if (govUrl === undefined) return c.json({ error: 'invalid_pay_url' }, 400) // https + an official authority host only
   const now = Date.now()
   const insertItems = (qid: string) => parsed.items.map((it, i) => c.env.DB.prepare('INSERT INTO quote_items (id,quote_id,kind,description_ar,description_en,amount_fils,position) VALUES (?,?,?,?,?,?,?)').bind(newId(), qid, it.kind, it.ar, it.en, it.amount, i))
   try {
     const draft = await c.env.DB.prepare("SELECT id,version FROM quotes WHERE request_id=? AND status='draft'").bind(r.id).first<{ id: string; version: number }>()
     if (draft) {
-      await c.env.DB.batch([c.env.DB.prepare('DELETE FROM quote_items WHERE quote_id=?').bind(draft.id), ...insertItems(draft.id), c.env.DB.prepare('UPDATE quotes SET total_fils=? WHERE id=?').bind(parsed.total, draft.id)])
-      return c.json({ id: draft.id, version: draft.version, totalFils: parsed.total })
+      await c.env.DB.batch([c.env.DB.prepare('DELETE FROM quote_items WHERE quote_id=?').bind(draft.id), ...insertItems(draft.id), c.env.DB.prepare('UPDATE quotes SET total_fils=?, gov_fils=?, gov_pay_url=? WHERE id=?').bind(parsed.total, parsed.gov, govUrl, draft.id)])
+      return c.json({ id: draft.id, version: draft.version, totalFils: parsed.total, govFils: parsed.gov })
     }
     const mx = await c.env.DB.prepare('SELECT MAX(version) v FROM quotes WHERE request_id=?').bind(r.id).first<{ v: number | null }>()
     const qid = newId(), version = (mx?.v ?? 0) + 1
-    await c.env.DB.batch([c.env.DB.prepare("INSERT INTO quotes (id,request_id,version,status,total_fils,created_by,created_at) VALUES (?,?,?,'draft',?,?,?)").bind(qid, r.id, version, parsed.total, c.get('staffId'), now), ...insertItems(qid)])
-    return c.json({ id: qid, version, totalFils: parsed.total }, 201)
+    await c.env.DB.batch([c.env.DB.prepare("INSERT INTO quotes (id,request_id,version,status,total_fils,gov_fils,gov_pay_url,created_by,created_at) VALUES (?,?,?,'draft',?,?,?,?,?)").bind(qid, r.id, version, parsed.total, parsed.gov, govUrl, c.get('staffId'), now), ...insertItems(qid)])
+    return c.json({ id: qid, version, totalFils: parsed.total, govFils: parsed.gov }, 201)
   } catch { return c.json({ error: 'conflict' }, 409) }
 })
 
 // Issue the draft: freezes the lines, supersedes older versions (their acceptance no longer counts) and numbers the document.
 guarded.post('/quotes/:qid/issue', roles(...FIN), async (c) => {
   const qid = c.req.param('qid')
-  const q = isUuid(qid) ? await c.env.DB.prepare('SELECT id,request_id,version,status,total_fils FROM quotes WHERE id=?').bind(qid).first<{ id: string; request_id: string; version: number; status: string; total_fils: number }>() : null
+  const q = isUuid(qid) ? await c.env.DB.prepare('SELECT id,request_id,version,status,total_fils,gov_fils FROM quotes WHERE id=?').bind(qid).first<{ id: string; request_id: string; version: number; status: string; total_fils: number; gov_fils: number }>() : null
   const r = q ? await finRequest(c, q.request_id) : null
   if (!q || !r) return c.json({ error: 'not_found' }, 404)
   if (q.status !== 'draft') return c.json({ error: 'not_a_draft' }, 409)
@@ -858,7 +861,7 @@ guarded.post('/quotes/:qid/issue', roles(...FIN), async (c) => {
   const active = await c.env.DB.prepare("SELECT 1 x FROM fin_documents WHERE request_id=? AND doc_type='invoice' AND status='issued'").bind(r.id).first()
   if (active) return c.json({ error: 'invoice_active' }, 409) // cancel the invoice (with a reason) before re-pricing
   const now = Date.now(), docId = newId()
-  const snapshot = { ...reqMeta(r), lines: items.map((i) => ({ kind: i.kind, ar: i.description_ar, en: i.description_en, amount: i.amount_fils })), totals: { total: q.total_fils }, extra: { version: q.version } }
+  const snapshot = { ...reqMeta(r), lines: items.map((i) => ({ kind: i.kind, ar: i.description_ar, en: i.description_en, amount: i.amount_fils })), totals: { total: q.total_fils }, govTotal: q.gov_fils, extra: { version: q.version } }
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE quotes SET status='superseded' WHERE request_id=? AND status IN ('issued','accepted')").bind(r.id),
     c.env.DB.prepare("UPDATE quotes SET status='issued', issued_at=?, issued_by=?, document_id=? WHERE id=? AND status='draft'").bind(now, c.get('staffId'), docId, q.id),
@@ -872,12 +875,12 @@ guarded.post('/quotes/:qid/issue', roles(...FIN), async (c) => {
 guarded.post('/requests/:id/invoice', roles(...FIN), async (c) => {
   const r = await finRequest(c, c.req.param('id'))
   if (!r) return c.json({ error: 'not_found' }, 404)
-  const q = await c.env.DB.prepare("SELECT id,version,total_fils,document_id FROM quotes WHERE request_id=? AND status='accepted' ORDER BY version DESC LIMIT 1").bind(r.id).first<{ id: string; version: number; total_fils: number; document_id: string | null }>()
+  const q = await c.env.DB.prepare("SELECT id,version,total_fils,gov_fils,document_id FROM quotes WHERE request_id=? AND status='accepted' ORDER BY version DESC LIMIT 1").bind(r.id).first<{ id: string; version: number; total_fils: number; gov_fils: number; document_id: string | null }>()
   if (!q) return c.json({ error: 'quote_not_accepted' }, 409) // an invoice exists only for a quote the customer accepted
   const exists = await c.env.DB.prepare("SELECT 1 x FROM fin_documents WHERE request_id=? AND doc_type='invoice' AND status='issued'").bind(r.id).first()
   if (exists) return c.json({ error: 'invoice_exists' }, 409)
   const items = await itemsOf(c, q.id), now = Date.now(), docId = newId()
-  const snapshot = { ...reqMeta(r), lines: items.map((i) => ({ kind: i.kind, ar: i.description_ar, en: i.description_en, amount: i.amount_fils })), totals: { total: q.total_fils, paid: 0, refunded: 0, remaining: q.total_fils }, extra: { quoteNumber: await numberOf(c, q.document_id) } }
+  const snapshot = { ...reqMeta(r), lines: items.map((i) => ({ kind: i.kind, ar: i.description_ar, en: i.description_en, amount: i.amount_fils })), totals: { total: q.total_fils, paid: 0, refunded: 0, remaining: q.total_fils }, govTotal: q.gov_fils, extra: { quoteNumber: await numberOf(c, q.document_id) } }
   try { await c.env.DB.batch(await documentStatements(c.env, { id: docId, requestId: r.id, type: 'invoice', relatedId: q.id, totalFils: q.total_fils, snapshot, createdBy: c.get('staffId'), now })) } catch { return c.json({ error: 'invoice_exists' }, 409) }
   await visibleEvent(c, r.id, 'صدرت الفاتورة (نسخة تجريبية)', 'Invoice issued (test copy)')
   await audit(c, 'finance.invoice_issue', null, { requestId: r.id, by: c.get('staffId') })
@@ -1005,6 +1008,88 @@ guarded.post('/requests/:id/refunds', roles('owner', 'manager'), async (c) => {
   await visibleEvent(c, r.id, 'تم رد مبلغ إليك (نسخة تجريبية)', 'A refund was issued to you (test copy)')
   await audit(c, 'finance.refund', null, { requestId: r.id, paymentId: id, by: c.get('staffId') })
   return c.json({ ok: true, refundId: id, creditNote: await numberOf(c, cn) }, 201)
+})
+
+// The official payment link may need refreshing (links expire); it is not a price term, so it can change without a new quote version.
+guarded.patch('/quotes/:qid/pay-link', roles(...FIN), async (c) => {
+  const qid = c.req.param('qid')
+  const q = isUuid(qid) ? await c.env.DB.prepare("SELECT id,request_id,status FROM quotes WHERE id=? AND status IN ('draft','issued','accepted')").bind(qid).first<{ id: string; request_id: string; status: string }>() : null
+  const r = q ? await finRequest(c, q.request_id) : null
+  if (!q || !r) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const url = parseGovUrl(c.env, b?.url)
+  if (url === undefined) return c.json({ error: 'invalid_pay_url' }, 400)
+  await c.env.DB.prepare('UPDATE quotes SET gov_pay_url=? WHERE id=?').bind(url, q.id).run()
+  await audit(c, 'finance.pay_link', null, { requestId: r.id, by: c.get('staffId') })
+  return c.json({ ok: true, url })
+})
+
+// Government fees are paid by the customer straight to the authority. Here we only REGISTER and VERIFY that the customer did so.
+guarded.post('/requests/:id/authority-payments', roles(...FIN), async (c) => {
+  const r = await finRequest(c, c.req.param('id'))
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const reference = typeof b?.reference === 'string' && /^[A-Za-z0-9 ._/-]{4,60}$/.test(b.reference.trim()) ? b.reference.trim() : null
+  if (!isFils(b?.amountFils) || !reference) return c.json({ error: 'invalid_request' }, 400)
+  const g = await govFor(c.env, r.id)
+  if (!g.quoteId || g.total <= 0) return c.json({ error: 'no_government_fees' }, 409)
+  const key = typeof b?.clientKey === 'string' && /^[A-Za-z0-9._:-]{8,80}$/.test(b.clientKey) ? b.clientKey : null
+  const id = newId()
+  const res = await insertAuthorityPayment(c.env, { id, requestId: r.id, quoteId: g.quoteId, amount: b.amountFils, reference, proofFileId: null, clientKey: key, byKind: 'staff', by: c.get('staffId'), now: Date.now() })
+  if (!res.ok) return c.json({ error: res.error }, 409)
+  return c.json({ id, status: 'reported' }, 201)
+})
+
+guarded.post('/authority-payments/:pid/verify', roles(...FIN), async (c) => {
+  const pid = c.req.param('pid')
+  const p = isUuid(pid) ? await c.env.DB.prepare('SELECT id,request_id,status,proof_file_id,reported_by_kind,reported_by FROM authority_payments WHERE id=?').bind(pid).first<{ id: string; request_id: string; status: string; proof_file_id: string | null; reported_by_kind: string; reported_by: string }>() : null
+  const r = p ? await finRequest(c, p.request_id) : null
+  if (!p || !r) return c.json({ error: 'not_found' }, 404)
+  if (p.reported_by_kind === 'staff' && p.reported_by === c.get('staffId') && c.get('staffRole') !== 'owner') return c.json({ error: 'second_approver_required' }, 403)
+  if (p.status === 'reported' && p.proof_file_id) {
+    const f = await c.env.DB.prepare('SELECT scan_status s FROM request_files WHERE id=? AND deleted_at IS NULL').bind(p.proof_file_id).first<{ s: string }>()
+    if (!f || f.s !== 'clean') return c.json({ error: 'scan_pending' }, 423)
+  }
+  const b = await jsonBody(c)
+  const u = await c.env.DB.prepare("UPDATE authority_payments SET status='verified', verified_by=?, verified_at=?, note=? WHERE id=? AND status='reported'").bind(c.get('staffId'), Date.now(), typeof b?.note === 'string' ? b.note.slice(0, 300) : null, p.id).run()
+  if (!u.meta.changes) return c.json(p.status === 'verified' ? { ok: true, duplicate: true } : { error: 'not_reported' }, p.status === 'verified' ? 200 : 409)
+  await visibleEvent(c, r.id, 'تم التحقق من دفعك الرسوم الحكومية للجهة', 'Your payment of the government fees to the authority was verified')
+  await audit(c, 'finance.authority_verified', null, { requestId: r.id, paymentId: p.id, by: c.get('staffId') })
+  return c.json({ ok: true, duplicate: false })
+})
+
+guarded.post('/authority-payments/:pid/reject', roles(...FIN), async (c) => {
+  const pid = c.req.param('pid')
+  const p = isUuid(pid) ? await c.env.DB.prepare('SELECT id,request_id FROM authority_payments WHERE id=?').bind(pid).first<{ id: string; request_id: string }>() : null
+  const r = p ? await finRequest(c, p.request_id) : null
+  if (!p || !r) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const reason = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) : ''
+  if (reason.length < 3) return c.json({ error: 'reason_required' }, 400)
+  const u = await c.env.DB.prepare("UPDATE authority_payments SET status='rejected', verified_by=?, verified_at=?, note=? WHERE id=? AND status='reported'").bind(c.get('staffId'), Date.now(), reason, p.id).run()
+  if (!u.meta.changes) return c.json({ error: 'not_reported' }, 409)
+  await visibleEvent(c, r.id, `لم يُعتمد إثبات دفع الرسوم الحكومية: ${reason}`, `The government-fee payment proof was not accepted: ${reason}`)
+  return c.json({ ok: true })
+})
+
+guarded.get('/authority-payments', roles(...FIN), async (c) => {
+  const status = ['reported', 'verified', 'rejected'].includes(c.req.query('status') ?? '') ? (c.req.query('status') as string) : 'reported'
+  const rows = await c.env.DB.prepare(
+    `SELECT a.id,a.request_id,a.amount_fils,a.reference,a.status,a.reported_by_kind,a.created_at,a.proof_file_id,r.data,u.display_name
+     FROM authority_payments a JOIN requests r ON r.id=a.request_id JOIN users u ON u.id=r.user_id WHERE a.status=? ORDER BY a.created_at DESC LIMIT 100`).bind(status).all<any>()
+  return c.json({ payments: rows.results.map((p) => { let d: any = {}; try { d = JSON.parse(p.data) } catch { /* */ } return { id: p.id, requestId: p.request_id, amount_fils: p.amount_fils, reference: p.reference, status: p.status, createdBy: p.reported_by_kind, createdAt: p.created_at, hasProof: !!p.proof_file_id, title: d.title ?? null, customer: d.name || p.display_name || '' } }) })
+})
+
+guarded.get('/authority-payments/:pid/proof', roles(...FIN), async (c) => {
+  const pid = c.req.param('pid')
+  const p = isUuid(pid) ? await c.env.DB.prepare('SELECT a.proof_file_id,a.request_id,f.r2_key,f.mime,f.name,f.user_id,f.scan_status FROM authority_payments a JOIN request_files f ON f.id=a.proof_file_id WHERE a.id=? AND f.deleted_at IS NULL').bind(pid).first<{ proof_file_id: string; request_id: string; r2_key: string; mime: string; name: string; user_id: string; scan_status: string }>() : null
+  if (!p || !(await finRequest(c, p.request_id)) || p.scan_status === 'infected' || p.scan_status === 'error') return c.json({ error: 'not_found' }, 404)
+  if (p.scan_status !== 'clean') return c.json({ error: 'scan_pending' }, 423)
+  const obj = await c.env.DOCS.get(p.r2_key)
+  if (!obj) return c.json({ error: 'not_found' }, 404)
+  const plain = await open(c.env.DATA_KEY, `file:${p.user_id}:${p.proof_file_id}`, new Uint8Array(await obj.arrayBuffer()))
+  await audit(c, 'staff.proof_view', null, { authorityPaymentId: pid, by: c.get('staffId') })
+  return new Response(plain as BufferSource, { headers: { 'content-type': p.mime, 'content-disposition': `inline; filename*=UTF-8''${encodeURIComponent(p.name)}`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; frame-ancestors 'self'", 'x-frame-options': 'SAMEORIGIN' } })
 })
 
 guarded.get('/documents/:docId', roles(...FIN_VIEW), async (c) => {

@@ -1059,9 +1059,9 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
   // ===== finance: manual pricing, TEST documents, manual payments (no tax, no gateway) =====
   const ITEMS = [
     { kind: 'government_fee', descriptionAr: 'رسوم الجهة', descriptionEn: 'Authority fee', amountFils: 35000 },
-    { kind: 'service_fee', descriptionAr: 'أتعاب الخدمة', descriptionEn: 'Service fee', amountFils: 50000 },
-    { kind: 'extra', descriptionAr: 'مصاريف ترجمة', descriptionEn: 'Translation expense', amountFils: 15000 },
-  ] // AED 1,000.00
+    { kind: 'service_fee', descriptionAr: 'أتعاب الخدمة', descriptionEn: 'Service fee', amountFils: 70000 },
+    { kind: 'service_fee', descriptionAr: 'أتعاب الترجمة', descriptionEn: 'Translation fee', amountFils: 30000 },
+  ] // company fee AED 1,000.00; government AED 350.00 is paid by the customer to the authority and is NOT in the total
   const draftQuote = (id: string, items: unknown = ITEMS, token = owner) => hit('POST', `/staff/v1/requests/${id}/quotes`, { items }, token)
   const fin = async (id: string) => (await (await hit('GET', `/staff/v1/requests/${id}/finance`, undefined, owner)).json()) as { quotes: { id: string; version: number; status: string; number: string | null; total_fils: number }[]; payments: { id: string; kind: string; status: string; amount_fils: number; receipt_id: string | null; refund_of: string | null }[]; documents: { id: string; doc_type: string; number: string; status: string; related_id: string | null }[]; totals: { total: number; paid: number; refunded: number; net: number; pending: number; remaining: number; state: string }; tax: { configured: boolean }; test: boolean }
   const issueQuote = async (id: string, items: unknown = ITEMS) => { const q = (await (await draftQuote(id, items)).json()) as { id: string; version: number }; const r = await hit('POST', `/staff/v1/quotes/${q.id}/issue`, {}, owner); return { q, r } }
@@ -1076,7 +1076,7 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
 
   it('manual pricing: validated lines in integer fils, one open draft, drafts invisible to the customer', async () => {
     const id = await submit()
-    for (const bad of [[], 'x', [{ ...ITEMS[0], amountFils: -1 }], [{ ...ITEMS[0], amountFils: 10.5 }], [{ ...ITEMS[0], descriptionEn: '' }], [{ ...ITEMS[0], kind: 'tax' }], [{ ...ITEMS[0], amountFils: 1e12 }], Array(31).fill(ITEMS[0])])
+    for (const bad of [[], 'x', [{ ...ITEMS[0], amountFils: -1 }], [{ ...ITEMS[0], amountFils: 10.5 }], [{ ...ITEMS[0], descriptionEn: '' }], [{ ...ITEMS[0], kind: 'tax' }], [{ ...ITEMS[0], kind: 'extra' }], [{ ...ITEMS[0], amountFils: 1e12 }], Array(31).fill(ITEMS[0])])
       expect((await draftQuote(id, bad)).status).toBe(400)
     const a = await draftQuote(id); expect(a.status).toBe(201)
     const q = await a.json() as { id: string; version: number; totalFils: number }
@@ -1087,6 +1087,51 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     const cd = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { finance: { quotes: unknown[]; totals: { state: string } } }
     expect(cd.finance.quotes).toHaveLength(0); expect(cd.finance.totals.state).toBe('unpriced')
     expect(await (await fin(id)).totals.state).toBe('unpriced')
+  })
+  it('government fees are paid straight to the authority: not in our invoice, totals or receipts; only the company fee is collected', async () => {
+    const id = await submit()
+    // a government-only quote cannot be issued: there is no company fee to collect
+    const g = await (await draftQuote(id, [ITEMS[0]])).json() as { id: string; govFils: number }
+    expect(g.govFils).toBe(35000)
+    expect((await hit('POST', `/staff/v1/quotes/${g.id}/issue`, {}, owner)).status).toBeGreaterThanOrEqual(400)
+    const q = await (await draftQuote(id)).json() as { id: string; version: number; totalFils: number; govFils: number }
+    expect(q).toMatchObject({ totalFils: 100000, govFils: 35000 })
+    // the official payment link: https + an official host only
+    for (const bad of ['http://x.gov.ae/p', 'https://evil.example.com/p', 'https://user:pw@mol.gov.ae/p', 'https://mol.gov.ae.evil.com/p', 'javascript:alert(1)'])
+      expect((await hit('PATCH', `/staff/v1/quotes/${q.id}/pay-link`, { url: bad }, owner)).status).toBe(400)
+    expect((await hit('PATCH', `/staff/v1/quotes/${q.id}/pay-link`, { url: 'https://mol.gov.ae/pay?x=1' }, owner)).status).toBe(200)
+    expect((await hit('POST', `/staff/v1/quotes/${q.id}/issue`, {}, owner)).status).toBe(201)
+    expect((await acceptQuote(id, q)).status).toBe(200)
+    expect((await invoiceOf(id)).status).toBe(201)
+    const t = (await fin(id)).totals
+    expect(t).toMatchObject({ total: 100000, remaining: 100000 }) // government fees are not part of what the customer owes us
+    const c = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { finance: { gov: { total: number; payUrl: string; remaining: number; state: string } } }
+    expect(c.finance.gov).toMatchObject({ total: 35000, payUrl: 'https://mol.gov.ae/pay?x=1', remaining: 35000 })
+    // the invoice document shows the government part separately and says we do not collect it
+    const doc = (await fin(id)).documents.find((d) => d.doc_type === 'invoice')!
+    const html = await (await hit('GET', `/v1/documents/${doc.id}`, undefined, cust)).text()
+    expect(html).toContain('الجهة'); expect(html).toContain('350.00'); expect(html).toContain('1,000.00')
+    // customer reports paying the authority: capped, idempotent, unique reference
+    const rep = (amount: number, ref: string, key: string, token = cust) => hit('POST', `/v1/requests/${id}/authority-payments`, { amountFils: amount, reference: ref, clientKey: key }, token)
+    expect((await rep(40000, 'GOV-AAA-1', 'gk-over-0001')).status).toBe(409) // more than the official fee
+    const a = await rep(20000, 'GOV-AAA-1', 'gk-one-00001'); expect(a.status).toBe(201)
+    const aid = (await a.json() as { id: string }).id
+    expect(((await (await rep(20000, 'GOV-AAA-1', 'gk-one-00001')).json()) as { replay: boolean }).replay).toBe(true)
+    expect((await rep(1000, 'GOV-AAA-1', 'gk-two-00001')).status).toBe(409) // same reference twice
+    expect((await rep(20000, 'GOV-BBB-2', 'gk-three-0001')).status).toBe(409) // would exceed 35000 together
+    expect((await rep(15000, 'GOV-BBB-2', 'gk-four-0001', await login('+971521190031'))).status).toBe(404)
+    expect((await hit('POST', `/staff/v1/authority-payments/${aid}/verify`, {}, cust)).status).toBe(401)
+    expect((await hit('POST', `/staff/v1/authority-payments/${aid}/verify`, {}, await staffToken('agent'))).status).toBe(403)
+    expect((await hit('POST', `/staff/v1/authority-payments/${aid}/verify`, {}, owner)).status).toBe(200)
+    expect((await hit('POST', `/staff/v1/authority-payments/${aid}/verify`, {}, owner)).status).toBe(200) // replay is harmless
+    const b = await (await rep(15000, 'GOV-BBB-2', 'gk-five-0001')).json() as { id: string }
+    expect((await hit('POST', `/staff/v1/authority-payments/${b.id}/reject`, { reason: 'x' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/authority-payments/${b.id}/reject`, { reason: 'reference not found' }, owner)).status).toBe(200)
+    const after = await (await hit('GET', `/staff/v1/requests/${id}/finance`, undefined, owner)).json() as { gov: { verified: number; remaining: number }; totals: { paid: number; remaining: number } }
+    expect(after.gov).toMatchObject({ verified: 20000, remaining: 15000 })
+    expect(after.totals).toMatchObject({ paid: 0, remaining: 100000 }) // our balance is untouched by authority payments
+    expect(env.DB.prepare('DELETE FROM authority_payments WHERE id=?').bind(aid).run()).rejects.toThrow()
+    expect(env.DB.prepare('UPDATE authority_payments SET amount_fils=1 WHERE id=?').bind(aid).run()).rejects.toThrow()
   })
   it('permissions: agents may draft but not issue; accountants issue; customers and other customers are kept out', async () => {
     const id = await submit()
@@ -1125,7 +1170,7 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect((await acceptQuote(id, v2.q)).status).toBe(200)
     expect((await invoiceOf(id)).status).toBe(201)
     // with an invoice in force, re-pricing needs the invoice cancelled first
-    const v3 = (await (await draftQuote(id, [ITEMS[0]])).json()) as { id: string }
+    const v3 = (await (await draftQuote(id, [ITEMS[1]])).json()) as { id: string }
     expect((await hit('POST', `/staff/v1/quotes/${v3.id}/issue`, {}, owner)).status).toBe(409)
     expect((await invoiceOf(id)).status).toBe(409) // one active invoice only
   })

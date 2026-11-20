@@ -14,6 +14,7 @@ export interface Env {
   WEBAUTHN_RP_ID?: string       // e.g. ops.example.com (defaults to the request host)
   WEBAUTHN_ORIGINS?: string     // e.g. https://ops.example.com (comma separated; defaults to the request origin)
   SCANNER_MODE?: string         // 'fake-test' enables the explicit test scanner (ignored in production); anything else = no scanner
+  GOV_PAY_HOSTS?: string        // extra allowed suffixes for official payment links, e.g. ".rta.ae,.dubaipolice.gov.ae" (default: .gov.ae)
   COMPANY_NAME_AR?: string
   COMPANY_NAME_EN?: string
   OWNER_PHONE?: string          // E.164; the first sign-in with this number creates the owner account
