@@ -406,7 +406,9 @@ describe('staff operations hub', () => {
     const sv = await hit('GET', `/staff/v1/files/${f.id}`, { token: owner })
     expect(sv.status).toBe(200); expect(sv.headers.get('content-security-policy')).toContain("frame-ancestors 'self'")
     expect((await hit('GET', '/health')).headers.get('x-frame-options')).toBe('DENY')
-    // publish
+    // publish (only once the authority has finished)
+    expect((await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, { token: owner, body: {} })).status).toBe(409)
+    for (const body of [{ status: 'review' }, { status: 'ready_for_authority' }, { status: 'authority', reference: 'REF-PUB-1', overrideReason: 'test: fees settled offline' }, { status: 'decision' }]) await hit('POST', `/staff/v1/requests/${id}/status`, { token: owner, body })
     expect((await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, { token: owner, body: {} })).status).toBe(201)
     const dl = await hit('GET', `/v1/files/${f.id}`, { token: cust })
     expect(dl.status).toBe(200); expect(new Uint8Array(await dl.arrayBuffer())).toEqual(pdf())
@@ -792,11 +794,11 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
   it('needs "ready to submit" first, then a submission reference for "with authority", and a reason to reject', async () => {
     const id = await submit()
     await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'review' }, owner)
-    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'AUTH-1' }, owner)).status).toBe(409) // cannot skip ready_for_authority
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'AUTH-1', overrideReason: 'test: fees settled offline' }, owner)).status).toBe(409) // cannot skip ready_for_authority
     expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'ready_for_authority' }, owner)).status).toBe(200)
-    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority' }, owner)).status).toBe(400)
-    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'x' }, owner)).status).toBe(400)
-    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'AUTH-2026-00123' }, owner)).status).toBe(200)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', overrideReason: 'test: fees settled offline' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'x', overrideReason: 'test: fees settled offline' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'AUTH-2026-00123', overrideReason: 'test: fees settled offline' }, owner)).status).toBe(200)
     expect((await detail(id)).request.staff.authorityRef).toBe('AUTH-2026-00123')
     expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'rejected' }, owner)).status).toBe(400)
     expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'decision' }, owner)).status).toBe(200)
@@ -805,11 +807,13 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect(d.request.status).toBe('rejected'); expect(JSON.parse(d.request.staff_data).issue).toBe('Expired passport')
   })
   const toCompleted = async (id: string) => {
-    for (const body of [{ status: 'review' }, { status: 'ready_for_authority' }, { status: 'authority', reference: 'REF-123' }, { status: 'decision' }, { status: 'completed' }])
+    for (const body of [{ status: 'review' }, { status: 'ready_for_authority' }, { status: 'authority', reference: 'REF-123', overrideReason: 'test: fees settled offline' }, { status: 'decision' }, { status: 'completed' }])
       expect((await hit('POST', `/staff/v1/requests/${id}/status`, body, owner)).status).toBe(200)
   }
   const stage = (id: string, name: string) => hit('PUT', `/staff/v1/requests/${id}/files?kind=final`, undefined, owner, { 'x-file-name': name }, pdf())
-  const publish = (id: string) => hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, {}, owner)
+  // the request has to be with / past the authority before a delivery can be published (fees are overridden by the owner in these tests)
+  const advance = async (id: string) => { for (const body of [{ status: 'review' }, { status: 'ready_for_authority' }, { status: 'authority', reference: 'REF-ADV-1', overrideReason: 'test: fees settled offline' }, { status: 'decision' }]) await hit('POST', `/staff/v1/requests/${id}/status`, body, owner) }
+  const publish = async (id: string) => { await advance(id); return hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, {}, owner) }
   it('records receipt acknowledgement once per PUBLISHED delivery version; viewing never acknowledges; each version needs its own', async () => {
     const id = await submit()
     const ack = (v: number, token = cust) => hit('POST', `/v1/requests/${id}/acknowledgments`, { deliveryVersion: v }, token)
@@ -961,7 +965,7 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     const d = await (await hit('GET', `/staff/v1/requests/${id}`, undefined, owner)).json() as { customer: { name: string } }
     expect(d.customer.name).not.toBe('Changed')
     // walk to the authority and to completion: cancel is refused at every late state
-    for (const body of [{ status: 'ready_for_authority' }, { status: 'authority', reference: 'REF-9' }]) await hit('POST', `/staff/v1/requests/${id}`.replace(/$/, '/status'), body, owner)
+    for (const body of [{ status: 'ready_for_authority' }, { status: 'authority', reference: 'REF-9', overrideReason: 'test: fees settled offline' }]) await hit('POST', `/staff/v1/requests/${id}`.replace(/$/, '/status'), body, owner)
     for (const st of ['authority']) {
       const r = await hit('PATCH', `/v1/requests/${id}`, { status: 'cancelled' }, cust)
       expect(r.status).toBe(409); expect((await r.json() as { error: string }).error).toBe('cannot_cancel'); void st
@@ -1132,6 +1136,24 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect(after.totals).toMatchObject({ paid: 0, remaining: 100000 }) // our balance is untouched by authority payments
     expect(env.DB.prepare('DELETE FROM authority_payments WHERE id=?').bind(aid).run()).rejects.toThrow()
     expect(env.DB.prepare('UPDATE authority_payments SET amount_fils=1 WHERE id=?').bind(aid).run()).rejects.toThrow()
+  })
+  it('submission to the authority needs the verified company fee (paid in advance) and the verified government fee; only owner/manager can override, with a reason', async () => {
+    const id = await submit()
+    for (const body of [{ status: 'review' }, { status: 'ready_for_authority' }]) await hit('POST', `/staff/v1/requests/${id}/status`, body, owner)
+    const go = (extra: object = {}, token = owner) => hit('POST', `/staff/v1/requests/${id}/status`, { status: 'authority', reference: 'AUTH-PAY-1', ...extra }, token)
+    expect((await (await go()).json() as { unmet: string[] }).unmet).toEqual(['company_fee']) // not priced at all
+    expect((await go({ overrideReason: 'short' })).status).toBe(409) // reason too short
+    const { q } = await issueQuote(id); await acceptQuote(id, q); await invoiceOf(id)
+    expect((await go()).status).toBe(409)
+    const p = await (await pay(id, 99999)).json() as { id: string }; await approve(p.id) // one fil short
+    const r1 = await go(); expect((await r1.json() as { unmet: string[] }).unmet).toContain('company_fee')
+    const p2 = await (await pay(id, 1)).json() as { id: string }; await approve(p2.id)
+    // company fee is now paid; the government fee (35000) is still outstanding
+    const r2 = await go(); expect((await r2.json() as { unmet: string[] }).unmet).toEqual(['government_fee'])
+    const a = await (await hit('POST', `/v1/requests/${id}/authority-payments`, { amountFils: 35000, reference: 'GOV-GATE-1', clientKey: 'gate-key-0001' }, cust)).json() as { id: string }
+    expect((await go()).status).toBe(409) // reported is not verified
+    await hit('POST', `/staff/v1/authority-payments/${a.id}/verify`, {}, owner)
+    expect((await go()).status).toBe(200)
   })
   it('permissions: agents may draft but not issue; accountants issue; customers and other customers are kept out', async () => {
     const id = await submit()

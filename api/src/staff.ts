@@ -345,6 +345,20 @@ guarded.post('/requests/:id/status', roles(...OPS), async (c) => {
     const unscanned = await c.env.DB.prepare("SELECT id FROM request_files WHERE request_id=? AND kind='source' AND deleted_at IS NULL AND scan_status!='clean'").bind(r.id).all<{ id: string }>()
     if (unscanned.results.length) return c.json({ error: 'scan_pending', files: unscanned.results.map((x) => x.id) }, 409)
   }
+  // Our fee is agreed and paid in advance (bank transfer or cash, verified), and the government fee is paid by the customer to the authority: both before we submit.
+  if (to === 'authority') {
+    const [tot, gov] = [await totalsFor(c.env, r.id), await govFor(c.env, r.id)]
+    const unmet: string[] = []
+    if (!tot.invoice || tot.remaining > 0 || tot.pending > 0) unmet.push('company_fee')
+    if (gov.total > 0 && gov.state !== 'paid') unmet.push('government_fee')
+    if (unmet.length) {
+      const why = typeof b?.overrideReason === 'string' ? b.overrideReason.trim() : ''
+      if (!(c.get('staffRole') === 'owner' || c.get('staffRole') === 'manager')) return c.json({ error: 'payment_required', unmet }, 409)
+      if (why.length < 10) return c.json({ error: 'payment_required', unmet, overridable: true }, 409)
+      await audit(c, 'staff.payment_gate_override', null, { requestId: r.id, unmet, reason: why.slice(0, 300), by: c.get('staffId') })
+      await addEvent(c, r.id, 'note', `Payment gate overridden (${unmet.join(', ')}): ${why.slice(0, 300)}`, `Payment gate overridden (${unmet.join(', ')}): ${why.slice(0, 300)}`, false)
+    }
+  }
   // "With authority" is a fact that needs evidence of the actual submission; a rejection needs an understandable reason.
   if (to === 'authority') {
     const ref = typeof b?.reference === 'string' ? b.reference.trim() : ''
@@ -465,6 +479,7 @@ guarded.post('/requests/:id/deliveries/publish', roles(...OPS), async (c) => {
   if (!draft || !items.some((x) => x.kind === 'final')) return c.json({ error: 'no_final_files' }, 409) // nothing to publish without a final file
   const unscanned = await c.env.DB.prepare("SELECT COUNT(*) n FROM request_files WHERE delivery_id=? AND deleted_at IS NULL AND scan_status!='clean'").bind(draft.id).first<{ n: number }>()
   if ((unscanned?.n ?? 0) > 0) return c.json({ error: 'scan_pending' }, 409) // nothing is published until every file has a clean verdict
+  if (r.status !== 'decision' && r.status !== 'completed') return c.json({ error: 'authority_not_finished' }, 409) // deliver only once the authority has finished
   const mx = await c.env.DB.prepare('SELECT MAX(version) v FROM deliveries WHERE request_id=?').bind(r.id).first<{ v: number | null }>()
   const version = (mx?.v ?? 0) + 1
   const manifest = await sha256Hex(items.map((x) => `${x.id}:${x.sha256}`).join('|'))

@@ -1,21 +1,33 @@
 import { useState, type ReactNode } from 'react'
 import { ApiError, api, type CheckRow, type Detail, type FileRow, type Role, type Status } from './api'
-import { STATUS_LABEL, useI18n } from './i18n'
+import { STATUS_LABEL, useI18n, type Key } from './i18n'
 import { Field, Badge, Card, NEXT, shortId, useAsync } from './ui'
 import { FinanceCard } from './Finance'
 
 type Preview = { url: string; mime: string; name: string }
 
+type StatusOpts = { note?: string; expectedAt?: string; reason?: string; reference?: string; expectedVersion?: number }
+/** Moving to the authority needs our fee and the government fee verified; owner/manager may override with a written reason. */
+async function moveStatus(role: Role, t: (k: Key) => string, id: string, to: Status, o: StatusOpts) {
+  try { return await api.setStatus(id, to, o) } catch (e) {
+    if (e instanceof ApiError && e.code === 'payment_required' && (role === 'owner' || role === 'manager')) {
+      const why = window.prompt(t('payGatePrompt'))?.trim()
+      if (why && why.length >= 10) return api.setStatus(id, to, { ...o, overrideReason: why })
+    }
+    throw e
+  }
+}
 export function RequestDetail({ id, me, back }: { id: string; me: { id: string; role: Role }; back: () => void }) {
   const { t, lang, fmt, day } = useI18n()
   const { data: d, loading, error, reload } = useAsync(() => api.request(id), [id])
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
 
+  const move = (to: Status, o: StatusOpts) => moveStatus(me.role, t, id, to, o)
   const act = async (fn: () => Promise<unknown>) => {
     setMsg(null)
     try { await fn(); setMsg({ ok: true, text: t('saved') }); reload() }
-    catch (e) { setMsg({ ok: false, text: e instanceof ApiError && e.code === 'invalid_transition' ? t('invalidTransition') : e instanceof ApiError && e.code === 'version_conflict' ? t('conflict') : e instanceof ApiError && e.code === 'documents_blocked' ? t('blockedDocs') : e instanceof ApiError && e.code === 'scan_pending' ? t('e_scan') : t('failed') }); if (e instanceof ApiError && e.status === 409) reload() }
+    catch (e) { setMsg({ ok: false, text: e instanceof ApiError && e.code === 'invalid_transition' ? t('invalidTransition') : e instanceof ApiError && e.code === 'version_conflict' ? t('conflict') : e instanceof ApiError && e.code === 'documents_blocked' ? t('blockedDocs') : e instanceof ApiError && e.code === 'scan_pending' ? t('e_scan') : e instanceof ApiError && e.code === 'payment_required' ? t('payRequired') : e instanceof ApiError && e.code === 'authority_not_finished' ? t('notFinished') : t('failed') }); if (e instanceof ApiError && e.status === 409) reload() }
   }
   const openFile = async (f: FileRow) => {
     try { const b = await api.fileBlob(f.id); setPreview({ url: URL.createObjectURL(b), mime: f.mime, name: f.name }) } catch { setMsg({ ok: false, text: t('failed') }) }
@@ -40,7 +52,7 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
         if (!showNext && mine) return null
         return (
           <div className="quick" role="group" aria-label={t('actions')}>
-            {showNext && <button className="btn primary" onClick={() => { const ref = next === 'authority' ? window.prompt(t('refNeeded'))?.trim() : undefined; if (next === 'authority' && !ref) return; void act(() => api.setStatus(r.id, next as Status, { reference: ref, expectedVersion: r.version })) }}>{t('nextStep')}: {STATUS_LABEL[next as Status][lang]}</button>}
+            {showNext && <button className="btn primary" onClick={() => { const ref = next === 'authority' ? window.prompt(t('refNeeded'))?.trim() : undefined; if (next === 'authority' && !ref) return; void act(() => move(next as Status, { reference: ref, expectedVersion: r.version })) }}>{t('nextStep')}: {STATUS_LABEL[next as Status][lang]}</button>}
             {!mine && <button className="btn" onClick={() => act(() => api.assign(r.id, me.id, r.version))}>{t('assignToMe')}</button>}
           </div>
         )
@@ -116,8 +128,9 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
 
 const Row = ({ k, v }: { k: string; v: string }): ReactNode => <><dt>{k}</dt><dd>{v}</dd></>
 
-function Actions({ d, me, act }: { d: Detail; me: { id: string }; act: (fn: () => Promise<unknown>) => Promise<void> }) {
+function Actions({ d, me, act }: { d: Detail; me: { id: string; role: Role }; act: (fn: () => Promise<unknown>) => Promise<void> }) {
   const { t, lang } = useI18n()
+  const move = (to: Status, o: StatusOpts) => moveStatus(me.role, t, d.request.id, to, o)
   const r = d.request
   const [to, setTo] = useState<Status | ''>('')
   const [note, setNote] = useState('')
@@ -151,7 +164,7 @@ function Actions({ d, me, act }: { d: Detail; me: { id: string }; act: (fn: () =
             {to === 'rejected' && <Field label={t('rejectReason')}><input value={rejReason} onChange={(e) => setRejReason(e.target.value)} /></Field>}
             <Field label={t('expected')}><input type="date" value={expected} onChange={(e) => setExpected(e.target.value)} /></Field>
             <Field label={t('note')}><textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-            <button className="btn primary" disabled={!to || (to === 'authority' && reference.trim().length < 3) || (to === 'rejected' && rejReason.trim().length < 3)} onClick={() => act(async () => { await api.setStatus(r.id, to as Status, { note: note || undefined, expectedAt: expected || undefined, reference: reference.trim() || undefined, reason: rejReason.trim() || undefined, expectedVersion: r.version }); setTo(''); setNote(''); setReference(''); setRejReason('') })}>{t('apply')}</button>
+            <button className="btn primary" disabled={!to || (to === 'authority' && reference.trim().length < 3) || (to === 'rejected' && rejReason.trim().length < 3)} onClick={() => act(async () => { await move(to as Status, { note: note || undefined, expectedAt: expected || undefined, reference: reference.trim() || undefined, reason: rejReason.trim() || undefined, expectedVersion: r.version }); setTo(''); setNote(''); setReference(''); setRejReason('') })}>{t('apply')}</button>
           </>
         )}
       </Card>

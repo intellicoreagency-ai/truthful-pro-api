@@ -37,8 +37,9 @@ if(require.main===module)(async()=>{
  const after=(await J('GET',`/staff/v1/requests/${rid}`,undefined,owner)).j;
  console.log('server status after customer reply:',after.request.status,'| missing resolved:',after.missing.every(m=>m.resolved_at),'| files:',after.files.length);
  // ---- the team finishes and delivers ----
- for(const s of ['authority','decision','completed'])await J('POST',`/staff/v1/requests/${rid}/status`,{status:s,reference:'AUTH-2026-0042'},owner);
+ for(const s of ['ready_for_authority','authority','decision','completed'])await J('POST',`/staff/v1/requests/${rid}/status`,{status:s,reference:'AUTH-2026-0042',overrideReason:'test: fees settled offline'},owner);
  await fetch(`${B}/staff/v1/requests/${rid}/files?kind=final`,{method:'PUT',headers:{authorization:'Bearer '+owner,'x-file-name':encodeURIComponent('emirates-id.pdf'),'x-file-label':encodeURIComponent('الهوية الإماراتية الجديدة')},body:fs.readFileSync('doc.pdf')});
+ await J('POST',`/staff/v1/requests/${rid}/deliveries/publish`,{},owner);
  await p.screenshot({path:'c2b.png'});await p.mouse.click(344,30);await p.waitForTimeout(800);
  if(!(await p.getByText('الرئيسية',{exact:true}).count())){await p.mouse.click(367,12);await p.waitForTimeout(800)}
  await p.getByText('الرئيسية',{exact:true}).last().click();await p.waitForTimeout(500);await p.getByText('طلباتي',{exact:true}).last().click();await p.waitForTimeout(3500);

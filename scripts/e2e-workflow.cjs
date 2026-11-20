@@ -49,7 +49,7 @@ const ok=(label,cond)=>{console.log((cond?'PASS ':'FAIL ')+label);if(!cond)proce
  // 4. delivery draft is hidden until published
  await p.goto(B+'/#/requests/'+rid);await p.waitForTimeout(1500);
  const [fc]=await Promise.all([p.waitForEvent('filechooser'),p.locator('input[type=file]').first().click()]);await fc.setFiles('doc.pdf');
- await p.getByLabel('وصف الملف').fill('الهوية الإماراتية الجديدة');await p.getByRole('button',{name:'حفظ'}).nth(0).click();await p.waitForTimeout(1500);
+ await p.getByLabel('وصف الملف').fill('الهوية الإماراتية الجديدة');await p.getByRole('button',{name:'حفظ',exact:true}).nth(0).click();await p.waitForTimeout(1500);
  const txt=await p.locator('body').innerText();ok('draft package shown to staff',txt.includes('مسودة (لا يراها العميل)'));
  const c2=(await J('GET',`/v1/requests/${rid}`,undefined,A)).j;ok('draft file NOT visible to the customer',c2.files.every(f=>f.kind==='source'));
  const draftFile=(await J('GET',`/staff/v1/requests/${rid}`,undefined,owner)).j.files.find(f=>f.kind==='final');
@@ -63,7 +63,7 @@ const ok=(label,cond)=>{console.log((cond?'PASS ':'FAIL ')+label);if(!cond)proce
  await J('POST',`/v1/requests/${rid}/acknowledgments`,{deliveryVersion:1},A);
  await p.reload();await p.waitForTimeout(1500);ok('acknowledgement of v1 shown to staff',(await p.locator('body').innerText()).includes('تأكيد الاستلام'));
  const [fc2]=await Promise.all([p.waitForEvent('filechooser'),p.locator('input[type=file]').first().click()]);await fc2.setFiles('photo.jpg');
- await p.getByLabel('وصف الملف').fill('نسخة معدلة');await p.getByRole('button',{name:'حفظ'}).nth(0).click();await p.waitForTimeout(1200);
+ await p.getByLabel('وصف الملف').fill('نسخة معدلة');await p.getByRole('button',{name:'حفظ',exact:true}).nth(0).click();await p.waitForTimeout(1200);
  await p.getByRole('button',{name:'نشر للعميل'}).click();await p.waitForTimeout(1500);
  const c4=(await J('GET',`/v1/requests/${rid}`,undefined,A)).j;
  ok('version 2 published; v1 acknowledgement does not carry over',c4.request.delivery_version===2&&c4.request.acknowledged_version===1);

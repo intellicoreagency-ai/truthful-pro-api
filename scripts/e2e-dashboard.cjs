@@ -30,7 +30,7 @@ const deliver=async(from,code)=>{const raw=JSON.stringify({entry:[{changes:[{val
  await p.getByLabel('اسم المستند (عربي)').fill('صورة الإقامة');await p.getByLabel('اسم المستند (إنجليزي)').fill('Residence copy');
  await p.getByRole('button',{name:'إرسال الطلب'}).click();await p.waitForTimeout(900);
  console.log('needs docs:',(await p.locator('body').innerText()).includes('بانتظار العميل'));
- await p.getByLabel('ملاحظة داخلية').fill('اتصلت بالعميل');await p.getByRole('button',{name:'حفظ'}).last().click();await p.waitForTimeout(700);
+ await p.getByLabel('ملاحظة داخلية').fill('اتصلت بالعميل');await p.getByRole('button',{name:'حفظ',exact:true}).last().click();await p.waitForTimeout(700);
  // open document
  await p.getByRole('button',{name:'عرض'}).first().click();await p.waitForTimeout(1200);await p.screenshot({path:'d4.png'});
  console.log('viewer open:',await p.locator('.preview iframe, .preview img').count());
