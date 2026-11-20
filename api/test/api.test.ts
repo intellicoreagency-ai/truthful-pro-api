@@ -555,3 +555,79 @@ describe('passkeys (guards; the full ceremony is exercised in the browser smoke 
     expect((await hit('GET', '/staff/v1/passkeys', undefined, owner)).status).toBe(200)
   })
 })
+
+describe('override, overview and customers', () => {
+  const OWNER = '+971521170001'
+  const oenv = () => ({ ...env, OWNER_PHONE: OWNER, OWNER_SETUP_KEY: 'owner-setup-key-0123456789', WA_BUSINESS_NUMBER: '971500000000', WA_APP_SECRET: 'o-secret' } as Env)
+  let k = 0
+  const hit = (method: string, path: string, body?: unknown, token?: string, raw?: Uint8Array) => {
+    const headers: Record<string, string> = { 'cf-connecting-ip': `10.6.${Math.floor(++k / 250)}.${k % 250}` }
+    if (body !== undefined) headers['content-type'] = 'application/json'
+    if (token) headers.authorization = `Bearer ${token}`
+    return app.fetch(new Request('https://api.test' + path, { method, headers, body: raw ? (raw as BodyInit) : body === undefined ? undefined : JSON.stringify(body) }), oenv())
+  }
+  const deliver = async (from: string, code: string) => {
+    const raw = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ from, type: 'text', text: { body: code } }] } }] }] })
+    const kx = await crypto.subtle.importKey('raw', new TextEncoder().encode('o-secret'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+    const sig = 'sha256=' + Buffer.from(await crypto.subtle.sign('HMAC', kx, new TextEncoder().encode(raw))).toString('hex')
+    const r = await app.fetch(new Request('https://api.test/webhooks/whatsapp', { method: 'POST', headers: { 'x-hub-signature-256': sig, 'content-type': 'application/json', 'cf-connecting-ip': '10.6.9.9' }, body: raw }), oenv())
+    return r.status
+  }
+  let owner = '', agent = '', custToken = '', rid = ''
+  it('sets up the team and a submitted request', async () => {
+    const { hotp } = await import('../src/totp')
+    await env.DB.prepare('DELETE FROM staff_sessions').run(); await env.DB.prepare('DELETE FROM staff_passkeys').run(); await env.DB.prepare('DELETE FROM staff').run()
+    const s = await (await hit('POST', '/staff/v1/auth/setup/start', { phone: OWNER, setupKey: 'owner-setup-key-0123456789' })).json() as { secret: string }
+    owner = ((await (await hit('POST', '/staff/v1/auth/setup/confirm', { phone: OWNER, code: await hotp(s.secret, Math.floor(Date.now() / 30000)) })).json()) as { accessToken: string }).accessToken
+    const add = await (await hit('POST', '/staff/v1/team', { phone: '+971521170002', name: 'Agent', role: 'agent' }, owner)).json() as { enrollKey: string }
+    const as = await (await hit('POST', '/staff/v1/auth/setup/start', { phone: '+971521170002', setupKey: add.enrollKey })).json() as { secret: string }
+    agent = ((await (await hit('POST', '/staff/v1/auth/setup/confirm', { phone: '+971521170002', code: await hotp(as.secret, Math.floor(Date.now() / 30000)) })).json()) as { accessToken: string }).accessToken
+    const ph = '+971521170010'
+    const st = await (await hit('POST', '/v1/auth/wa/start', { phone: ph })).json() as { challengeId: string; pollToken: string; code: string }
+    expect(await deliver('971521170010', st.code)).toBe(200)
+    custToken = ((await (await hit('POST', '/v1/auth/wa/poll', { phone: ph, challengeId: st.challengeId, pollToken: st.pollToken })).json()) as { accessToken: string }).accessToken
+    rid = ((await (await hit('POST', '/v1/requests', { serviceId: 'emirates-id', data: { name: 'Layla', title: { ar: 'تجديد', en: 'Renew' } } }, custToken)).json()) as { id: string }).id
+    await hit('PATCH', `/v1/requests/${rid}`, { status: 'submitted' }, custToken)
+  })
+  it('lets only owner/manager override the status machine, with a mandatory reason', async () => {
+    expect((await hit('POST', `/staff/v1/requests/${rid}/status`, { status: 'completed' }, owner)).status).toBe(409) // normal path blocks it
+    expect((await hit('POST', `/staff/v1/requests/${rid}/override`, { status: 'completed', reason: 'x' }, agent)).status).toBe(403)
+    expect((await hit('POST', `/staff/v1/requests/${rid}/override`, { status: 'completed' }, owner)).status).toBe(400) // no reason
+    expect((await hit('POST', `/staff/v1/requests/${rid}/override`, { status: 'bogus', reason: 'testing' }, owner)).status).toBe(400)
+    expect((await hit('POST', `/staff/v1/requests/${rid}/override`, { status: 'completed', reason: 'Finished offline at the counter' }, owner)).status).toBe(200)
+    const d = await (await hit('GET', `/v1/requests/${rid}`, undefined, custToken)).json() as { request: { status: string; staff_data: string }; events: { text_en: string }[] }
+    expect(d.request.status).toBe('completed'); expect(JSON.parse(d.request.staff_data).completedAt).toBeTruthy()
+    expect(JSON.stringify(d.events)).not.toContain('OVERRIDE') // the customer never sees the override note
+    const det = await (await hit('GET', `/staff/v1/requests/${rid}`, undefined, owner)).json() as { events: { text_en: string; visible: number }[] }
+    expect(det.events.some((e) => e.text_en.startsWith('OVERRIDE') && e.visible === 0 && e.text_en.includes('Finished offline'))).toBe(true)
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM audit_events WHERE action='staff.override'").first<{ n: number }>())!.n).toBe(1)
+  })
+  it('can reopen a completed request, clearing its completion date', async () => {
+    expect((await hit('POST', `/staff/v1/requests/${rid}/override`, { status: 'review', reason: 'Customer reported a mistake' }, owner)).status).toBe(200)
+    const det = await (await hit('GET', `/staff/v1/requests/${rid}`, undefined, owner)).json() as { request: { status: string; staff: { completedAt?: string } } }
+    expect(det.request.status).toBe('review'); expect(det.request.staff.completedAt).toBeUndefined()
+    expect((await hit('POST', `/staff/v1/requests/${rid}/override`, { customerName: 'Layla Ahmed', expectedAt: '2026-12-15', reason: 'Name spelling' }, owner)).status).toBe(200)
+    const det2 = await (await hit('GET', `/staff/v1/requests/${rid}`, undefined, owner)).json() as { customer: { name: string }; request: { staff: { expectedAt?: string } } }
+    expect(det2.customer.name).toBe('Layla Ahmed'); expect(det2.request.staff.expectedAt).toBe('2026-12-15')
+    expect((await hit('POST', `/staff/v1/requests/${rid}/override`, { reason: 'nothing' }, owner)).status).toBe(400)
+  })
+  it('gives a useful overview and scopes it for agents', async () => {
+    const o = await (await hit('GET', '/staff/v1/overview', undefined, owner)).json() as { newToday: number; open: number; activity: { text_en: string; internal: boolean }[]; workload: unknown[]; attention: unknown[] }
+    expect(o.newToday).toBeGreaterThanOrEqual(1); expect(o.open).toBeGreaterThanOrEqual(1)
+    expect(o.activity.length).toBeGreaterThan(0); expect(o.activity.some((a) => a.internal)).toBe(true)
+    expect(Array.isArray(o.workload)).toBe(true)
+    await env.DB.prepare('UPDATE requests SET updated_at=? WHERE id=?').bind(Date.now() - 50 * 3600_000, rid).run()
+    const o2 = await (await hit('GET', '/staff/v1/overview', undefined, owner)).json() as { attention: { id: string; waitingHours: number }[] }
+    expect(o2.attention.find((a) => a.id === rid)!.waitingHours).toBeGreaterThanOrEqual(49)
+    const ag = await (await hit('GET', '/staff/v1/overview', undefined, agent)).json() as { workload: unknown[] }
+    expect(ag.workload).toEqual([]) // agents do not see team workload
+  })
+  it('lists customers for owner/manager only, with their requests', async () => {
+    expect((await hit('GET', '/staff/v1/customers', undefined, agent)).status).toBe(403)
+    const l = await (await hit('GET', '/staff/v1/customers?q=170010', undefined, owner)).json() as { customers: { id: string; phone: string; requests: number }[] }
+    expect(l.customers).toHaveLength(1); expect(l.customers[0]!.phone).toBe('+971521170010'); expect(l.customers[0]!.requests).toBe(1)
+    const d = await (await hit('GET', `/staff/v1/customers/${l.customers[0]!.id}`, undefined, owner)).json() as { requests: { id: string }[]; consents: unknown[] }
+    expect(d.requests[0]!.id).toBe(rid)
+    expect((await hit('GET', `/staff/v1/customers/${crypto.randomUUID()}`, undefined, owner)).status).toBe(404)
+  })
+})

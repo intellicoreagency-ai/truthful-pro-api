@@ -58,6 +58,12 @@ it under *First sign-in* to enrol their own authenticator app. Disabling a membe
 `npx wrangler d1 execute DB --remote --command "UPDATE staff SET totp_enabled=0, totp_secret_enc=NULL WHERE role='owner'"`
 and re-enrols with the setup key (set `OWNER_SETUP_KEY` again if you deleted it).
 
+### Fingerprint / face sign-in (passkeys)
+Works on the **real domain over HTTPS** only. Set the dashboard domain so passkeys are bound to it:
+`WEBAUTHN_RP_ID = "ops.<your-domain>"` and `WEBAUTHN_ORIGINS = "https://ops.<your-domain>"` under `[vars]` in `wrangler.toml`.
+A passkey is tied to that domain: register again after any domain change, and do not register on `localhost` expecting it to work in production.
+After the first sign-in, open **Security -> Enable fingerprint on this device** on each phone/computer you use. Android Chrome and iOS Safari support it.
+
 WhatsApp sign-in for staff still exists as an optional second method for members who have WhatsApp.
 Use a separate custom domain for the dashboard in Cloudflare (e.g. `ops.<your-domain>`) pointing at this Worker.
 Local smoke test: start `wrangler dev`, then `node scripts/e2e-dashboard.cjs` (needs `playwright` and the vars in `.dev.vars`).

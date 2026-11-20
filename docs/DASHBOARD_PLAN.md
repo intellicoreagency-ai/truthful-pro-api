@@ -11,7 +11,7 @@ transactions, and follows customers up. It sits on the same API/database as the 
 - **Privacy:** staff see only what their role needs; every view/download of a customer document is written to the audit log.
 
 ## Phases (each is built, tested and pushed before the next)
-1. **Operations hub** (in progress): staff accounts + roles, request queue and filters, assign to a staff member, status changes with a
+1. **Operations hub** (built; see below for the 20 Nov 2026 additions): staff accounts + roles, request queue and filters, assign to a staff member, status changes with a
    timeline the customer sees, ask for missing documents, internal notes, secure document viewer, upload final/delivery files.
 2. **Customer messaging:** in-app thread per request; WhatsApp replies (free within 24 h of the customer's message).
 3. **Finance and invoicing:** quotes, UAE VAT 5% tax invoices (FTA required fields), payments log, refunds, outstanding balances, daily cash report.
@@ -35,3 +35,9 @@ transactions, and follows customers up. It sits on the same API/database as the 
 - Provided (20 Nov 2026): the owner's mobile has calls/SMS only, no WhatsApp, hence authenticator-app sign-in. It is deployed as a secret, not stored in the repo.
 - Payment provider (if online payment is wanted).
 - OCR provider and where documents may be processed.
+
+## Built so far (20 Nov 2026)
+Staff accounts and roles; authenticator-app sign-in; fingerprint/face sign-in (passkeys); request queue as list or board with one-click next step;
+global quick search; request detail with documents viewer, timeline, assign, status, missing-document requests, delivery/invoice upload, internal notes;
+**Override** (owner/manager: force any status, reopen completed requests, fix customer name/expected date; reason mandatory, internal note + audit, never shown to the customer);
+overview with today's figures, stale-request alerts, activity feed and team workload; customer records with request history and consents; Team and Security pages.

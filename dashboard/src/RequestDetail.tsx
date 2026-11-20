@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from 'react'
-import { ApiError, api, type Detail, type FileRow, type Status } from './api'
+import { ApiError, api, type Detail, type FileRow, type Role, type Status } from './api'
 import { STATUS_LABEL, useI18n } from './i18n'
-import { Field, Badge, Card, shortId, useAsync } from './ui'
+import { Field, Badge, Card, NEXT, shortId, useAsync } from './ui'
 
 type Preview = { url: string; mime: string; name: string }
 
-export function RequestDetail({ id, me, back }: { id: string; me: { id: string }; back: () => void }) {
+export function RequestDetail({ id, me, back }: { id: string; me: { id: string; role: Role }; back: () => void }) {
   const { t, lang, fmt, day } = useI18n()
   const { data: d, loading, error, reload } = useAsync(() => api.request(id), [id])
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
@@ -32,6 +32,18 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string }
       </div>
       <h1>{r.data.title?.[lang] ?? r.serviceId} <span className="muted small" dir="ltr">#{shortId(r.id)}</span></h1>
       {msg && <div className={`msg ${msg.ok ? 'ok' : ''}`} role="status">{msg.text}</div>}
+      {(() => {
+        const next = NEXT[r.status]
+        const showNext = !!next && d.transitions.includes(next)
+        const mine = r.assigneeId === me.id
+        if (!showNext && mine) return null
+        return (
+          <div className="quick" role="group" aria-label={t('actions')}>
+            {showNext && <button className="btn primary" onClick={() => act(() => api.setStatus(r.id, next as Status, {}))}>{t('nextStep')}: {STATUS_LABEL[next as Status][lang]}</button>}
+            {!mine && <button className="btn" onClick={() => act(() => api.assign(r.id, me.id))}>{t('assignToMe')}</button>}
+          </div>
+        )
+      })()}
       <div className="detail" style={{ marginTop: 14 }}>
         <div>
           <Card title={t('customer')}>
@@ -80,6 +92,7 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string }
         </div>
         <div>
           <Actions d={d} me={me} act={act} />
+          {(me.role === 'owner' || me.role === 'manager') && <OverrideCard d={d} act={act} />}
         </div>
       </div>
       {preview && (
@@ -159,5 +172,35 @@ function Actions({ d, me, act }: { d: Detail; me: { id: string }; act: (fn: () =
         <button className="btn" disabled={!internal.trim()} onClick={() => act(async () => { await api.note(r.id, internal.trim()); setInternal('') })}>{t('save')}</button>
       </Card>
     </>
+  )
+}
+
+function OverrideCard({ d, act }: { d: Detail; act: (fn: () => Promise<unknown>) => Promise<void> }) {
+  const { t, lang } = useI18n()
+  const r = d.request
+  const [status, setStatus] = useState<Status | ''>('')
+  const [expected, setExpected] = useState('')
+  const [name, setName] = useState('')
+  const [reason, setReason] = useState('')
+  const all: Status[] = ['submitted', 'review', 'needs_documents', 'authority', 'decision', 'completed', 'rejected', 'cancelled']
+  const changed = !!status || !!expected || !!name.trim()
+  return (
+    <section className="card section override">
+      <h3>{t('override')}</h3>
+      <p className="muted small">{t('overrideHint')}</p>
+      <Field label={t('forceStatus')}>
+        <select value={status} onChange={(e) => setStatus(e.target.value as Status)}>
+          <option value="">{t('same')}</option>
+          {all.filter((x) => x !== r.status).map((x) => <option key={x} value={x}>{r.status === 'completed' && x === 'review' ? `${t('reopen')} · ` : ''}{STATUS_LABEL[x][lang]}</option>)}
+        </select>
+      </Field>
+      <Field label={t('expected')}><input type="date" value={expected} onChange={(e) => setExpected(e.target.value)} /></Field>
+      <Field label={t('customerName')}><input value={name} placeholder={d.customer.name} onChange={(e) => setName(e.target.value)} /></Field>
+      <Field label={t('reason')}><textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+      <button className="btn danger" disabled={!changed || reason.trim().length < 3}
+        onClick={() => { if (!window.confirm(t('overrideConfirm'))) return; void act(async () => { await api.override(r.id, { reason: reason.trim(), status: status || undefined, expectedAt: expected || undefined, customerName: name.trim() || undefined }); setStatus(''); setExpected(''); setName(''); setReason('') }) }}>
+        {t('overrideApply')}
+      </button>
+    </section>
   )
 }

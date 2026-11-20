@@ -58,6 +58,14 @@ export type Detail = {
   customer: { id: string; name: string; phone: string }; files: FileRow[]; events: EventRow[]; missing: MissingRow[]; transitions: Status[]
 }
 export type TeamRow = { id: string; name: string; role: Role; active: number; created_at: number }
+export type Overview = {
+  newToday: number; completedToday: number; open: number
+  attention: { id: string; status: Status; title: Bi | null; customer: string; waitingHours: number }[]
+  workload: { id: string; name: string; n: number }[]
+  activity: { id: string; requestId: string; actor: string; kind: string; text_ar: string; text_en: string; internal: boolean; at: number; title: Bi | null; customer: string }[]
+}
+export type CustomerRow = { id: string; name: string; phone: string; joinedAt: number; requests: number; open: number; lastAt: number | null }
+export type CustomerDetail = { customer: { id: string; name: string; phone: string; language: string; joinedAt: number }; requests: { id: string; status: Status; title: Bi | null; createdAt: number; updatedAt: number }[]; consents: { type: string; version: string; accepted: number; created_at: number }[] }
 export type WaStart = { challengeId: string; pollToken: string; code: string; link: string; expiresIn: number }
 
 export const api = {
@@ -98,6 +106,10 @@ export const api = {
     const p = new URLSearchParams(); for (const [k, v] of Object.entries(q)) if (v) p.set(k, v)
     return (await j<{ requests: ListItem[] }>(await call('GET', '/staff/v1/requests?' + p))).requests
   },
+  overview: async () => j<Overview>(await call('GET', '/staff/v1/overview')),
+  customers: async (q: string) => (await j<{ customers: CustomerRow[] }>(await call('GET', '/staff/v1/customers?q=' + encodeURIComponent(q)))).customers,
+  customer: async (id: string) => j<CustomerDetail>(await call('GET', `/staff/v1/customers/${id}`)),
+  override: (id: string, body: { reason: string; status?: Status; expectedAt?: string; customerName?: string }) => call('POST', `/staff/v1/requests/${id}/override`, { body }),
   request: async (id: string) => j<Detail>(await call('GET', `/staff/v1/requests/${id}`)),
   assign: (id: string, staffId: string | null) => call('POST', `/staff/v1/requests/${id}/assign`, { body: { staffId } }),
   setStatus: (id: string, status: Status, extra: { note?: string; expectedAt?: string; reason?: string }) => call('POST', `/staff/v1/requests/${id}/status`, { body: { status, ...extra } }),

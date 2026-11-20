@@ -480,4 +480,92 @@ staff.post('/auth/passkey/verify', async (c) => {
   return openSession(c, row.staff_id, row.role)
 })
 
+
+// ---------- override (owner/manager): bypass the status machine, with a mandatory reason, fully audited ----------
+const ALL_STATUS = ['submitted', 'review', 'needs_documents', 'authority', 'decision', 'completed', 'cancelled', 'rejected']
+guarded.post('/requests/:id/override', roles('owner', 'manager'), async (c) => {
+  const r = await loadRequest(c, c.req.param('id'))
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const reason = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 500) : ''
+  if (reason.length < 3) return c.json({ error: 'reason_required' }, 400)
+  const me = await c.env.DB.prepare('SELECT name FROM staff WHERE id=?').bind(c.get('staffId')).first<{ name: string }>()
+  const done: string[] = []
+  let sd: any = {}; try { sd = JSON.parse(r.staff_data) } catch {}
+  let data: any = {}; try { data = JSON.parse(r.data) } catch {}
+  let status = r.status, dataChanged = false
+  if (typeof b?.status === 'string') {
+    if (!ALL_STATUS.includes(b.status) || b.status === r.status) return c.json({ error: 'invalid_status' }, 400)
+    status = b.status; done.push(`status ${r.status} -> ${status}`)
+    if (status === 'completed') sd.completedAt = new Date().toISOString(); else delete sd.completedAt // reopening clears the completion date
+  }
+  if (typeof b?.expectedAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.expectedAt)) { sd.expectedAt = b.expectedAt; done.push('expected date') }
+  if (typeof b?.customerName === 'string' && b.customerName.trim()) { data.name = b.customerName.trim().slice(0, 80); dataChanged = true; done.push('customer name') }
+  if (!done.length) return c.json({ error: 'nothing_to_change' }, 400)
+  await c.env.DB.prepare('UPDATE requests SET status=?, staff_data=?, data=?, updated_at=? WHERE id=?')
+    .bind(status, JSON.stringify(sd), dataChanged ? JSON.stringify(data) : r.data, Date.now(), r.id).run()
+  if (status !== r.status) { const [ar, en] = LABEL[status] as [string, string]; await addEvent(c, r.id, 'status', ar, en, true) }
+  const txt = `OVERRIDE by ${me?.name ?? c.get('staffId')}: ${done.join(', ')}. Reason: ${reason}`
+  await addEvent(c, r.id, 'note', txt, txt, false)
+  await audit(c, 'staff.override', null, { requestId: r.id, by: c.get('staffId'), changes: done, reason })
+  return c.json({ ok: true, status })
+})
+
+// ---------- overview, activity, customers ----------
+guarded.get('/overview', roles(...OPS), async (c) => {
+  const open = "r.status IN ('submitted','review','needs_documents','authority','decision')"
+  const dayStart = (() => { const d = new Date(Date.now() + 4 * 3600_000); d.setUTCHours(0, 0, 0, 0); return d.getTime() - 4 * 3600_000 })() // start of today in Dubai
+  const scope = c.get('staffRole') === 'agent' ? ' AND (r.assignee_id IS NULL OR r.assignee_id=?)' : ''
+  const args = c.get('staffRole') === 'agent' ? [c.get('staffId')] : []
+  const one = (sql: string, ...a: unknown[]) => c.env.DB.prepare(sql).bind(...a).first<{ n: number }>()
+  const newToday = await one(`SELECT COUNT(*) n FROM requests r WHERE r.deleted_at IS NULL AND r.status!='draft' AND r.created_at>=?${scope}`, dayStart, ...args)
+  const doneToday = await one(`SELECT COUNT(*) n FROM requests r WHERE r.deleted_at IS NULL AND r.status='completed' AND r.updated_at>=?${scope}`, dayStart, ...args)
+  const openN = await one(`SELECT COUNT(*) n FROM requests r WHERE r.deleted_at IS NULL AND ${open}${scope}`, ...args)
+  const stale = await c.env.DB.prepare(
+    `SELECT r.id,r.status,r.data,r.updated_at,u.display_name FROM requests r JOIN users u ON u.id=r.user_id
+     WHERE r.deleted_at IS NULL AND ${open}${scope} AND r.updated_at<? ORDER BY r.updated_at ASC LIMIT 8`).bind(...args, Date.now() - 24 * 3600_000).all<{ id: string; status: string; data: string; updated_at: number; display_name: string | null }>()
+  const attention = stale.results.map((x) => { let d: any = {}; try { d = JSON.parse(x.data) } catch {} return { id: x.id, status: x.status, title: d.title ?? null, customer: d.name || x.display_name || '', waitingHours: Math.floor((Date.now() - x.updated_at) / 3600_000) } })
+  let workload: unknown[] = []
+  if (c.get('staffRole') !== 'agent') {
+    workload = (await c.env.DB.prepare(`SELECT m.id,m.name,COUNT(r.id) n FROM staff m LEFT JOIN requests r ON r.assignee_id=m.id AND r.deleted_at IS NULL AND ${open} WHERE m.active=1 AND m.role IN ('owner','manager','agent') GROUP BY m.id ORDER BY n DESC`).all()).results
+  }
+  const ev = await c.env.DB.prepare(
+    `SELECT e.id,e.request_id,e.actor,e.kind,e.text_ar,e.text_en,e.visible,e.created_at,r.data FROM request_events e JOIN requests r ON r.id=e.request_id
+     WHERE r.deleted_at IS NULL AND r.status!='draft'${scope} ORDER BY e.created_at DESC LIMIT 15`).bind(...args).all<{ id: string; request_id: string; actor: string; kind: string; text_ar: string; text_en: string; visible: number; created_at: number; data: string }>()
+  const activity = ev.results.map((e) => { let d: any = {}; try { d = JSON.parse(e.data) } catch {} return { id: e.id, requestId: e.request_id, actor: e.actor, kind: e.kind, text_ar: e.text_ar, text_en: e.text_en, internal: !e.visible, at: e.created_at, title: d.title ?? null, customer: d.name ?? '' } })
+  return c.json({ newToday: newToday?.n ?? 0, completedToday: doneToday?.n ?? 0, open: openN?.n ?? 0, attention, workload, activity })
+})
+
+guarded.get('/customers', roles('owner', 'manager'), async (c) => {
+  const q = (c.req.query('q') ?? '').trim().toLowerCase()
+  const rows = await c.env.DB.prepare(
+    `SELECT u.id,u.display_name,u.phone_enc,u.created_at,COUNT(r.id) requests,MAX(r.updated_at) last_at,
+            SUM(CASE WHEN r.status IN ('submitted','review','needs_documents','authority','decision') THEN 1 ELSE 0 END) open
+     FROM users u LEFT JOIN requests r ON r.user_id=u.id AND r.deleted_at IS NULL AND r.status!='draft'
+     WHERE u.deleted_at IS NULL GROUP BY u.id ORDER BY COALESCE(MAX(r.updated_at),u.created_at) DESC LIMIT 200`).all<{ id: string; display_name: string | null; phone_enc: string; created_at: number; requests: number; last_at: number | null; open: number | null }>()
+  const out = []
+  for (const u of rows.results) {
+    const phone = await openText(c.env.DATA_KEY, 'user-phone', u.phone_enc).catch(() => '')
+    const name = u.display_name ?? ''
+    if (!q || (name + ' ' + phone).toLowerCase().includes(q)) out.push({ id: u.id, name, phone, joinedAt: u.created_at, requests: u.requests, open: u.open ?? 0, lastAt: u.last_at })
+  }
+  return c.json({ customers: out })
+})
+
+guarded.get('/customers/:id', roles('owner', 'manager'), async (c) => {
+  const id = c.req.param('id')
+  if (!isUuid(id)) return c.json({ error: 'not_found' }, 404)
+  const u = await c.env.DB.prepare('SELECT id,display_name,phone_enc,language,created_at FROM users WHERE id=? AND deleted_at IS NULL').bind(id).first<{ id: string; display_name: string | null; phone_enc: string; language: string; created_at: number }>()
+  if (!u) return c.json({ error: 'not_found' }, 404)
+  const reqs = await c.env.DB.prepare("SELECT id,service_id,status,data,created_at,updated_at FROM requests WHERE user_id=? AND deleted_at IS NULL AND status!='draft' ORDER BY updated_at DESC").bind(id).all<{ id: string; service_id: string; status: string; data: string; created_at: number; updated_at: number }>()
+  const consents = await c.env.DB.prepare('SELECT type,version,accepted,created_at FROM consents WHERE user_id=? ORDER BY created_at DESC LIMIT 20').bind(id).all()
+  const phone = await openText(c.env.DATA_KEY, 'user-phone', u.phone_enc).catch(() => '')
+  await audit(c, 'staff.view_customer', null, { customerId: id, by: c.get('staffId') })
+  return c.json({
+    customer: { id: u.id, name: u.display_name ?? '', phone, language: u.language, joinedAt: u.created_at },
+    requests: reqs.results.map((r) => { let d: any = {}; try { d = JSON.parse(r.data) } catch {} return { id: r.id, serviceId: r.service_id, status: r.status, title: d.title ?? null, name: d.name ?? '', createdAt: r.created_at, updatedAt: r.updated_at } }),
+    consents: consents.results,
+  })
+})
+
 staff.route('/', guarded)

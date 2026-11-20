@@ -6,6 +6,7 @@ import { RequestDetail } from './RequestDetail'
 import { Requests } from './Requests'
 import { Team } from './Team'
 import { Security } from './Security'
+import { CustomerDetail, Customers } from './Customers'
 import { useI18n } from './i18n'
 
 type Me = { id: string; name: string; role: Role }
@@ -44,9 +45,11 @@ export default function App() {
           <nav className="nav" aria-label="main">
             <a href="#/" aria-current={cur('')}>{t('overview')}</a>
             <a href="#/requests" aria-current={cur('requests')}>{t('requests')}</a>
+            {canTeam && <a href="#/customers" aria-current={cur('customers')}>{t('customers')}</a>}
             {canTeam && <a href="#/team" aria-current={cur('team')}>{t('members')}</a>}
             <a href="#/security" aria-current={cur('security')}>{t('security')}</a>
           </nav>
+          <input className="search-top" type="search" aria-label={t('searchAll')} placeholder={t('searchAll')} onKeyDown={(e) => { if (e.key === 'Enter') { const v = (e.target as HTMLInputElement).value.trim(); go('#/requests' + (v ? '?q=' + encodeURIComponent(v) : '')) } }} />
           <button className="btn sm" onClick={toggle}>{t('lang')}</button>
           <button className="btn sm" onClick={async () => { await api.logout(); setMe(null) }}>{t('logout')}</button>
         </div>
@@ -59,11 +62,12 @@ export default function App() {
         </div></div>
       )}
       <main className="main">
-        {section === 'requests' && parts[1] ? <RequestDetail key={parts[1]} id={parts[1]} me={me} back={() => go('#/requests')} />
+        {section === 'customers' && canTeam ? (parts[1] ? <CustomerDetail key={parts[1]} id={parts[1]} go={go} /> : <Customers go={go} />)
+          : section === 'requests' && parts[1] ? <RequestDetail key={parts[1]} id={parts[1]} me={me} back={() => go('#/requests')} />
           : section === 'requests' ? <Requests params={params} go={go} />
           : section === 'team' && canTeam ? <Team meId={me.id} />
           : section === 'security' ? <Security />
-          : <Overview go={go} />}
+          : <Overview go={go} name={me.name} />}
       </main>
     </div>
   )

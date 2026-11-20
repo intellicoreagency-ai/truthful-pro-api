@@ -92,3 +92,19 @@ input.otp { font-size: 24px; letter-spacing: 8px; text-align: center; font-famil
 .bio { width: 100%; font-size: 17px; min-height: 52px; margin-top: 14px; }
 .banner { background: #fff0d6; border-bottom: 1px solid var(--line); }
 .banner-in { max-width: 1180px; margin: 0 auto; padding: 8px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.stat.plain { cursor: default; } .stat.good b { color: var(--ok); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; } @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+.row-btn { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; text-align: start; background: transparent; border: 0; border-bottom: 1px dashed var(--line); padding: 10px 0; cursor: pointer; }
+.row-btn:last-child { border-bottom: 0; } .row-btn:hover b { color: var(--orange-d); }
+.seg { display: inline-flex; background: #f6ead6; border-radius: 12px; padding: 3px; }
+.seg button { border: 0; background: transparent; padding: 6px 14px; border-radius: 9px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed='true'] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 12px; align-items: start; }
+.col { background: #f8eedd; border-radius: var(--radius); padding: 10px; display: grid; gap: 8px; min-height: 120px; }
+.col header { display: flex; justify-content: space-between; align-items: center; }
+.kcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: grid; gap: 8px; box-shadow: var(--shadow); }
+.kmain { text-align: start; background: transparent; border: 0; padding: 0; cursor: pointer; display: grid; gap: 2px; }
+.kmain:hover b { color: var(--orange-d); }
+.quick { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: #fff0d6; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; margin: 12px 0; }
+.search-top { flex: 0 1 220px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px; min-height: 36px; }
+.override { border-color: #e5b8b0; background: #fffaf9; }
