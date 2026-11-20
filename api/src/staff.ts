@@ -493,10 +493,18 @@ guarded.post('/files/:fileId/extracted', roles(...OPS), async (c) => {
   const type = b?.docType
   if (!['passport', 'id', 'licence'].includes(type as string)) return c.json({ error: 'invalid_request' }, 400)
   const expiry = typeof b?.expiry === 'string' ? b.expiry : null
-  const base = typeof b?.baseDate === 'string' ? b.baseDate : new Date(f.created_at + 4 * 3600_000).toISOString().slice(0, 10) // default: request creation day in Dubai
+  const defaultBase = new Date(f.created_at + 4 * 3600_000).toISOString().slice(0, 10) // request creation day in Dubai
+  const base = typeof b?.baseDate === 'string' && c.get('staffRole') !== 'agent' ? b.baseDate : defaultBase // only owner/manager may choose another reference date
   await c.env.DB.prepare('UPDATE request_files SET extracted=? WHERE id=?').bind(JSON.stringify({ docType: type, expiry, holder: typeof b?.holder === 'string' ? b.holder.slice(0, 80) : null, source: 'manual', by: c.get('staffId') }), f.id).run()
   let result: { outcome: string; evidence: unknown } | null = null
-  if (type === 'passport') { result = passportValidity(expiry, base, 6); await newCheck(c, f, 'passport_validity_6m', result.outcome, result.evidence) }
+  if (type === 'passport') {
+    result = passportValidity(expiry, base, 6)
+    if (result.outcome === 'pass' && c.get('staffRole') === 'agent') { // an agent cannot turn an unresolved failure into a pass by re-reading the document
+      const live = await c.env.DB.prepare("SELECT 1 x FROM document_checks WHERE file_id=? AND rule_code='passport_validity_6m' AND superseded_at IS NULL AND outcome!='pass' AND NOT EXISTS (SELECT 1 FROM document_overrides o WHERE o.check_id=document_checks.id) LIMIT 1").bind(f.id).first()
+      if (live) return c.json({ error: 'manager_required' }, 403)
+    }
+    await newCheck(c, f, 'passport_validity_6m', result.outcome, result.evidence)
+  }
   await audit(c, 'staff.doc_extracted', null, { fileId: f.id, by: c.get('staffId') }) // no document numbers in the log
   return c.json({ ok: true, result })
 })
@@ -509,7 +517,14 @@ guarded.post('/files/:fileId/checks', roles(...OPS), async (c) => {
   const rule = typeof b?.ruleCode === 'string' ? b.ruleCode : ''
   if (!RULES[rule] || !['pass', 'fail', 'manual_review'].includes(b?.outcome as string)) return c.json({ error: 'invalid_request' }, 400)
   if (['file_signature', 'file_size', 'malware_scan'].includes(rule)) return c.json({ error: 'system_rule' }, 400) // only the system records these
-  await newCheck(c, f, rule, b?.outcome as string, { note: typeof b?.note === 'string' ? b.note.slice(0, 300) : '' })
+  const outcome = b?.outcome as string
+  if (outcome === 'pass') {
+    // A failed/under-review result is lifted only through the audited override (owner/manager + reason), never by recording a manual pass.
+    const live = await c.env.DB.prepare("SELECT 1 x FROM document_checks WHERE file_id=? AND rule_code=? AND superseded_at IS NULL AND outcome!='pass' AND NOT EXISTS (SELECT 1 FROM document_overrides o WHERE o.check_id=document_checks.id) LIMIT 1").bind(f.id, rule).first()
+    if (live) return c.json({ error: 'use_override' }, 409)
+    if (c.get('staffRole') === 'agent') return c.json({ error: 'manager_required' }, 403)
+  }
+  await newCheck(c, f, rule, outcome, { note: typeof b?.note === 'string' ? b.note.slice(0, 300) : '' })
   return c.json({ ok: true })
 })
 

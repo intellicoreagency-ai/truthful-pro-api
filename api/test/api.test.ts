@@ -948,6 +948,57 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect((await hit('GET', `/staff/v1/files/${fid}`, undefined, agent)).status).toBe(404)
     expect((await hit('POST', `/staff/v1/files/${fid}/extracted`, { docType: 'passport', expiry: '2030-01-01' }, agent)).status).toBe(404)
   })
+  // ---- security review fixes ----
+  it('customers cannot cancel/reset a request once the team has filed or finished it, nor edit its data after review starts', async () => {
+    const id = await submit()
+    await toReview(id)
+    // data edits stop once review starts; a repeated "submitted" is a harmless no-op
+    const edit = await hit('PATCH', `/v1/requests/${id}`, { data: { name: 'Changed' } }, cust)
+    expect(edit.status).toBe(200); expect((await edit.json() as { applied: boolean }).applied).toBe(false)
+    expect(((await detail2(id)) as unknown as { request?: unknown }).request).toBeUndefined // (shape only)
+    const again = await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, cust)
+    expect((await again.json() as { applied: boolean; status: string })).toMatchObject({ applied: false, status: 'review' })
+    const d = await (await hit('GET', `/staff/v1/requests/${id}`, undefined, owner)).json() as { customer: { name: string } }
+    expect(d.customer.name).not.toBe('Changed')
+    // walk to the authority and to completion: cancel is refused at every late state
+    for (const body of [{ status: 'ready_for_authority' }, { status: 'authority', reference: 'REF-9' }]) await hit('POST', `/staff/v1/requests/${id}`.replace(/$/, '/status'), body, owner)
+    for (const st of ['authority']) {
+      const r = await hit('PATCH', `/v1/requests/${id}`, { status: 'cancelled' }, cust)
+      expect(r.status).toBe(409); expect((await r.json() as { error: string }).error).toBe('cannot_cancel'); void st
+    }
+    await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'decision' }, owner)
+    await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'completed' }, owner)
+    expect((await hit('PATCH', `/v1/requests/${id}`, { status: 'cancelled' }, cust)).status).toBe(409)
+    expect((await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, cust)).status).toBe(200) // no-op, cannot reset
+    const st = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { request: { status: string } }
+    expect(st.request.status).toBe('completed')
+    // early states still allow the customer to cancel
+    const early = await submit()
+    expect((await hit('PATCH', `/v1/requests/${early}`, { status: 'cancelled' }, cust)).status).toBe(200)
+  })
+  it('an agent cannot lift a failed document rule by recording a manual pass, back-dating the reference date, or re-reading the expiry', async () => {
+    const id = await submit(); const fid = await sourceFile(id); await toReview(id)
+    await hit('POST', `/staff/v1/requests/${id}/assign`, { staffId: null }, owner) // unassigned, so an agent can reach it
+    const me = await (await hit('GET', '/staff/v1/me', undefined, owner)).json() as { staff: { id: string } }
+    const agent = await staffToken('agent')
+    const { addCalendarMonths } = await import('../src/rules')
+    const base = new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 10)
+    await hit('POST', `/staff/v1/files/${fid}/extracted`, { docType: 'passport', expiry: addCalendarMonths(base, 2) }, owner) // fails the rule
+    expect((await detail2(id)).blocked).toHaveLength(1)
+    // agents only see unassigned/own requests: it is unassigned, so the agent reaches the file
+    const manual = await hit('POST', `/staff/v1/files/${fid}/checks`, { ruleCode: 'passport_validity_6m', outcome: 'pass' }, agent)
+    expect(manual.status).toBe(409) // even before the role check: a pass cannot replace an unresolved failure
+    const back = await hit('POST', `/staff/v1/files/${fid}/extracted`, { docType: 'passport', expiry: addCalendarMonths(base, 2), baseDate: '2000-01-01' }, agent)
+    expect(back.status).toBe(200); expect((await back.json() as { result: { outcome: string } }).result.outcome).toBe('fail') // the reference date is ignored for agents
+    const reread = await hit('POST', `/staff/v1/files/${fid}/extracted`, { docType: 'passport', expiry: addCalendarMonths(base, 36) }, agent)
+    expect(reread.status).toBe(403)
+    expect((await detail2(id)).blocked).toHaveLength(1)
+    expect((await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'ready_for_authority' }, owner)).status).toBe(409)
+    // a fresh "pass" with nothing to replace is still an agent-forbidden action, and a manager may do it
+    const f2 = await sourceFile(await submit())
+    expect((await hit('POST', `/staff/v1/files/${f2}/checks`, { ruleCode: 'name_match', outcome: 'pass' }, agent)).status).toBe(403)
+    void me
+  })
 })
 
 describe('calendar-month rules', () => {

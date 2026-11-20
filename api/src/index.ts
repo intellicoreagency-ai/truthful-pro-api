@@ -309,20 +309,35 @@ authed.get('/requests/:id', async (c) => {
 })
 authed.patch('/requests/:id', async (c) => {
   const id = c.req.param('id')
-  if (!isUuid(id) || !(await ownRequest(c, id))) return c.json({ error: 'not_found' }, 404)
+  const cur = isUuid(id) ? await ownRequest(c, id) : null
+  if (!cur) return c.json({ error: 'not_found' }, 404)
   const b = await jsonBody(c)
   const data = b?.data && typeof b.data === 'object' ? JSON.stringify(b.data) : null
   if (data && data.length > 16 * 1024) return c.json({ error: 'too_large' }, 413)
   // Clients may only submit or cancel; every other status belongs to staff.
-  const status = b?.status === 'submitted' || b?.status === 'cancelled' ? b.status : null
-  if (b?.status !== undefined && !status) return c.json({ error: 'invalid_status' }, 400)
-  const before = await ownRequest(c, id)
-  await c.env.DB.prepare('UPDATE requests SET data=COALESCE(?,data), status=COALESCE(?,status), version=version+1, updated_at=? WHERE id=? AND user_id=?').bind(data, status, Date.now(), id, c.get('userId')).run()
-  if (status && before?.status !== status) {
+  const wanted = b?.status === 'submitted' || b?.status === 'cancelled' ? b.status : null
+  if (b?.status !== undefined && !wanted) return c.json({ error: 'invalid_status' }, 400)
+  // The customer's own moves are limited by where the request is: submit only from draft (a repeat is a no-op),
+  // cancel only while the team has not filed it with the authority or finished it. Data edits stop once review starts.
+  let status: string | null = null
+  if (wanted === 'submitted' && cur.status === 'draft') status = 'submitted'
+  if (wanted === 'cancelled') {
+    if (cur.status === 'cancelled') status = null
+    else if (['draft', 'submitted', 'review', 'needs_documents'].includes(cur.status)) status = 'cancelled'
+    else return c.json({ error: 'cannot_cancel', status: cur.status }, 409)
+  }
+  const editable = cur.status === 'draft' || cur.status === 'needs_documents'
+  const newData = editable ? data : null
+  if (!status && !newData) return c.json({ ok: true, applied: false, status: cur.status })
+  // Conditional write: the state we checked is the state we change.
+  const r = await c.env.DB.prepare('UPDATE requests SET data=COALESCE(?,data), status=COALESCE(?,status), version=version+1, updated_at=? WHERE id=? AND user_id=? AND status=?')
+    .bind(newData, status, Date.now(), id, c.get('userId'), cur.status).run()
+  if (!r.meta.changes) return c.json({ error: 'conflict' }, 409)
+  if (status) {
     const [ar, en] = status === 'submitted' ? ['تم إرسال الطلب', 'Request submitted'] : ['أُلغي الطلب', 'Request cancelled']
     await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, ar, en, Date.now()).run()
   }
-  return c.json({ ok: true })
+  return c.json({ ok: true, applied: true, status: status ?? cur.status })
 })
 authed.delete('/requests/:id', async (c) => {
   const id = c.req.param('id')
