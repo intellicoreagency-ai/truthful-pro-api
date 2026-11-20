@@ -1,5 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Image, Linking, Pressable, ScrollView, StyleSheet, TextInput, View} from 'react-native';
+import {BackHandler} from 'react-native';
+import {Image, Linking, ScrollView, StyleSheet, TextInput, View} from 'react-native';
+import {Pressable} from './Touch';
 import Svg, {Defs, LinearGradient, Rect, Stop} from 'react-native-svg';
 import {Icon} from './Icons';
 import {ApiError, apiEnabled, recordConsent, waPoll, waStart, type WaChallenge} from './api';
@@ -62,6 +64,8 @@ export function WelcomeScreen({lang,onLanguage,onGuest,onSignedIn,onLegal,logo,T
  const [docOk,setDocOk]=useState(false);
  const [busy,setBusy]=useState(false);
  const [err,setErr]=useState('');
+ // Android back: leave the verification step (back to the phone entry) instead of closing the app in the middle of signing in
+ useEffect(()=>{const sub=BackHandler.addEventListener('hardwareBackPress',()=>{if(wa){setWa(null);setErr('');return true;}return false;});return()=>sub.remove();},[wa]);
  const alive=useRef(true);
  useEffect(()=>{alive.current=true;return()=>{alive.current=false}},[]);
  const e164=():string|null=>{const d=phoneDigits(phone);const n=d.startsWith('971')?d:d.startsWith('0')?'971'+d.slice(1):d.length===9?'971'+d:'';return /^9715\d{8}$/.test(n)?'+'+n:null;};
@@ -126,7 +130,7 @@ export function WelcomeScreen({lang,onLanguage,onGuest,onSignedIn,onLegal,logo,T
        <T lang={lang} style={s.preview}>{t.otpIntro}</T>
        <View style={[s.field,{flexDirection:row}]}>
          <Icon name="user" size={20} color={accent}/>
-         <TextInput editable={!wa&&!busy} value={phone} onChangeText={setPhone} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" maxLength={16}
+         <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" editable={!wa&&!busy} value={phone} onChangeText={setPhone} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" maxLength={16}
            accessibilityLabel={t.phone} placeholder={t.phone} placeholderTextColor={ink} style={[s.input,{fontFamily:inputFont,textAlign:ar?'right':'left'}]}/>
        </View>
        {wa?<>
@@ -159,12 +163,12 @@ export function WelcomeScreen({lang,onLanguage,onGuest,onSignedIn,onLegal,logo,T
        <T lang={lang} style={s.preview}>{t.preview}</T>
        <View style={[s.field,{flexDirection:row}]}>
          <Icon name="mail" size={20} color={accent}/>
-         <TextInput editable={false} accessibilityLabel={t.email} accessibilityState={{disabled:true}}
+         <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" editable={false} accessibilityLabel={t.email} accessibilityState={{disabled:true}}
            placeholder={t.email} placeholderTextColor={ink} style={[s.input,{fontFamily:inputFont,textAlign:ar?'right':'left'}]}/>
        </View>
        <View style={[s.field,{flexDirection:row}]}>
          <Icon name="lock" size={20} color={accent}/>
-         <TextInput editable={false} accessibilityLabel={t.password} accessibilityState={{disabled:true}}
+         <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" editable={false} accessibilityLabel={t.password} accessibilityState={{disabled:true}}
            placeholder={t.password} placeholderTextColor={ink} secureTextEntry={!showPassword} style={[s.input,{fontFamily:inputFont,textAlign:ar?'right':'left'}]}/>
          <Pressable accessibilityRole="button" accessibilityLabel={showPassword?t.hide:t.show}
            onPress={()=>setShowPassword(value=>!value)} style={s.eye}>

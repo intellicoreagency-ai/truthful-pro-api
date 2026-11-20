@@ -1,5 +1,6 @@
 import React from 'react';
-import {Pressable, ScrollView, StyleSheet, View} from 'react-native';
+import {ScrollView, StyleSheet, View} from 'react-native';
+import {Pressable} from './Touch';
 import {Icon} from './Icons';
 import {COMPANY, LEGAL_VERSION, type LegalDoc} from './legal';
 
@@ -16,7 +17,7 @@ export function LegalScreen({lang,doc,onBack,Text:T}:Props){
    <T lang={lang} style={s.barTitle}>{doc.title[lang]}</T>
    <View style={s.back}/>
   </View>
-  <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+  <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
    <View style={s.draft}><T lang={lang} style={s.draftText}>{ar?'مسودة بانتظار المراجعة القانونية':'Draft pending legal review'}</T></View>
    <T lang={lang} style={[s.meta,{textAlign:ar?'right':'left'}]}>{COMPANY.name[lang]} · {COMPANY.city[lang]} · {LEGAL_VERSION}</T>
    <T lang={lang} style={[s.p,{textAlign:ar?'right':'left'}]}>{doc.intro[lang]}</T>

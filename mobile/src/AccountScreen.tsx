@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {BackHandler, Image, Pressable, ScrollView, StyleSheet, TextInput, View} from 'react-native';
+import {BackHandler, Image, ScrollView, StyleSheet, TextInput, View} from 'react-native';
+import {Pressable} from './Touch';
 import {Icon, type IconName} from './Icons';
 import {chooseAccountPhoto, type AccountData} from './accountStorage';
 
@@ -199,7 +200,7 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
       {(section==='personal'||section==='company')&&<>
         {fields.map(([key,label])=><View key={key} style={s.field}>
           <T lang={lang} style={s.label}>{label}</T>
-          <TextInput value={edits[key]??account[key]} onChangeText={value=>setEdits(previous=>({...previous,[key]:value}))}
+          <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" value={edits[key]??account[key]} onChangeText={value=>setEdits(previous=>({...previous,[key]:value}))}
             accessibilityLabel={label} autoCapitalize={key==='email'?'none':'sentences'}
             keyboardType={key==='email'?'email-address':key==='phone'?'phone-pad':'default'}
             style={[s.input,{fontFamily:inputFont,textAlign:ar?'right':'left'}]}/>

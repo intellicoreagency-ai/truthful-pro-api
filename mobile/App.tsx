@@ -1,5 +1,6 @@
 import React, {useMemo, useState} from 'react';
-import {Alert, AppState, BackHandler, Image, ImageBackground, Keyboard, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View} from 'react-native';
+import {Alert, AppState, BackHandler, Image, ImageBackground, Keyboard, Platform, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View} from 'react-native';
+import {Pressable} from './src/Touch';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import {useFonts} from 'expo-font';
 import {IBMPlexSansArabic_500Medium} from '@expo-google-fonts/ibm-plex-sans-arabic/500Medium';
@@ -78,7 +79,7 @@ const copy={
 } as const;
 function AppText({children,lang,style,numberOfLines}: {children:React.ReactNode,lang:Language,style?:any,numberOfLines?:number}) {
  const weight=StyleSheet.flatten(style)?.fontWeight;
- return <Text numberOfLines={numberOfLines} style={[{textAlign:lang==='ar'?'right':'left',writingDirection:lang==='ar'?'rtl':'ltr',color:C.ink},style,font(lang,!!weight)]}>{children}</Text>;
+ return <Text maxFontSizeMultiplier={1.35} numberOfLines={numberOfLines} style={[{textAlign:lang==='ar'?'right':'left',writingDirection:lang==='ar'?'rtl':'ltr',color:C.ink},style,font(lang,!!weight)]}>{children}</Text>;
 }
 function SoftButton({onPress,children,selected=false,style,label,tab=false}: {
  onPress:()=>void; children:React.ReactNode; selected?:boolean; style?:any; label?:string; tab?:boolean;
@@ -108,6 +109,7 @@ function useWebViewportHeight() {
  return height;
 }
 // Alert.alert is a no-op on react-native-web; failures must still be visible in the web preview.
+// Dynamic type / font scale is honoured on both platforms and capped (maxFontSizeMultiplier=1.35 on every Text/TextInput) so the approved layout survives very large system fonts.
 const notify=(title:string,body?:string)=>{if(Platform.OS==='web'&&typeof window!=='undefined')window.alert(body?title+'\n'+body:title);else Alert.alert(title,body);};
 
 
@@ -277,7 +279,7 @@ export default function App() {
  const header=()=> <View style={[styles.header,{flexDirection:row}]}>
    <Image source={officialLogo} style={styles.logo}/>
    <View style={{flex:1}}><AppText lang={lang} style={styles.brand}>{label('brand')}</AppText><AppText lang={lang} style={styles.brandSub}>{ar?'خدمات تخليص المعاملات':'DOCUMENT CLEARANCE SERVICES'}</AppText></View>
-   <SoftButton onPress={switchLang} style={styles.headRound}><Text style={{fontWeight:'800',color:C.orange}}>{ar?'EN':'ع'}</Text></SoftButton>
+   <SoftButton onPress={switchLang} style={styles.headRound}><Text maxFontSizeMultiplier={1.35} style={{fontWeight:'800',color:C.orange}}>{ar?'EN':'ع'}</Text></SoftButton>
    <SoftButton onPress={()=>go('profile')} label={t.profile} style={styles.headRound}><Icon name="user" color={C.ink}/></SoftButton>
  </View>;
  const nav=()=> <View style={[styles.nav,{flexDirection:row}]}>
@@ -289,7 +291,7 @@ export default function App() {
        <View style={[key==='request'?styles.plus:styles.navIconBox,active&&key!=='request'&&{borderBottomWidth:0}]}>
          <Icon name={icon} filled={active&&icon==='home'} size={key==='request'?32:26} color={key==='request'?'white':active?'#98500C':C.ink}/>
        </View>
-       <Text numberOfLines={1} style={[styles.navText,active&&styles.navTextActive,font(lang,active),lang==='ar'&&{fontFamily:'ReferenceArabic'}]}>{t[key]}</Text>
+       <Text maxFontSizeMultiplier={1.35} numberOfLines={1} style={[styles.navText,active&&styles.navTextActive,font(lang,active),lang==='ar'&&{fontFamily:'ReferenceArabic'}]}>{t[key]}</Text>
      </Pressable>;
    })}
  </View>;
@@ -299,7 +301,7 @@ export default function App() {
  const audience=()=> <View style={[styles.segment,{flexDirection:row}]}>
    {([[false,t.individual],[true,t.company]] as const).map(([isBusiness,text])=>
      <SoftButton key={text} tab selected={business===isBusiness} onPress={()=>setBusiness(isBusiness)} style={{flex:1,minHeight:49}}>
-       <Text style={[styles.segmentText,font(lang,true)]}>{text}</Text>
+       <Text maxFontSizeMultiplier={1.35} style={[styles.segmentText,font(lang,true)]}>{text}</Text>
      </SoftButton>
    )}
  </View>;
@@ -329,7 +331,7 @@ export default function App() {
  </Pressable>;
  const searchBar=()=> <View style={[styles.search,{flexDirection:row}]}>
    <Icon name="search" size={20}/>
-   <TextInput value={query} onChangeText={setQuery} accessibilityLabel={t.search}
+   <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" value={query} onChangeText={setQuery} accessibilityLabel={t.search}
      placeholder={t.search} placeholderTextColor={C.muted}
      style={[styles.input,font(lang,false),{textAlign:ar?'right':'left'}]}/>
  </View>;
@@ -367,7 +369,7 @@ export default function App() {
              <View style={{flex:1}}>
                <AppText lang={lang} style={styles.docTitle}>{wording(d,lang)}</AppText>
                {file&&<AppText lang={lang} style={styles.fileName} numberOfLines={1}>{file.name}</AppText>}
-               {d.field==='text'&&<TextInput
+               {d.field==='text'&&<TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent"
                  accessibilityLabel={wording(d,lang)}
                  placeholder={wording(d,lang)}
                  value={draft.fields[d.id]??''}
@@ -376,7 +378,7 @@ export default function App() {
              </View>
              {!d.field&&<>
                <SoftButton onPress={()=>pick(d.id)} label={(file?(ar?'استبدال ':'Replace '):t.upload+' ')+wording(d,lang)} style={styles.upload}>
-                 <View style={[styles.inlineIcon,{flexDirection:row}]}><Icon name="upload" size={15}/><Text style={[styles.uploadText,font(lang,true)]}>{file?(ar?'استبدال':'Replace'):t.upload}</Text></View>
+                 <View style={[styles.inlineIcon,{flexDirection:row}]}><Icon name="upload" size={15}/><Text maxFontSizeMultiplier={1.35} style={[styles.uploadText,font(lang,true)]}>{file?(ar?'استبدال':'Replace'):t.upload}</Text></View>
                </SoftButton>
                {file&&<SoftButton onPress={()=>removeFile(d.id)} label={(ar?'إزالة ':'Remove ')+wording(d,lang)} style={styles.remove}>
                  <Icon name="close" size={17}/>
@@ -401,7 +403,7 @@ export default function App() {
        <AppText lang={lang} style={styles.detailHeading}>{title(chosen)}</AppText>
        <AppText lang={lang} style={styles.detailSubtitle}>{subtitle(chosen)}</AppText>
      </View>
-     <SoftButton onPress={switchLang} style={styles.headRound}><Text style={{fontWeight:'800',color:C.orange}}>{ar?'EN':'ع'}</Text></SoftButton>
+     <SoftButton onPress={switchLang} style={styles.headRound}><Text maxFontSizeMultiplier={1.35} style={{fontWeight:'800',color:C.orange}}>{ar?'EN':'ع'}</Text></SoftButton>
    </View>
    <View style={styles.detailHero}>{bannerFor(chosen)}</View>
    <View style={[styles.favoriteRow,{alignItems:ar?'flex-end':'flex-start'}]}>
@@ -415,7 +417,7 @@ export default function App() {
      <View accessibilityRole="tablist" style={[styles.tabRow,{flexDirection:row}]}>
        {([['about',t.details,'info'],['documents',t.docs,'file'],['fees',t.fees,'clock']] as const).map(([key,text,icon])=>
          <SoftButton key={key} tab onPress={()=>selectTab(key)} selected={tab===key} style={styles.tabButton}>
-           <Icon name={icon} size={16}/><Text style={[styles.tabText,font(lang,true)]}>{text}</Text>
+           <Icon name={icon} size={16}/><Text maxFontSizeMultiplier={1.35} style={[styles.tabText,font(lang,true)]}>{text}</Text>
          </SoftButton>)}
      </View>
      {tab==='about'&& <>
@@ -453,7 +455,7 @@ export default function App() {
        {!pilotService&&<View style={styles.panel}>
          {sectionHeader(ar?'ملاحظات مهمة':'Important Notes')}
          {detail.notes.map((note,i)=><View key={i} style={[styles.noteLine,{flexDirection:row}]}>
-             <Text style={styles.noteBullet}>●</Text>
+             <Text maxFontSizeMultiplier={1.35} style={styles.noteBullet}>●</Text>
              <View style={{flex:1}}><AppText lang={lang} style={styles.paragraph}>{wording(note,lang)}</AppText></View>
            </View>)}
          {detail.contentStatus==='review-required'&&
@@ -518,11 +520,11 @@ export default function App() {
      <View style={styles.panel}>
        {sectionHeader(ar?'بيانات مقدم الطلب':'Applicant Details')}
        <AppText lang={lang} style={styles.docTitle}>{t.name}</AppText>
-       <TextInput accessibilityLabel={t.name} value={draft.name} autoComplete="name"
+       <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" accessibilityLabel={t.name} value={draft.name} autoComplete="name"
          onChangeText={name=>editDraft(current=>({...current,name}))}
          style={[styles.formInput,font(lang,false),{textAlign:ar?'right':'left'}]}/>
        <AppText lang={lang} style={styles.docTitle}>{t.phone}</AppText>
-       <TextInput accessibilityLabel={t.phone} value={draft.phone} keyboardType="phone-pad" autoComplete="tel"
+       <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" accessibilityLabel={t.phone} value={draft.phone} keyboardType="phone-pad" autoComplete="tel"
          onChangeText={phone=>editDraft(current=>({...current,phone}))}
          style={[styles.formInput,font(lang,false),{textAlign:ar?'right':'left'}]}/>
        {documents.length>0&&<>
@@ -534,7 +536,7 @@ export default function App() {
          </SoftButton>
        </>}
        <SoftButton selected onPress={saveDraft} style={styles.draftButton}>
-         <Text style={[styles.ctaText,font(lang,true)]}>{t.saved}</Text>
+         <Text maxFontSizeMultiplier={1.35} style={[styles.ctaText,font(lang,true)]}>{t.saved}</Text>
        </SoftButton>
        {draft.saved&&<AppText lang={lang} style={styles.contextText}>
          {ar?'حُفظت المسودة في طلباتي لهذه الجلسة.':'Draft saved under Requests for this session.'}

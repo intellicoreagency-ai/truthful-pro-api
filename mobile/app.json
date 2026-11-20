@@ -22,7 +22,9 @@
         "foregroundImage": "./assets/app/adaptive-icon.png",
         "monochromeImage": "./assets/app/adaptive-icon-mono.png",
         "backgroundColor": "#000000"
-      }
+      },
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
       "expo-document-picker",
