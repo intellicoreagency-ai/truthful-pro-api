@@ -3,7 +3,7 @@ import {Image, Pressable, ScrollView, StyleSheet, TextInput, View} from 'react-n
 import Svg, {Defs, LinearGradient, Rect, Stop} from 'react-native-svg';
 import {Icon} from './Icons';
 
-const cover = require('../assets/brand/sign-in-dubai.jpg');
+const cover = require('../assets/brand/cover-dubai-marina.jpg');
 const ink = '#FFF8EF';
 const accent = '#FFE1AC';
 

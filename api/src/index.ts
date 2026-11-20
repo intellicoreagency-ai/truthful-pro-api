@@ -1,0 +1,265 @@
+import { Hono } from 'hono'
+import type { Env, Vars } from './types'
+import { b64, hmacHex, newId, open, openText, otpCode, randomToken, seal, sealText, sha256Hex, timingSafeEqual } from './crypto'
+import { MAX_FILES_PER_REQUEST, MAX_FILE_BYTES, REQUEST_STATUSES, isServiceId, isUuid, normalizePhone, safeFileName, sniffFile } from './validate'
+import { allow, audit, clientIp, jsonBody, requireAuth, securityHeaders, type C } from './security'
+import { sendOtp } from './sms'
+
+const ACCESS_TTL = 15 * 60 * 1000
+const REFRESH_TTL = 30 * 24 * 3600 * 1000
+const MAX_OTP_ATTEMPTS = 5
+
+export const app = new Hono<{ Bindings: Env; Variables: Vars }>()
+app.use('*', securityHeaders)
+app.onError((e, c) => { console.error('unhandled', e instanceof Error ? e.message : 'unknown'); return c.json({ error: 'server_error' }, 500) })
+app.notFound((c) => c.json({ error: 'not_found' }, 404))
+
+app.get('/health', (c) => c.json({ ok: true }))
+
+// ---------- Auth ----------
+app.post('/v1/auth/otp/request', async (c) => {
+  const body = await jsonBody(c)
+  const phone = normalizePhone(body?.phone)
+  const lang = body?.language === 'en' ? 'en' : 'ar'
+  if (!phone) return c.json({ error: 'invalid_phone' }, 400)
+  const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
+  if (!(await allow(c.env, `otp:p:${phoneHash}`, 3, 600)) || !(await allow(c.env, `otp:i:${clientIp(c)}`, 10, 600))) {
+    return c.json({ error: 'too_many_requests' }, 429)
+  }
+  const code = otpCode()
+  const id = newId()
+  const ttl = Number(c.env.OTP_TTL_SECONDS ?? '300') * 1000
+  await c.env.DB.prepare('INSERT INTO otp_challenges (id,phone_hash,code_hash,expires_at,created_at) VALUES (?,?,?,?,?)')
+    .bind(id, phoneHash, await hmacHex(c.env.PEPPER, `otp:${id}:${code}`), Date.now() + ttl, Date.now()).run()
+  const sent = await sendOtp(c.env, phone, code, lang)
+  if (!sent) return c.json({ error: 'delivery_failed' }, 502)
+  await audit(c, 'otp.request', null)
+  const out: Record<string, unknown> = { challengeId: id, expiresIn: ttl / 1000 }
+  if (c.env.ENVIRONMENT !== 'production' && c.env.DEV_OTP_ECHO === '1') out.devCode = code
+  return c.json(out)
+})
+
+async function issueSession(c: C, userId: string) {
+  const access = randomToken(32), refresh = randomToken(32), now = Date.now()
+  await c.env.DB.prepare('INSERT INTO sessions (id,user_id,access_hash,refresh_hash,access_expires_at,refresh_expires_at,created_at) VALUES (?,?,?,?,?,?,?)')
+    .bind(newId(), userId, await sha256Hex(access), await sha256Hex(refresh), now + ACCESS_TTL, now + REFRESH_TTL, now).run()
+  return { accessToken: access, refreshToken: refresh, expiresIn: ACCESS_TTL / 1000 }
+}
+
+app.post('/v1/auth/otp/verify', async (c) => {
+  const body = await jsonBody(c)
+  const phone = normalizePhone(body?.phone)
+  const challengeId = typeof body?.challengeId === 'string' ? body.challengeId : ''
+  const code = typeof body?.code === 'string' ? body.code : ''
+  if (!phone || !isUuid(challengeId) || !/^\d{6}$/.test(code)) return c.json({ error: 'invalid_request' }, 400)
+  const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
+  if (!(await allow(c.env, `verify:i:${clientIp(c)}`, 30, 600))) return c.json({ error: 'too_many_requests' }, 429)
+  const ch = await c.env.DB.prepare('SELECT * FROM otp_challenges WHERE id=? AND phone_hash=?').bind(challengeId, phoneHash)
+    .first<{ code_hash: string; attempts: number; expires_at: number; consumed_at: number | null }>()
+  if (!ch || ch.consumed_at || ch.expires_at < Date.now() || ch.attempts >= MAX_OTP_ATTEMPTS) return c.json({ error: 'invalid_code' }, 401)
+  // Count the attempt first so parallel guesses cannot exceed the cap.
+  const upd = await c.env.DB.prepare('UPDATE otp_challenges SET attempts=attempts+1 WHERE id=? AND attempts<?').bind(challengeId, MAX_OTP_ATTEMPTS).run()
+  if (!upd.meta.changes) return c.json({ error: 'invalid_code' }, 401)
+  const expected = await hmacHex(c.env.PEPPER, `otp:${challengeId}:${code}`)
+  if (!timingSafeEqual(expected, ch.code_hash)) { await audit(c, 'otp.fail', null); return c.json({ error: 'invalid_code' }, 401) }
+  const used = await c.env.DB.prepare('UPDATE otp_challenges SET consumed_at=? WHERE id=? AND consumed_at IS NULL').bind(Date.now(), challengeId).run()
+  if (!used.meta.changes) return c.json({ error: 'invalid_code' }, 401)
+
+  let user = await c.env.DB.prepare('SELECT id FROM users WHERE phone_hash=? AND deleted_at IS NULL').bind(phoneHash).first<{ id: string }>()
+  const isNew = !user
+  if (!user) {
+    const id = newId()
+    await c.env.DB.prepare('INSERT INTO users (id,phone_hash,phone_enc,created_at) VALUES (?,?,?,?)')
+      .bind(id, phoneHash, await sealText(c.env.DATA_KEY, 'user-phone', phone), Date.now()).run()
+    user = { id }
+  }
+  await audit(c, isNew ? 'user.create' : 'auth.login', user.id)
+  return c.json({ ...(await issueSession(c, user.id)), isNewUser: isNew })
+})
+
+app.post('/v1/auth/refresh', async (c) => {
+  const body = await jsonBody(c)
+  const token = typeof body?.refreshToken === 'string' ? body.refreshToken : ''
+  if (!/^[A-Za-z0-9_-]{40,64}$/.test(token)) return c.json({ error: 'invalid_request' }, 400)
+  const hash = await sha256Hex(token), now = Date.now()
+  const reuse = await c.env.DB.prepare('SELECT id,user_id FROM sessions WHERE prev_refresh_hash=? AND revoked_at IS NULL').bind(hash).first<{ id: string; user_id: string }>()
+  if (reuse) { // an already-rotated refresh token came back: assume theft, kill the session
+    await c.env.DB.prepare('UPDATE sessions SET revoked_at=? WHERE id=?').bind(now, reuse.id).run()
+    await audit(c, 'auth.refresh_reuse', reuse.user_id)
+    return c.json({ error: 'unauthorized' }, 401)
+  }
+  const s = await c.env.DB.prepare('SELECT id,user_id FROM sessions WHERE refresh_hash=? AND revoked_at IS NULL AND refresh_expires_at>?').bind(hash, now).first<{ id: string; user_id: string }>()
+  if (!s) return c.json({ error: 'unauthorized' }, 401)
+  const access = randomToken(32), refresh = randomToken(32)
+  const r = await c.env.DB.prepare('UPDATE sessions SET access_hash=?, refresh_hash=?, prev_refresh_hash=?, access_expires_at=?, refresh_expires_at=? WHERE id=? AND refresh_hash=?')
+    .bind(await sha256Hex(access), await sha256Hex(refresh), hash, now + ACCESS_TTL, now + REFRESH_TTL, s.id, hash).run()
+  if (!r.meta.changes) return c.json({ error: 'unauthorized' }, 401)
+  return c.json({ accessToken: access, refreshToken: refresh, expiresIn: ACCESS_TTL / 1000 })
+})
+
+const authed = new Hono<{ Bindings: Env; Variables: Vars }>()
+authed.use('*', requireAuth)
+
+authed.post('/auth/logout', async (c) => {
+  await c.env.DB.prepare('UPDATE sessions SET revoked_at=? WHERE id=?').bind(Date.now(), c.get('sessionId')).run()
+  return c.json({ ok: true })
+})
+
+// ---------- Profile, consent, privacy rights ----------
+authed.get('/me', async (c) => {
+  const u = await c.env.DB.prepare('SELECT id,display_name,language,created_at FROM users WHERE id=?').bind(c.get('userId')).first()
+  return c.json({ user: u })
+})
+authed.patch('/me', async (c) => {
+  const b = await jsonBody(c)
+  const name = typeof b?.displayName === 'string' ? b.displayName.trim().slice(0, 80) : null
+  const lang = b?.language === 'en' || b?.language === 'ar' ? b.language : null
+  await c.env.DB.prepare('UPDATE users SET display_name=COALESCE(?,display_name), language=COALESCE(?,language) WHERE id=?').bind(name, lang, c.get('userId')).run()
+  return c.json({ ok: true })
+})
+authed.post('/consents', async (c) => {
+  const b = await jsonBody(c)
+  const type = b?.type, version = b?.version
+  if (!['terms', 'privacy', 'document_processing'].includes(type as string) || typeof version !== 'string' || !/^[\w.-]{1,20}$/.test(version) || typeof b?.accepted !== 'boolean') {
+    return c.json({ error: 'invalid_request' }, 400)
+  }
+  await c.env.DB.prepare('INSERT INTO consents (id,user_id,type,version,accepted,created_at) VALUES (?,?,?,?,?,?)')
+    .bind(newId(), c.get('userId'), type, version, b.accepted ? 1 : 0, Date.now()).run()
+  await audit(c, 'consent.record', c.get('userId'), { type, version, accepted: b.accepted })
+  return c.json({ ok: true })
+})
+
+authed.get('/me/export', async (c) => {
+  const uid = c.get('userId')
+  if (!(await allow(c.env, `export:${uid}`, 3, 3600))) return c.json({ error: 'too_many_requests' }, 429)
+  const q = (sql: string) => c.env.DB.prepare(sql).bind(uid).all().then((r) => r.results)
+  const u = await c.env.DB.prepare('SELECT id,phone_enc,display_name,language,created_at FROM users WHERE id=?').bind(uid).first<{ phone_enc: string }>()
+  const phone = u ? await openText(c.env.DATA_KEY, 'user-phone', u.phone_enc) : null
+  await audit(c, 'privacy.export', uid)
+  return c.json({
+    exportedAt: Date.now(),
+    user: u ? { ...u, phone_enc: undefined, phone } : null,
+    requests: await q('SELECT id,service_id,status,data,renewal_of,created_at,updated_at FROM requests WHERE user_id=? AND deleted_at IS NULL'),
+    files: await q('SELECT id,request_id,name,mime,size,sha256,created_at FROM request_files WHERE user_id=? AND deleted_at IS NULL'),
+    consents: await q('SELECT type,version,accepted,created_at FROM consents WHERE user_id=?'),
+  })
+})
+
+authed.delete('/me', async (c) => {
+  const uid = c.get('userId')
+  const b = await jsonBody(c)
+  if (b?.confirm !== 'DELETE') return c.json({ error: 'confirmation_required' }, 400)
+  const files = await c.env.DB.prepare('SELECT r2_key FROM request_files WHERE user_id=? AND deleted_at IS NULL').bind(uid).all<{ r2_key: string }>()
+  for (const f of files.results) await c.env.DOCS.delete(f.r2_key)
+  const now = Date.now()
+  await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE request_files SET deleted_at=?, name=?, r2_key=? WHERE user_id=?').bind(now, 'deleted', 'deleted', uid),
+    c.env.DB.prepare("UPDATE requests SET deleted_at=?, data='{}' WHERE user_id=?").bind(now, uid),
+    c.env.DB.prepare('UPDATE sessions SET revoked_at=? WHERE user_id=?').bind(now, uid),
+    c.env.DB.prepare("UPDATE users SET deleted_at=?, display_name=NULL, phone_enc='deleted', phone_hash='deleted:'||id WHERE id=?").bind(now, uid),
+  ])
+  await audit(c, 'privacy.delete', uid)
+  return c.json({ ok: true })
+})
+
+// ---------- Requests ----------
+authed.get('/requests', async (c) => {
+  const r = await c.env.DB.prepare('SELECT id,service_id,status,data,renewal_of,created_at,updated_at FROM requests WHERE user_id=? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 200').bind(c.get('userId')).all()
+  return c.json({ requests: r.results })
+})
+authed.post('/requests', async (c) => {
+  const b = await jsonBody(c)
+  if (!isServiceId(b?.serviceId)) return c.json({ error: 'invalid_request' }, 400)
+  const data = b?.data && typeof b.data === 'object' ? JSON.stringify(b.data) : '{}'
+  if (data.length > 16 * 1024) return c.json({ error: 'too_large' }, 413)
+  const renewalOf = typeof b?.renewalOf === 'string' && isUuid(b.renewalOf) ? b.renewalOf : null
+  if (renewalOf) {
+    const own = await c.env.DB.prepare('SELECT 1 x FROM requests WHERE id=? AND user_id=?').bind(renewalOf, c.get('userId')).first()
+    if (!own) return c.json({ error: 'invalid_request' }, 400)
+  }
+  const id = newId(), now = Date.now()
+  await c.env.DB.prepare('INSERT INTO requests (id,user_id,service_id,status,data,renewal_of,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)')
+    .bind(id, c.get('userId'), b.serviceId, 'draft', data, renewalOf, now, now).run()
+  return c.json({ id }, 201)
+})
+
+const ownRequest = (c: C, id: string) =>
+  c.env.DB.prepare('SELECT id,status FROM requests WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(id, c.get('userId')).first<{ id: string; status: string }>()
+
+authed.get('/requests/:id', async (c) => {
+  const id = c.req.param('id')
+  if (!isUuid(id)) return c.json({ error: 'not_found' }, 404)
+  const r = await c.env.DB.prepare('SELECT id,service_id,status,data,renewal_of,created_at,updated_at FROM requests WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(id, c.get('userId')).first()
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  const files = await c.env.DB.prepare('SELECT id,name,mime,size,created_at FROM request_files WHERE request_id=? AND deleted_at IS NULL').bind(id).all()
+  return c.json({ request: r, files: files.results })
+})
+authed.patch('/requests/:id', async (c) => {
+  const id = c.req.param('id')
+  if (!isUuid(id) || !(await ownRequest(c, id))) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const data = b?.data && typeof b.data === 'object' ? JSON.stringify(b.data) : null
+  if (data && data.length > 16 * 1024) return c.json({ error: 'too_large' }, 413)
+  // Clients may only submit or cancel; every other status belongs to staff.
+  const status = b?.status === 'submitted' || b?.status === 'cancelled' ? b.status : null
+  if (b?.status !== undefined && !status) return c.json({ error: 'invalid_status' }, 400)
+  await c.env.DB.prepare('UPDATE requests SET data=COALESCE(?,data), status=COALESCE(?,status), updated_at=? WHERE id=? AND user_id=?').bind(data, status, Date.now(), id, c.get('userId')).run()
+  return c.json({ ok: true })
+})
+authed.delete('/requests/:id', async (c) => {
+  const id = c.req.param('id')
+  const r = isUuid(id) ? await ownRequest(c, id) : null
+  if (!r) return c.json({ error: 'not_found' }, 404)
+  if (r.status !== 'draft') return c.json({ error: 'only_drafts_deletable' }, 409)
+  const files = await c.env.DB.prepare('SELECT r2_key FROM request_files WHERE request_id=? AND deleted_at IS NULL').bind(id).all<{ r2_key: string }>()
+  for (const f of files.results) await c.env.DOCS.delete(f.r2_key)
+  await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE request_files SET deleted_at=?, r2_key=? WHERE request_id=?').bind(Date.now(), 'deleted', id),
+    c.env.DB.prepare("UPDATE requests SET deleted_at=?, data='{}' WHERE id=?").bind(Date.now(), id),
+  ])
+  return c.json({ ok: true })
+})
+
+// ---------- Files (encrypted before they reach storage) ----------
+authed.put('/requests/:id/files', async (c) => {
+  const id = c.req.param('id'), uid = c.get('userId')
+  if (!isUuid(id) || !(await ownRequest(c, id))) return c.json({ error: 'not_found' }, 404)
+  if (!(await allow(c.env, `upload:${uid}`, 40, 3600))) return c.json({ error: 'too_many_requests' }, 429)
+  if (Number(c.req.header('content-length') ?? '0') > MAX_FILE_BYTES) return c.json({ error: 'too_large' }, 413)
+  const bytes = new Uint8Array(await c.req.arrayBuffer())
+  if (bytes.length === 0 || bytes.length > MAX_FILE_BYTES) return c.json({ error: 'too_large' }, 413)
+  const kind = sniffFile(bytes) // trust the bytes, never the client-declared type
+  if (!kind) return c.json({ error: 'unsupported_type' }, 415)
+  const count = await c.env.DB.prepare('SELECT COUNT(*) n FROM request_files WHERE request_id=? AND deleted_at IS NULL').bind(id).first<{ n: number }>()
+  if ((count?.n ?? 0) >= MAX_FILES_PER_REQUEST) return c.json({ error: 'too_many_files' }, 409)
+  const fileId = newId(), key = `u/${uid}/${fileId}`
+  await c.env.DOCS.put(key, await seal(c.env.DATA_KEY, `file:${uid}:${fileId}`, bytes), { httpMetadata: { contentType: 'application/octet-stream' } })
+  const name = safeFileName(c.req.header('x-file-name') ? decodeURIComponent(c.req.header('x-file-name') as string) : null, kind.ext)
+  await c.env.DB.prepare('INSERT INTO request_files (id,request_id,user_id,r2_key,name,mime,size,sha256,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
+    .bind(fileId, id, uid, key, name, kind.mime, bytes.length, await sha256Hex(bytes), Date.now()).run()
+  await audit(c, 'file.upload', uid, { fileId })
+  return c.json({ id: fileId, name, mime: kind.mime, size: bytes.length }, 201)
+})
+authed.get('/files/:fileId', async (c) => {
+  const fid = c.req.param('fileId'), uid = c.get('userId')
+  if (!isUuid(fid)) return c.json({ error: 'not_found' }, 404)
+  const f = await c.env.DB.prepare('SELECT r2_key,name,mime FROM request_files WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(fid, uid).first<{ r2_key: string; name: string; mime: string }>()
+  const obj = f ? await c.env.DOCS.get(f.r2_key) : null
+  if (!f || !obj) return c.json({ error: 'not_found' }, 404)
+  const plain = await open(c.env.DATA_KEY, `file:${uid}:${fid}`, new Uint8Array(await obj.arrayBuffer()))
+  await audit(c, 'file.download', uid, { fileId: fid })
+  return new Response(plain as BufferSource, { headers: { 'content-type': f.mime, 'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(f.name)}`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
+})
+authed.delete('/files/:fileId', async (c) => {
+  const fid = c.req.param('fileId'), uid = c.get('userId')
+  if (!isUuid(fid)) return c.json({ error: 'not_found' }, 404)
+  const f = await c.env.DB.prepare('SELECT r2_key FROM request_files WHERE id=? AND user_id=? AND deleted_at IS NULL').bind(fid, uid).first<{ r2_key: string }>()
+  if (!f) return c.json({ error: 'not_found' }, 404)
+  await c.env.DOCS.delete(f.r2_key)
+  await c.env.DB.prepare('UPDATE request_files SET deleted_at=?, r2_key=? WHERE id=?').bind(Date.now(), 'deleted', fid).run()
+  await audit(c, 'file.delete', uid, { fileId: fid })
+  return c.json({ ok: true })
+})
+
+app.route('/v1', authed)
+export default app

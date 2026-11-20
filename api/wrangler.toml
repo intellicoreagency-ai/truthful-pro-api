@@ -1,0 +1,27 @@
+name = "truthful-pro-api-v2"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[vars]
+ENVIRONMENT = "staging"
+OTP_TTL_SECONDS = "300"
+
+# Create these first, then paste the real ids (see docs/DEPLOY.md):
+#   wrangler d1 create truthful-pro-v2-db
+#   wrangler r2 bucket create truthful-pro-v2-documents
+[[d1_databases]]
+binding = "DB"
+database_name = "truthful-pro-v2-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "DOCS"
+bucket_name = "truthful-pro-v2-documents"
+
+# Secrets (never commit): wrangler secret put <NAME>
+#   PEPPER        random 32+ bytes, base64  (OTP + phone hashing)
+#   DATA_KEY      random 32 bytes, base64   (AES-GCM for phone + documents)
+#   TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM   (SMS delivery)
