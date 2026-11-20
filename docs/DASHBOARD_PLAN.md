@@ -23,8 +23,15 @@ transactions, and follows customers up. It sits on the same API/database as the 
    decision and a privacy review because the files are highly sensitive.
 7. **Reports:** operations KPIs, turnaround time, revenue, staff workload.
 
+## Owner decisions (20 Nov 2026)
+- **No VAT at launch.** The company has no TRN yet and sales have not started. The VAT rate is a setting, **off by default**; until a TRN is entered
+  documents are issued as plain **"Invoice"**, never "Tax Invoice". (Reminder: UAE VAT registration becomes mandatory above AED 375,000 of taxable supplies
+  in 12 months; the setting makes switching on later a configuration change, not a rebuild.)
+- **Owner-only team for now.** The owner signs in alone and holds every permission. The role system (manager/agent/accountant) already exists in the API
+  and is simply unused until the team grows.
+
 ## Not decided yet / needs the owner
-- Who the staff are and their roles (phone numbers).
-- Fee schedule and VAT registration number (TRN) for invoices.
+- Fee schedule for quotes/invoices.
+- The owner's own mobile number (becomes `OWNER_PHONE`, the only way the first owner account is created).
 - Payment provider (if online payment is wanted).
 - OCR provider and where documents may be processed.

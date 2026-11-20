@@ -35,6 +35,16 @@ the company never sends a paid authentication template. One-time setup:
 Check Meta's current pricing page for your account before launch; free applies to customer-initiated conversations only.
 The old SMS route (`/v1/auth/otp/*`, Twilio) is still in the API but the app no longer uses it; it is paid.
 
+## 2c. Staff dashboard (same Worker)
+```bash
+cd dashboard && npm ci && npm run build        # produces dashboard/dist, served by the API Worker at /
+```
+Set `OWNER_PHONE` (the owner's mobile, E.164, e.g. `+9715XXXXXXXX`) as a secret: `npx wrangler secret put OWNER_PHONE`.
+The first WhatsApp sign-in with that number creates the owner account; nobody else can become owner. The owner adds team members
+later from the dashboard's Team page (managers, agents, accountants). Until then the owner is the only person who can sign in.
+Use a separate custom domain for the dashboard in Cloudflare (e.g. `ops.<your-domain>`) pointing at this Worker.
+Local smoke test: start `wrangler dev`, then `node scripts/e2e-dashboard.cjs` (needs `playwright` and the vars in `.dev.vars`).
+
 ## 3. Deploy and check
 ```bash
 npx wrangler deploy

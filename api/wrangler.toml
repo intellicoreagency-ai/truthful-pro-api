@@ -4,6 +4,11 @@ compatibility_date = "2026-11-01"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
+# The staff dashboard (../dashboard, build it first: npm run build) is served from the same Worker.
+[assets]
+directory = "../dashboard/dist"
+run_worker_first = ["/v1/*", "/staff/v1/*", "/webhooks/*", "/health"]
+
 [vars]
 ENVIRONMENT = "staging"
 OTP_TTL_SECONDS = "300"
