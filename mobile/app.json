@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "TRUTHFUL PRO",
+    "slug": "truthful-pro",
+    "scheme": "truthfulpro",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.truthfulclearance.pro",
+      "icon": "./assets/app/icon.png",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.truthfulclearance.pro",
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/app/adaptive-icon.png",
+        "monochromeImage": "./assets/app/adaptive-icon-mono.png",
+        "backgroundColor": "#000000"
+      }
+    },
+    "plugins": [
+      "expo-document-picker",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/app/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFF8EE"
+        }
+      ]
+    ],
+    "experiments": {
+      "tsconfigPaths": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3a7d3dbd-a174-4dd6-9f2c-6363e7abbe49"
+      }
+    },
+    "icon": "./assets/app/icon.png",
+    "backgroundColor": "#FFF8EE",
+    "web": {
+      "favicon": "./assets/app/favicon.png",
+      "bundler": "metro"
+    }
+  }
+}

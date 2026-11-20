@@ -1,0 +1,143 @@
+{
+  "trade-licenses": {
+    "ar": {
+      "title": "الرخص التجارية",
+      "subtitle": "تجديد وتعديل رخص الشركات القائمة"
+    },
+    "en": {
+      "title": "Trade Licences",
+      "subtitle": "Renewals and amendments"
+    }
+  },
+  "company-formation": {
+    "ar": {
+      "title": "تأسيس الشركات",
+      "subtitle": "تأسيس شركة جديدة وإصدار أول رخصة"
+    },
+    "en": {
+      "title": "Company Formation",
+      "subtitle": "New company setup and licensing"
+    }
+  },
+  "immigration-visas": {
+    "ar": {
+      "title": "التأشيرات والهجرة",
+      "subtitle": "إقامة الموظفين ومعاملات الجوازات"
+    },
+    "en": {
+      "title": "Immigration & Visas",
+      "subtitle": "Employee residency and passports"
+    }
+  },
+  "labor-employment": {
+    "ar": {
+      "title": "خدمات العمل والعمال",
+      "subtitle": "تصاريح العمل وعقود الموظفين"
+    },
+    "en": {
+      "title": "Employment & Labour",
+      "subtitle": "Work permits and contracts"
+    }
+  },
+  "mohre-company-registration": {
+    "ar": {
+      "title": "خدمات وزارة العمل",
+      "subtitle": "تسجيل المنشأة وإدارة ملفها"
+    },
+    "en": {
+      "title": "Ministry of Labour",
+      "subtitle": "Establishment registration"
+    }
+  },
+  "corporate-tax": {
+    "ar": {
+      "title": "ضريبة الشركات",
+      "subtitle": "التسجيل وتحديث البيانات"
+    },
+    "en": {
+      "title": "Corporate Tax",
+      "subtitle": "Registration and updates"
+    }
+  },
+  "commercial-ejari": {
+    "ar": {
+      "title": "إيجاري تجاري",
+      "subtitle": "تسجيل وتجديد إيجار مقر الشركة"
+    },
+    "en": {
+      "title": "Commercial Ejari",
+      "subtitle": "Registration and renewal"
+    }
+  },
+  "bank-account": {
+    "ar": {
+      "title": "الحسابات البنكية",
+      "subtitle": "فتح حساب بنكي للشركة"
+    },
+    "en": {
+      "title": "Business Bank Accounts",
+      "subtitle": "Company account opening"
+    }
+  },
+  "wage-protection": {
+    "ar": {
+      "title": "نظام حماية الأجور",
+      "subtitle": "التسجيل ومتابعة الأجور"
+    },
+    "en": {
+      "title": "Wage Protection",
+      "subtitle": "WPS registration and monitoring"
+    }
+  },
+  "legal-translation-companies": {
+    "ar": {
+      "title": "الترجمة القانونية",
+      "subtitle": "ترجمة مستندات الشركات"
+    },
+    "en": {
+      "title": "Legal Translation",
+      "subtitle": "Company documents"
+    }
+  },
+  "notary-companies": {
+    "ar": {
+      "title": "كاتب العدل للشركات",
+      "subtitle": "توثيق العقود والوكالات"
+    },
+    "en": {
+      "title": "Notary Public",
+      "subtitle": "Company contracts and powers of attorney"
+    }
+  },
+  "rta-companies": {
+    "ar": {
+      "title": "هيئة الطرق والمواصلات",
+      "subtitle": "معاملات مركبات الشركات"
+    },
+    "en": {
+      "title": "RTA Services",
+      "subtitle": "Company vehicle transactions"
+    }
+  },
+  "courts-legal-companies": {
+    "ar": {
+      "title": "خدمات المحاكم",
+      "subtitle": "المعاملات القانونية للشركات"
+    },
+    "en": {
+      "title": "Courts & Legal Services",
+      "subtitle": "Company legal procedures"
+    }
+  },
+  "customs": {
+    "ar": {
+      "title": "الخدمات الجمركية",
+      "subtitle": "التسجيل والمعاملات الجمركية"
+    },
+    "en": {
+      "title": "Customs Services",
+      "subtitle": "Registration and declarations"
+    }
+  }
+}
+
