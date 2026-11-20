@@ -22,7 +22,7 @@ import {ClientWorkspace,RequestWizard} from './src/ClientWorkspace';
 import {pickClientFile,pruneOrphanFiles,readRequests,writeRequests,getBytes,saveDataExport} from './src/clientStorage';
 import {makeId,type ClientRequest,type ClientFile} from './src/clientModel';
 import {HomeScreen} from './src/HomeScreen';
-import {WelcomeScreen} from './src/WelcomeScreen';
+import {AuthFlow} from './src/auth/AuthFlow';
 import {AccountScreen} from './src/AccountScreen';
 import {readAccount,saveAccount,emptyAccount,type AccountData} from './src/accountStorage';
 import {LegalScreen} from './src/LegalScreen';
@@ -559,7 +559,7 @@ export default function App() {
  return <SafeAreaProvider><TabBarLayoutProvider><SafeAreaView edges={barVisible?['top','left','right']:['top','bottom','left','right']} style={[styles.safe,webViewportHeight!==undefined&&{height:webViewportHeight,flexGrow:0,flexShrink:0,flexBasis:'auto'}]}>
    <StatusBar barStyle="dark-content"/>
    <BlurTargetView ref={blurTarget} key={page==='detail'?'detail:'+chosen.id:page} style={styles.screen}>
-     {page==='welcome'?<WelcomeScreen lang={lang} onLanguage={setLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal}
+     {page==='welcome'?<AuthFlow lang={lang} onLanguage={setLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal}
        logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily}/>
      :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents')}/>:page==='services'?cataloguePage(false):page==='detail'?detailPage():page==='profile'?
        <AccountScreen lang={lang} account={account} update={updateAccount} signedIn={signedIn} onEmail={setServerEmail} onLegal={setLegal} onExport={async()=>{await saveDataExport(await exportMyData());return true}} onDelete={async()=>{await deleteAccount();await wipeLocal();setSignedIn(false);go('welcome');return true}} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);go('welcome')}} requests={clientRecords.length+savedDrafts.length}

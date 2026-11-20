@@ -64,12 +64,14 @@ export async function verifyOtp(phone:string,challengeId:string,code:string){
 }
 export type WaChallenge={challengeId:string;pollToken:string;code:string;expiresIn:number;link:string};
 export const waStart=async(phone:string,language:'ar'|'en')=>json<WaChallenge>(await call('POST','/v1/auth/wa/start',{auth:false,body:{phone,language}}));
-/** Resolves 'pending' | 'expired' | 'verified'. On 'verified' the session tokens are stored. */
-export async function waPoll(phone:string,c:Pick<WaChallenge,'challengeId'|'pollToken'>):Promise<'pending'|'expired'|'verified'>{
-  const j=await json<{status:'pending'|'expired'|'verified';accessToken?:string;refreshToken?:string}>(await call('POST','/v1/auth/wa/poll',{auth:false,body:{phone,challengeId:c.challengeId,pollToken:c.pollToken}}));
+/** Resolves 'pending' | 'expired' | 'verified' (+ whether the number had no account yet). On 'verified' the session tokens are stored in the device keychain/keystore (expo-secure-store). */
+export async function waPoll(phone:string,c:Pick<WaChallenge,'challengeId'|'pollToken'>):Promise<{status:'pending'|'expired'|'verified';isNewUser?:boolean}>{
+  const j=await json<{status:'pending'|'expired'|'verified';isNewUser?:boolean;accessToken?:string;refreshToken?:string}>(await call('POST','/v1/auth/wa/poll',{auth:false,body:{phone,challengeId:c.challengeId,pollToken:c.pollToken}}));
   if(j.status==='verified'&&j.accessToken&&j.refreshToken)await saveTokens(j.accessToken,j.refreshToken);
-  return j.status;
+  return {status:j.status,isNewUser:j.isNewUser};
 }
+/** Display name for the account (the server stores it with the profile). */
+export async function setServerName(displayName:string){await call('PATCH','/v1/me',{body:{displayName}})}
 export async function logout(){try{if(mem.access)await call('POST','/v1/auth/logout')}catch{}await clearTokens()}
 export const me=async()=>json<{user:{id:string;display_name:string|null;language:'ar'|'en'}}>(await call('GET','/v1/me'));
 export const recordConsent=(type:'terms'|'privacy'|'document_processing',version:string,accepted:boolean)=>call('POST','/v1/consents',{body:{type,version,accepted}});

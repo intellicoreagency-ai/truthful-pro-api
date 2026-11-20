@@ -31,3 +31,10 @@
 - Tabs: `mobile/src/navigation/tabs.ts` (five root destinations; `activeTab`, `showsTabBar`).
 - Translucent bottom tab bar: `mobile/src/navigation/TabBar.tsx` (`expo-blur` system-chrome blur + warm tint, hairline, 49 pt + home-indicator inset, 11 pt labels, raised primary action, Material ripple on Android). On Android the content behind the bar is wrapped in a `BlurTargetView`.
 - Layout: `mobile/src/navigation/TabBarLayout.tsx` — screens use its `ScrollView`, which scrolls content *under* the bar and keeps the last item clear of it; the bar's height is measured, so the "Start request" accessory on a service page sits inside the same blur.
+
+## Authentication (Step 2)
+- `mobile/src/auth/` — `AuthFlow` (root of the signed-out area; Android back: register → login), `LoginScreen`, `RegisterScreen` (also used as the "finish your account" step for a number that signs in without an account), `AuthKit` (Apple-style building blocks: large title, 52 pt rounded fields with label above and focus ring, 14 pt-radius buttons, rounded consent checkboxes, fade+rise step transition that respects *Reduce Motion*), `useWaVerification` (WhatsApp confirmation + polling), `phone.ts`, `copy.ts` (Arabic/English strings).
+- The product is **passwordless**: the user sends a ready-made WhatsApp message (free for them), the server verifies Meta's signed webhook, the app polls and receives rotating tokens. There is no password to type, reset or leak.
+- **Tokens** are stored only through `expo-secure-store` (iOS Keychain / Android Keystore, `WHEN_UNLOCKED_THIS_DEVICE_ONLY`) in `src/api.ts`; on web they stay in memory only.
+- Register records the three consents (terms, privacy, document processing) with the legal version once the session exists, then the name and the optional email (a welcome email with a confirmation link is sent only if email is configured). A failed consent save shows a retry; the user is not let in silently.
+- Old `WelcomeScreen` (with a non-functional email/password preview) was removed.
