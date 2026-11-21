@@ -1,5 +1,5 @@
 import React, {useMemo, useState} from 'react';
-import {Alert, AppState, BackHandler, Image, ImageBackground, Keyboard, Platform, StatusBar, StyleSheet, Text, useWindowDimensions, View} from 'react-native';
+import {Alert, AppState, BackHandler, Image, Keyboard, Platform, StatusBar, StyleSheet, Text, useWindowDimensions, View} from 'react-native';
 import {colors as C} from './src/theme';
 import {BlurTargetView} from 'expo-blur';
 import {TabBar} from './src/navigation/TabBar';
@@ -14,9 +14,9 @@ import {PlusJakartaSans_500Medium} from '@expo-google-fonts/plus-jakarta-sans/50
 import {PlusJakartaSans_700Bold} from '@expo-google-fonts/plus-jakarta-sans/700Bold';
 import {SERVICES, catalogueServices, Service, serviceLabel, serviceDescription} from './src/services';
 import {structureFor, wording} from './src/serviceDetails';
-import {Icon, serviceIcon} from './src/Icons';
-import {bannerFrameFor, individualCatalogueBannerFor} from './src/approvedBanners';
-import {CompanyBanner, companyBannerFonts} from './src/CompanyBanner';
+import {companyBannerFonts} from './src/CompanyBanner';
+import {CategoryBanner} from './src/catalogue/CategoryBanner';
+import {locate} from './src/catalogue/categories';
 import {ClientWorkspace} from './src/ClientWorkspace';
 import {RequestWizard} from './src/request/RequestWizard';
 import {pickClientFile,pruneOrphanFiles,readRequests,writeRequests,getBytes,saveDataExport} from './src/clientStorage';
@@ -61,7 +61,6 @@ const font=(lang:Language,bold:boolean)=>({
 });
 const emptyDraft:RequestDraft={name:'',phone:'',files:{},fields:{}};
 const keyFor=(serviceId:string,actionId:string)=>serviceId+'/'+actionId;
-const hero=require('./assets/brand/dubai_hero.webp');
 const officialLogo=require('./assets/brand/truthful_official_logo.jpg');
 // REJECTED_ASSET_QUARANTINE: no legacy service banner image is approved.
 // Use a text-first warm espresso surface until each new unique banner is approved.
@@ -120,7 +119,6 @@ const catalogueBannerRatio=750/219;
 
 export default function App() {
  const {width:viewportWidth}=useWindowDimensions();
- const bannerWidth=Math.min(viewportWidth,maxAppWidth)-32; // glass screens: 16 pt margins
  const [fontsLoaded,fontError]=useFonts(fonts);
  const webViewportHeight=useWebViewportHeight();
  const [lang,setLangState]=useState<Language>(()=>readAccount().language??'ar');
@@ -287,23 +285,12 @@ export default function App() {
  const selectNav=(key:TabKey)=>key==='request'?(page==='detail'?(setClientDraft(null),startRequest()):page==='request'||page==='newrequest'?undefined:(setClientDraft(null),go('newrequest'))):key==='services'?openCatalogue():go(key);
  const tabLabels:Record<TabKey,string>={home:t.home,services:t.services,request:t.request,requests:t.requests,profile:t.profile};
  const blurTarget=React.useRef<React.ComponentRef<typeof View>>(null);
- const bannerFor=(service:Service,inCatalogue=false)=>{
-   if(service.business && service.id!=='complete-business') return <CompanyBanner id={service.id} language={lang} width={bannerWidth}/>;
-   const reference=inCatalogue?individualCatalogueBannerFor(service.id,lang):undefined;
-   const artwork=reference??bannerFrameFor(service.id,lang);
-   if(!artwork) return <ImageBackground source={hero} resizeMode="cover" style={[styles.illustratedBanner,inCatalogue&&styles.catalogueBanner]}>
-     <View style={[styles.bannerCaption,{alignSelf:ar?'flex-end':'flex-start'}]}>
-       <Icon name={serviceIcon(service.id)} size={20}/>
-       <AppText lang={lang} style={styles.bannerTitle}>{title(service)}</AppText>
-     </View>
-   </ImageBackground>;
-
-   const [x,y,w,h]=artwork.bounds;
-   return <View style={[styles.bannerFrame,inCatalogue?styles.catalogueBanner:{aspectRatio:w/h}]}>
-     <Image source={artwork.source} resizeMode="stretch" accessible={false}
-       style={{position:'absolute',width:`${(reference?.width??960)/w*100}%`,height:`${(reference?.height??226)/h*100}%`,left:`-${x/w*100}%`,top:`-${y/h*100}%`}}/>
-
-   </View>;
+ // Every service shows its main-service banner (navy & gold, real text); the branch name is the title.
+ const bannerFor=(service:Service)=>{
+   const at=locate(service.id);
+   if(!at) return <CategoryBanner lang={lang} id="business" title={title(service)} subtitle={serviceDescription(service,lang)} chevron={false}/>;
+   return <CategoryBanner lang={lang} id={at.category.id} eyebrow={at.category.title[lang]} title={at.branch.title[lang]} subtitle={at.branch.desc[lang]}
+     count={structureFor(service.id)?.actions.length} chevron={false} tall/>;
  };
 
  const favorite=account.favorites.includes(chosen.id);
@@ -338,7 +325,7 @@ export default function App() {
    <BlurTargetView ref={blurTarget} key={page==='detail'?'detail:'+chosen.id:page} style={styles.screen}>
      {page==='welcome'?<AuthFlow lang={lang} onLanguage={setLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal} logo={officialLogo}/>
      :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents'||!!r.whatNow?.actionRequired)}/>:page==='services'?<ServicesScreen lang={lang} business={business} onAudience={setBusiness} query={query} onQuery={setQuery} services={allServices}
-         choosing={choosingService} onOpen={service=>open(service)} renderBanner={service=>bannerFor(service,true)} onLanguage={switchLang} onProfile={()=>go('profile')}/>
+         choosing={choosingService} onOpen={service=>open(service)} onLanguage={switchLang} onProfile={()=>go('profile')}/>
      :page==='detail'?<ServiceDetailsScreen lang={lang} service={chosen} banner={bannerFor(chosen)} onBack={()=>go(detailOrigin)} onLanguage={switchLang} scrollRef={detailScroll}
          favorite={favorite} onToggleFavorite={toggleFavorite} tab={tab} onTab={selectTab} actionId={actionId} needsAction={needsAction} showDocumentsOnAbout={pilotService}
          onSelectAction={item=>{setNeedsAction(false);setAction(item.id);if(!pilotService)selectTab('documents')}}

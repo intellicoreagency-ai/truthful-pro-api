@@ -9,7 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/validate-services.cjs && node scripts/test-client-workspace.cjs && node scripts/test-sync-map.mts"
+    "test": "node scripts/validate-services.cjs && node scripts/test-client-workspace.cjs && node scripts/test-sync-map.mts && node --import ./scripts/ts-resolve.mjs scripts/test-catalogue.mts"
   },
   "dependencies": {
     "@expo-google-fonts/cairo": "^0.4.2",
