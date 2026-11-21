@@ -24,6 +24,7 @@ import {pickClientFile,pruneOrphanFiles,readRequests,writeRequests,getBytes,save
 import {makeId,type ClientRequest,type ClientFile} from './src/clientModel';
 import {HomeScreen} from './src/HomeScreen';
 import {AuthFlow} from './src/auth/AuthFlow';
+import type {SyncStatus} from './src/dashboard/DashboardScreen';
 import {ContactScreen} from './src/auth/ContactScreen';
 import {AccountScreen} from './src/AccountScreen';
 import {readAccount,saveAccount,emptyAccount,type AccountData} from './src/accountStorage';
@@ -157,22 +158,30 @@ export default function App() {
  const syncing=React.useRef(false);
  const syncAgain=React.useRef(false);
  /** Push unsynced requests, then pull. The server is authoritative for status; failures keep local data and retry later. */
- const syncNow=async()=>{
-   if(!apiEnabled||!hasSession())return;
-   if(syncing.current){syncAgain.current=true;return}
-   syncing.current=true;
-   try{
-     do{
-       syncAgain.current=false;
-       let recs=recordsRef.current;
-       for(const r of recs.filter(needsSync)){
-         const next=await pushRequest(r,getBytes,id=>recs.find(x=>x.id===id)?.remoteId);
-         recs=recs.map(x=>x.id===next.id?next:x);writeLocal(recs);
-       }
-       writeLocal(await pullRequests(recordsRef.current));
-     }while(syncAgain.current);
-   }catch{/* offline or expired: local data stays, next save/login retries */}
-   finally{syncing.current=false}
+ const [syncStatus,setSyncStatus]=useState<SyncStatus>('idle');
+ const [loadedOnce,setLoadedOnce]=useState(false);
+ const inFlight=React.useRef<Promise<void>|null>(null);
+ // Pushes local changes, then pulls the server's list (the server is the reference). Concurrent calls share one run; the promise resolves when it is done.
+ const syncNow=():Promise<void>=>{
+   if(!apiEnabled||!hasSession())return Promise.resolve();
+   if(inFlight.current){syncAgain.current=true;return inFlight.current}
+   syncing.current=true;setSyncStatus('syncing');
+   inFlight.current=(async()=>{
+     let failed=false;
+     try{
+       do{
+         syncAgain.current=false;
+         let recs=recordsRef.current;
+         for(const r of recs.filter(needsSync)){
+           const next=await pushRequest(r,getBytes,id=>recs.find(x=>x.id===id)?.remoteId);
+           recs=recs.map(x=>x.id===next.id?next:x);writeLocal(recs);
+         }
+         writeLocal(await pullRequests(recordsRef.current));
+       }while(syncAgain.current);
+     }catch{failed=true;/* offline or expired: local data stays, next save/login retries */}
+     finally{syncing.current=false;inFlight.current=null;setSyncStatus(failed?'error':'idle');setLoadedOnce(true)}
+   })();
+   return inFlight.current;
  };
  const syncTimer=React.useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
  const saveClientRecords=(records:ClientRequest[])=>{const ok=writeLocal(records);if(ok&&apiEnabled&&hasSession()){clearTimeout(syncTimer.current);syncTimer.current=setTimeout(()=>void syncNow(),600)}return ok};
@@ -574,7 +583,7 @@ export default function App() {
          onFavorite={id=>{const item=catalogueServices.find(service=>service.id===id);if(item) open(item);}}
          onRequests={()=>go('requests')} onBrowse={()=>openCatalogue()} onLanguage={setLang}
          onLeave={()=>go('welcome')} logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily}/>
-       :page==='requests'?<ClientWorkspace onRefresh={()=>void syncNow()} lang={lang} onLanguage={switchLang} onFocusChange={setClientFocused} records={clientRecords} save={saveClientRecords} onStart={()=>{setClientDraft(null);openCatalogue(true);}} onResume={resumeClient} drafts={savedDrafts.map(item=>({key:item.key,title:wording(item.action,lang),resume:()=>open(item.service,item.action.id)}))}/>:page==='request'&&action?<RequestWizard onLegal={setLegal} key={chosen.id+'/'+action.id+'/'+(clientDraft??clientSeed?.id??'new')} lang={lang} serviceId={chosen.id} action={action} create={createClientRequest} onDone={()=>{setClientSeed(null);go('requests');}} onKeep={kept=>setClientSeed(kept)} onBack={()=>{go('detail');setTab('about');}} defaults={{name:account.name,phone:account.phone}} initial={clientRecords.find(r=>r.id===clientDraft)??(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id?clientSeed:undefined)}/>:simplePage()}
+       :page==='requests'?<ClientWorkspace onRefresh={syncNow} syncStatus={syncStatus} loadedOnce={loadedOnce} lang={lang} onLanguage={switchLang} onFocusChange={setClientFocused} records={clientRecords} save={saveClientRecords} onStart={()=>{setClientDraft(null);openCatalogue(true);}} onResume={resumeClient} drafts={savedDrafts.map(item=>({key:item.key,title:wording(item.action,lang),resume:()=>open(item.service,item.action.id)}))}/>:page==='request'&&action?<RequestWizard onLegal={setLegal} key={chosen.id+'/'+action.id+'/'+(clientDraft??clientSeed?.id??'new')} lang={lang} serviceId={chosen.id} action={action} create={createClientRequest} onDone={()=>{setClientSeed(null);go('requests');}} onKeep={kept=>setClientSeed(kept)} onBack={()=>{go('detail');setTab('about');}} defaults={{name:account.name,phone:account.phone}} initial={clientRecords.find(r=>r.id===clientDraft)??(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id?clientSeed:undefined)}/>:simplePage()}
    </BlurTargetView>
    {legal&&<View style={StyleSheet.absoluteFill}><LegalScreen lang={lang} doc={legal==='terms'?TERMS:PRIVACY} onBack={()=>setLegal(null)} Text={AppText}/></View>}
    {barVisible&&<TabBar active={activeTab(page)} labels={tabLabels} onSelect={selectNav} blurTarget={blurTarget} accessory={page==='detail'?detailCTA():undefined} labelFont={sel=>({...font(lang,sel),...(lang==='ar'?{fontFamily:'ReferenceArabic'}:null)})}/>}

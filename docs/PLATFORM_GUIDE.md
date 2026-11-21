@@ -49,3 +49,9 @@ The chosen Dubai photo (`assets/brand/cover-dubai.jpg`, the owner's selection) f
 
 ### Database rule for the email
 `users.email_enc` stays nullable (the account row is created at WhatsApp verification, before the email is entered, and older accounts exist), so the rule is enforced by migration `0015_email_required.sql` triggers: a request cannot leave *draft* for a customer without an email, and a live account cannot lose its email. The API also answers `409 email_required`.
+
+## Dashboard (Step 3)
+- `mobile/src/dashboard/DashboardScreen.tsx` is the "My Requests" tab: large title + search + filter chips in a translucent (blurred) header with the list scrolling beneath it; Apple-style cards (20 pt radius, soft shadow on iOS / elevation on Android / box-shadow on web, 17 pt headings, 5-segment stage bar, status badge, the server's "what is needed from you" strip, details link); drafts; native pull-to-refresh (`RefreshControl`, held ≥ 650 ms so it never flickers); skeleton cards on the first load; empty state with a Start-a-transaction button; no-match state; offline banner with retry that keeps showing the last saved data.
+- Data: `App.tsx` `syncNow()` pushes local changes and pulls the list and details from the API (the server is the reference); concurrent calls share one run and the promise resolves when done, so pull-to-refresh waits for the real result. `syncStatus` (`idle|syncing|error`) and `loadedOnce` drive the loading/offline states.
+- Shared text component for redesigned screens: `mobile/src/ui/Txt.tsx` (Cairo for Arabic, system font for English).
+- The old dense list (reference design) was removed from the My Requests tab; request details, files, share and missing-documents screens are unchanged.

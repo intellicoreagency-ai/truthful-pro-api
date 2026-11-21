@@ -29,7 +29,7 @@ if(require.main===module)(async()=>{
   console.log('errors',JSON.stringify(errs.slice(0,3)));
  
  // ---- the customer answers the request ----
- await p.getByText('استكمال',{exact:true}).first().click();await p.waitForTimeout(1500);
+ await p.getByText('إرسال المستندات',{exact:true}).first().click();await p.waitForTimeout(1500);
  t=await p.locator('body').innerText();console.log('missing screen shows staff request:',t.includes('صورة الإقامة الحالية'),'| note:',t.includes('الصورة غير واضحة'));
  await p.screenshot({path:'c2.png'});
  const [fc]=await Promise.all([p.waitForEvent('filechooser'),p.getByText('اضغط لرفع الملف').first().click()]);await fc.setFiles('photo.jpg');await p.waitForTimeout(1200);
@@ -46,7 +46,7 @@ if(require.main===module)(async()=>{
  t=await p.locator('body').innerText();
  console.log('customer sees completed:',t.includes('منجزة')||t.includes('مكتمل'),'| delivery file label:',t.includes('الهوية الإماراتية الجديدة'));
  await p.screenshot({path:'c3.png',fullPage:true});
- await p.getByText('استلام الملفات',{exact:true}).first().click();await p.waitForTimeout(1500);
+ await p.getByText('تفاصيل الطلب',{exact:true}).first().click();await p.waitForTimeout(1500);
  console.log('receipt screen:',(await p.locator('body').innerText()).slice(0,300).replace(/\n/g,' | '));await p.screenshot({path:'c4.png'});
  const btns=await p.getByRole('button').allInnerTexts();console.log('buttons:',btns.filter(x=>x.trim()).join(' | ').slice(0,300));
  await p.getByText(/تأكيد استلام|تأكيد الاستلام/).last().click();await p.waitForTimeout(3500);
