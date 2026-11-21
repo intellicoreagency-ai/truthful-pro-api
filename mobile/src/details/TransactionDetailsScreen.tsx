@@ -11,14 +11,11 @@
  */
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,Linking,Platform,RefreshControl,StyleSheet,View} from 'react-native';
-import {Pressable} from '../Touch';
-import {Icon,type IconName} from '../Icons';
+import {Icon} from '../Icons';
 import {Txt,type Lang} from '../ui/Txt';
-import {GlassButton,GlassCard,GlassField,IconButton,Note,SectionTitle,ValueRow,g,ltr,rowFor,useReduceTransparency} from '../ui/Glass';
-import {ScrollView} from '../navigation/TabBarLayout';
+import {GlassButton,GlassCard,GlassField,GlassScreen,IconButton,Note,ScreenHeader,SectionTitle,StageTracker,StatusBadge,Tag,ValueRow,g,ltr,rowFor,useReduceTransparency} from '../ui/Glass';
 import {colors,layout,onGlass,radius,space,type} from '../theme';
-import {dateText,remaining,statusLabels,steps,total,type ClientFile,type ClientRequest,type Status} from '../clientModel';
-import {statusTone} from '../dashboard/statusStyle';
+import {dateText,remaining,total,type ClientFile,type ClientRequest} from '../clientModel';
 import {ApiError,apiEnabled,fetchRequest,hasSession,needsSync} from '../api';
 
 const SUPPORT_WHATSAPP='https://wa.me/971585144005';
@@ -61,8 +58,6 @@ const COPY={
     supportText:(ref:string)=>`Hello, I need help with request ${ref}`},
 } as const;
 
-const STATUS_ICON:Partial<Record<Status,IconName>>={completed:'check',needs_documents:'info',rejected:'close',cancelled:'close'};
-const digits=(n:number,lang:Lang)=>new Intl.NumberFormat(lang==='ar'?'ar-AE':'en-GB').format(n);
 const amount=(fils:number)=>ltr((fils/100).toFixed(2));
 
 export type DetailsActions={
@@ -89,35 +84,6 @@ type Props={
 };
 
 type Sync={kind:'idle'}|{kind:'loading'}|{kind:'error';notFound:boolean};
-
-function StatusBadge({lang,status}:{lang:Lang;status:Status}){
-  const tone=statusTone(status),label=statusLabels[status][lang];
-  return <View accessible accessibilityLabel={`${COPY[lang].status}: ${label}`}
-    style={[styles.badge,{backgroundColor:tone.bg,flexDirection:rowFor(lang)}]}>
-    <Icon name={STATUS_ICON[status]??'clock'} size={15} color={tone.fg}/>
-    <Txt lang={lang} bold style={{...styles.badgeText,color:tone.fg}}>{label}</Txt>
-  </View>;
-}
-
-/** Five-stage tracker; done stages are filled, the current one is ringed. Spoken as "Stage n of 5: name". */
-function Stages({lang,stage}:{lang:Lang;stage:number}){
-  const t=COPY[lang],row=rowFor(lang),current=steps[stage-1]?.[lang]??'';
-  return <View style={styles.stages}>
-    <View style={[styles.between,{flexDirection:row}]}>
-      <Txt lang={lang} bold style={g.sectionTitle}>{t.progress}</Txt>
-      <Txt lang={lang} style={styles.stageCount}>{t.stage(digits(stage,lang),digits(5,lang))}</Txt>
-    </View>
-    <View accessible accessibilityRole="progressbar" accessibilityLabel={`${t.stage(digits(stage,lang),digits(5,lang))}: ${current}`}
-      accessibilityValue={{min:1,max:5,now:stage}} style={{flexDirection:row}}>
-      {steps.map((step,i)=>{const done=i<stage-1||stage===5,now=i===stage-1&&stage!==5;
-        return <View key={step.en} style={styles.step}>
-          {i<steps.length-1&&<View style={[styles.connector,lang==='ar'?{right:'50%'}:{left:'50%'},i<stage-1&&styles.connectorDone]}/>}
-          <View style={[styles.dot,done&&styles.dotDone,now&&styles.dotNow]}>{done&&<Icon name="check" size={15} color="#FFFFFF"/>}</View>
-          <Txt lang={lang} bold={now} style={{...styles.stepText,...(now?{color:colors.brand}:null)}}>{step[lang]}</Txt>
-        </View>;})}
-    </View>
-  </View>;
-}
 
 export function TransactionDetailsScreen({lang,request,onBack,actions,busy=false,message,financePanel,onRefresh,onUpdated}:Props){
   const t=COPY[lang],ar=lang==='ar',row=rowFor(lang);
@@ -185,22 +151,8 @@ export function TransactionDetailsScreen({lang,request,onBack,actions,busy=false
   ];
   const events=r.events.slice(-5);
 
-  return <View style={styles.screen}>
-    <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.background}>
-      <View style={[styles.orb,styles.orbWarm]}/>
-      <View style={[styles.orb,styles.orbSand]}/>
-    </View>
-
-    <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets
-      refreshControl={live||onRefresh?<RefreshControl refreshing={refreshing} onRefresh={()=>void pull()} tintColor={colors.orange} colors={[colors.orange]}/>:undefined}
-      contentContainerStyle={styles.content}>
-      <View style={styles.page}>
-        <View style={[styles.header,{flexDirection:row}]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t.back} onPress={onBack} style={styles.backButton}>
-            <Icon name={ar?'next':'back'} size={24} color={colors.ink}/>
-          </Pressable>
-          <View style={g.flex1} accessibilityRole="header"><Txt lang={lang} bold style={styles.headerTitle}>{t.title}</Txt></View>
-        </View>
+  return <GlassScreen refreshControl={live||onRefresh?<RefreshControl refreshing={refreshing} onRefresh={()=>void pull()} tintColor={colors.orange} colors={[colors.orange]}/>:undefined}>
+        <ScreenHeader lang={lang} title={t.title} backLabel={t.back} onBack={onBack}/>
 
         {!!message&&<View accessibilityLiveRegion="polite"><Note lang={lang} tone="warning">{message}</Note></View>}
         {sync.kind==='loading'&&<View accessible accessibilityLabel={t.refreshing} accessibilityState={{busy:true}} style={[styles.syncRow,{flexDirection:row}]}>
@@ -224,7 +176,7 @@ export function TransactionDetailsScreen({lang,request,onBack,actions,busy=false
           </View>
           <View style={[styles.badges,{flexDirection:row}]}>
             <StatusBadge lang={lang} status={r.status}/>
-            {r.sample&&<View style={styles.sampleTag}><Txt lang={lang} bold style={styles.sampleText}>{t.sample}</Txt></View>}
+            {r.sample&&<Tag lang={lang}>{t.sample}</Tag>}
           </View>
           <View style={[styles.dates,{flexDirection:row}]}>
             {dates.map(([label,v])=><View key={label} style={styles.dateCell}>
@@ -245,7 +197,7 @@ export function TransactionDetailsScreen({lang,request,onBack,actions,busy=false
         {!r.whatNow&&r.status==='needs_documents'&&<GlassButton lang={lang} primary icon="upload" label={t.completeDocs} disabled={busy} onPress={actions.onMissing}/>}
 
         {/* Progress steps */}
-        {!done&&<GlassCard reduce={reduce}><Stages lang={lang} stage={r.stage}/></GlassCard>}
+        {!done&&<GlassCard reduce={reduce}><StageTracker lang={lang} stage={r.stage}/></GlassCard>}
 
         {/* Financial details */}
         <GlassCard reduce={reduce}>
@@ -320,25 +272,11 @@ export function TransactionDetailsScreen({lang,request,onBack,actions,busy=false
           <GlassButton lang={lang} icon="mail" accessibilityLabel={t.contactSupportA11y} label={supportBusy?t.opening:t.contactSupport} busy={supportBusy} onPress={()=>void contactSupport()}/>
           {supportError&&<View accessibilityLiveRegion="polite"><Txt lang={lang} style={styles.errorText}>{t.supportError}</Txt></View>}
         </View>
-      </View>
-    </ScrollView>
-  </View>;
+  </GlassScreen>;
 }
 
 const styles=StyleSheet.create({
-  screen:{flex:1,backgroundColor:colors.background},
-  background:{position:'absolute',top:0,right:0,bottom:0,left:0,overflow:'hidden'},
-  orb:{position:'absolute',width:320,height:320,borderRadius:160},
-  orbWarm:{backgroundColor:colors.gold,opacity:0.28,top:40,left:-130},
-  orbSand:{backgroundColor:colors.brandTint,opacity:0.9,top:420,right:-150},
-  content:{flexGrow:1,paddingHorizontal:space.lg,paddingTop:space.md,paddingBottom:space.xxl+space.sm},
-  page:{width:'100%',maxWidth:600,alignSelf:'center',gap:space.lg},
-  between:{alignItems:'center',justifyContent:'space-between',gap:space.md},
 
-  header:{alignItems:'center',gap:space.md},
-  backButton:{width:layout.minTouch+4,height:layout.minTouch+4,borderRadius:radius.pill,alignItems:'center',justifyContent:'center',
-    backgroundColor:onGlass.field,borderWidth:1,borderColor:onGlass.border,overflow:'hidden'},
-  headerTitle:{fontSize:type.title2,lineHeight:32},
 
   syncRow:{alignItems:'center',gap:space.sm,padding:space.md,borderRadius:radius.control,backgroundColor:colors.white},
   syncError:{backgroundColor:'#FBE6E3'},
@@ -350,10 +288,6 @@ const styles=StyleSheet.create({
   transactionTitle:{fontSize:type.title2,lineHeight:32},
   reference:{fontSize:type.subhead,lineHeight:22,color:colors.muted},
   badges:{flexWrap:'wrap',gap:space.sm},
-  badge:{alignItems:'center',gap:6,borderRadius:radius.pill,paddingHorizontal:space.md,paddingVertical:5},
-  badgeText:{fontSize:type.footnote,lineHeight:20},
-  sampleTag:{borderRadius:radius.pill,paddingHorizontal:space.md,paddingVertical:5,backgroundColor:'#FFF0D1'},
-  sampleText:{fontSize:type.footnote,lineHeight:20,color:'#8A4F0B'},
   dates:{borderTopWidth:layout.hairline,borderTopColor:colors.line,paddingTop:space.md,gap:space.sm},
   dateCell:{flex:1,gap:2},
   dateLabel:{fontSize:type.caption,lineHeight:18,color:colors.muted,textAlign:'center'},
@@ -362,15 +296,6 @@ const styles=StyleSheet.create({
   whatNow:{gap:space.xs},
   body:{fontSize:type.subhead,lineHeight:24,color:onGlass.soft},
 
-  stages:{gap:space.lg},
-  stageCount:{fontSize:type.footnote,lineHeight:20,color:colors.brand},
-  step:{flex:1,alignItems:'center',gap:space.sm},
-  connector:{position:'absolute',top:13,width:'100%',height:2,backgroundColor:colors.line},
-  connectorDone:{backgroundColor:colors.orange},
-  dot:{width:28,height:28,borderRadius:14,borderWidth:2,borderColor:colors.line,backgroundColor:colors.white,alignItems:'center',justifyContent:'center'},
-  dotDone:{backgroundColor:colors.orange,borderColor:colors.orange},
-  dotNow:{borderColor:colors.orange,borderWidth:4,backgroundColor:'#FFF0DD'},
-  stepText:{fontSize:type.caption,lineHeight:18,textAlign:'center',color:colors.muted},
 
   fileRow:{alignItems:'center',gap:space.sm+2,paddingVertical:space.sm+2,borderBottomWidth:layout.hairline,borderBottomColor:colors.line},
   fileName:{fontSize:type.subhead,lineHeight:22},

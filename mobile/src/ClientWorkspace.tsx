@@ -3,7 +3,8 @@ import {View, Text, Image, TextInput, StyleSheet, Modal, BackHandler} from 'reac
 import {Pressable} from './Touch';
 import {ScrollView} from './navigation/TabBarLayout';
 import {DashboardScreen,type SyncStatus} from './dashboard/DashboardScreen';
-import {DashboardTop,DashboardCard,MissingDesign,ShareDesign} from './ClientDesign';
+import {DashboardTop,DashboardCard,ShareDesign} from './ClientDesign';
+import {MissingDocumentsScreen} from './details/MissingDocumentsScreen';
 import {TransactionDetailsScreen} from './details/TransactionDetailsScreen';
 import {FinancePanel} from './details/FinancePanel';
 import {RefText,RefButton,RefHeader,ReferenceProgress,useReference,refStyles,palette,stageNumber} from './ReferenceUI';
@@ -47,11 +48,13 @@ export function ClientWorkspace({lang,onLanguage,onFocusChange,records,save,onSt
  const main= <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets showsVerticalScrollIndicator={false} contentContainerStyle={{paddingHorizontal:current?tab==='missing'?18*u*.75:18*u*1.5:28*u,paddingTop:current?0:10*u,paddingBottom:20*u,gap:current?tab==='missing'?12*u:18*u:17*u,backgroundColor:palette.background}}>
  {!!message&&<RefText lang={lang} size={23} style={{backgroundColor:'#FFF0DC',padding:10*u,borderRadius:10*u}}>{message}</RefText>}
  {!current?null
-:tab==='missing'&&current.status==='needs_documents'?<MissingDesign lang={lang} r={current} onBack={()=>setSelected(null)} onPick={pickMissing} onSend={sendMissing} busy={busy}/>:tab==='files'?<><RefHeader lang={lang} onBack={()=>setTab('detail')}/><RefText lang={lang} bold size={40}>{tx('ملفات المعاملة','Request files')}</RefText>{current.files.map(f=>fileRow(f,current))}{!current.files.length&&<RefText lang={lang}>{tx('لا ملفات متاحة بعد','No files available yet')}</RefText>}</>:null}
+:tab==='files'?<><RefHeader lang={lang} onBack={()=>setTab('detail')}/><RefText lang={lang} bold size={40}>{tx('ملفات المعاملة','Request files')}</RefText>{current.files.map(f=>fileRow(f,current))}{!current.files.length&&<RefText lang={lang}>{tx('لا ملفات متاحة بعد','No files available yet')}</RefText>}</>:null}
  </ScrollView>;
  // Request details (glass redesign). The missing-documents and files layers still render in `main`.
  const detailsVisible=!!current&&tab!=='files'&&!(tab==='missing'&&current.status==='needs_documents');
- const details=current&&detailsVisible?<TransactionDetailsScreen lang={lang} request={current} busy={busy} message={message}
+ const missingVisible=!!current&&tab==='missing'&&current.status==='needs_documents';
+ const missingScreen=current&&missingVisible?<MissingDocumentsScreen lang={lang} r={current} busy={busy} message={message} onBack={()=>setTab('detail')} onPick={pickMissing} onSend={sendMissing}/>:null;
+ const details=missingScreen??(current&&detailsVisible?<TransactionDetailsScreen lang={lang} request={current} busy={busy} message={message}
    onBack={()=>setSelected(null)}
    onRefresh={demo?undefined:onRefresh}
    onUpdated={fresh=>{try{update(fresh)}catch{/* storage full: keep showing the saved copy */}}}
@@ -66,7 +69,7 @@ export function ClientWorkspace({lang,onLanguage,onFocusChange,records,save,onSt
      onSaveFile:f=>void act(async()=>{await downloadFile(f);update(event(current,'طلب العميل تنزيل ملف','Client requested a file download'))}),
      issue:{open:showIssue,text:issue,setText:setIssue,toggle:()=>setShowIssue(!showIssue),
        send:()=>void act(async()=>{if(current.remoteId&&!demo)await reportDeliveryProblem(current.remoteId,issue.trim());update(event({...current,issue:issue.trim()},'سجل العميل مشكلة في التسليم','Client reported a delivery problem'));setShowIssue(false)})},
-   }}/>:null;
+   }}/>:null);
  return <View style={{flex:1}}>{current?(details??main):<DashboardScreen lang={lang} records={all} drafts={drafts} syncStatus={syncStatus} loadedOnce={loadedOnce} demo={demo} onRefresh={async()=>{await onRefresh?.()}} onOpen={openDetails} onMissing={r=>{setSelected(r.id);setTab('missing')}} onStart={onStart} onLanguage={onLanguage} onDemo={()=>void act(async()=>{if(!demoData.length)setDemoData(await seedDemoFiles(demoRequests()));setDemo(!demo)})}/>}<Modal visible={!!sharing} transparent animationType="slide" onRequestClose={()=>setShareId(null)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:shareDetailed?'#39291B30':'transparent'}}><ScrollView keyboardShouldPersistTaps="handled" style={{flexGrow:0,maxHeight:shareDetailed?'98%':'65%',marginBottom:shareDetailed?0:72,width:'100%',maxWidth:480,backgroundColor:palette.paper,borderTopLeftRadius:30*u,borderTopRightRadius:30*u}} contentContainerStyle={{padding:27*u,paddingBottom:30*u}}>{sharing&&<ShareDesign compact={!shareDetailed} lang={lang} r={sharing} summary={includeSummary} financial={financial} selected={shareFiles} toggleSummary={()=>setIncludeSummary(!includeSummary)} toggleFinancial={()=>setFinancial(!financial)} toggleFile={id=>setShareFiles(a=>a.includes(id)?a.filter(v=>v!==id):[...a,id])} onClose={()=>setShareId(null)} onShare={performShare} email={shareEmail} setEmail={setShareEmail} busy={busy} invoiceSelected={invoiceSelected} onInvoice={toggleInvoice}/>} {!!message&&<RefText lang={lang} size={24}>{message}</RefText>}</ScrollView></View></Modal></View>;
 }
 

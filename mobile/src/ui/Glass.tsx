@@ -3,12 +3,15 @@
  * The dark, photo-backed variant used by sign-in lives in `auth/AuthKit.tsx`.
  */
 import React,{useEffect,useState} from 'react';
-import {AccessibilityInfo,ActivityIndicator,Platform,StyleSheet,TextInput,View,type TextInputProps} from 'react-native';
+import {AccessibilityInfo,ActivityIndicator,Platform,StyleSheet,TextInput,View,type ScrollViewProps,type TextInputProps} from 'react-native';
 import {BlurView} from 'expo-blur';
 import {Pressable} from '../Touch';
 import {Icon,type IconName} from '../Icons';
 import {Txt,type Lang} from './Txt';
 import {colors,layout,onGlass,radius,space,type} from '../theme';
+import {ScrollView} from '../navigation/TabBarLayout';
+import {statusLabels,steps,type Status} from '../clientModel';
+import {statusTone} from '../dashboard/statusStyle';
 
 /** Keeps references, amounts and phone numbers left-to-right inside Arabic text. */
 export const ltr=(s:string)=>'⁦'+s+'⁩';
@@ -90,6 +93,87 @@ export function GlassField({lang,label,...input}:{lang:Lang;label:string}&TextIn
   </View>;
 }
 
+/** Warm, decorative background the glass sits on (hidden from screen readers). */
+export function GlassBackdrop(){
+  return <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={g.backdrop}>
+    <View style={[g.orb,g.orbWarm]}/>
+    <View style={[g.orb,g.orbSand]}/>
+  </View>;
+}
+
+/** Screen title row: round back button (mirrors in Arabic), title, optional trailing control. */
+export function ScreenHeader({lang,title,subtitle,onBack,backLabel,trailing}:{lang:Lang;title:string;subtitle?:string;onBack?:()=>void;backLabel?:string;trailing?:React.ReactNode}){
+  const ar=lang==='ar';
+  return <View style={[g.header,{flexDirection:rowFor(lang)}]}>
+    {onBack&&<Pressable accessibilityRole="button" accessibilityLabel={backLabel??(ar?'رجوع':'Go back')} onPress={onBack} style={g.backButton}>
+      <Icon name={ar?'next':'back'} size={24} color={colors.ink}/>
+    </Pressable>}
+    <View style={g.flex1} accessibilityRole="header">
+      <Txt lang={lang} bold style={g.headerTitle}>{title}</Txt>
+      {!!subtitle&&<Txt lang={lang} style={g.headerSubtitle}>{subtitle}</Txt>}
+    </View>
+    {trailing}
+  </View>;
+}
+
+/** Full-screen glass page: backdrop + scroll view (keeps clear of the tab bar) + centred column. */
+export function GlassScreen({children,refreshControl,scrollRef}:{children:React.ReactNode;refreshControl?:ScrollViewProps['refreshControl'];scrollRef?:React.Ref<React.ComponentRef<typeof ScrollView>>}){
+  return <View style={g.screen}>
+    <GlassBackdrop/>
+    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets
+      refreshControl={refreshControl} contentContainerStyle={g.content}>
+      <View style={g.page}>{children}</View>
+    </ScrollView>
+  </View>;
+}
+
+const STATUS_ICON:Partial<Record<Status,IconName>>={completed:'check',needs_documents:'info',rejected:'close',cancelled:'close'};
+/** Status as icon + text on its tint (never colour alone). */
+export function StatusBadge({lang,status}:{lang:Lang;status:Status}){
+  const tone=statusTone(status),label=statusLabels[status][lang];
+  return <View accessible accessibilityLabel={`${lang==='ar'?'الحالة':'Status'}: ${label}`}
+    style={[g.badge,{backgroundColor:tone.bg,flexDirection:rowFor(lang)}]}>
+    <Icon name={STATUS_ICON[status]??'clock'} size={15} color={tone.fg}/>
+    <Txt lang={lang} bold style={{...g.badgeText,color:tone.fg}}>{label}</Txt>
+  </View>;
+}
+
+/** Small pill label (e.g. "Sample data", "Missing"). */
+export function Tag({lang,children,tone='warning'}:{lang:Lang;children:React.ReactNode;tone?:'warning'|'brand'}){
+  return <View style={[g.tag,tone==='brand'&&g.tagBrand]}><Txt lang={lang} bold style={{...g.tagText,...(tone==='brand'?{color:colors.brand}:null)}}>{children}</Txt></View>;
+}
+
+const digits=(n:number,lang:Lang)=>lang==='ar'?String(n).replace(/[0-9]/g,d=>'٠١٢٣٤٥٦٧٨٩'[+d]):String(n);
+/** Five-stage tracker; done stages are filled, the current one is ringed. Spoken as "Stage n of 5: name". */
+export function StageTracker({lang,stage}:{lang:Lang;stage:number}){
+  const ar=lang==='ar',row=rowFor(lang),current=steps[stage-1]?.[lang]??'';
+  const count=ar?`المرحلة ${digits(stage,lang)} من ${digits(5,lang)}`:`Stage ${stage} of 5`;
+  return <View style={g.stages}>
+    <View style={[g.between,{flexDirection:row}]}>
+      <Txt lang={lang} bold style={g.sectionTitle}>{ar?'حالة المعاملة':'Request status'}</Txt>
+      <Txt lang={lang} style={g.stageCount}>{count}</Txt>
+    </View>
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={`${count}: ${current}`}
+      accessibilityValue={{min:1,max:5,now:stage}} style={{flexDirection:row}}>
+      {steps.map((step,i)=>{const done=i<stage-1||stage===5,now=i===stage-1&&stage!==5;
+        return <View key={step.en} style={g.step}>
+          {i<steps.length-1&&<View style={[g.connector,ar?{right:'50%'}:{left:'50%'},i<stage-1&&g.connectorDone]}/>}
+          <View style={[g.dot,done&&g.dotDone,now&&g.dotNow]}>{done&&<Icon name="check" size={15} color="#FFFFFF"/>}</View>
+          <Txt lang={lang} bold={now} style={{...g.stepText,...(now?{color:colors.brand}:null)}}>{step[lang]}</Txt>
+        </View>;})}
+    </View>
+  </View>;
+}
+
+/** Checkbox row (label + tick), for choices such as what to share. */
+export function CheckRow({lang,label,checked,onPress,disabled}:{lang:Lang;label:string;checked:boolean;onPress:()=>void;disabled?:boolean}){
+  return <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked,disabled:!!disabled}} disabled={disabled} onPress={onPress}
+    style={[g.check,{flexDirection:rowFor(lang)},checked&&g.checkOn,disabled&&g.disabled]}>
+    <View style={[g.checkBox,checked&&g.checkBoxOn]}>{checked&&<Icon name="check" size={16} color="#FFFFFF"/>}</View>
+    <View style={g.flex1}><Txt lang={lang} bold={checked} style={g.valueText}>{label}</Txt></View>
+  </Pressable>;
+}
+
 const shadow=Platform.select({
   ios:{shadowColor:colors.brown,shadowOffset:{width:0,height:10},shadowOpacity:0.1,shadowRadius:22},
   android:{elevation:4},
@@ -98,6 +182,40 @@ const shadow=Platform.select({
 
 export const g=StyleSheet.create({
   flex1:{flex:1},
+  between:{alignItems:'center',justifyContent:'space-between',gap:space.md},
+  screen:{flex:1,backgroundColor:colors.background},
+  backdrop:{position:'absolute',top:0,right:0,bottom:0,left:0,overflow:'hidden'},
+  orb:{position:'absolute',width:320,height:320,borderRadius:160},
+  orbWarm:{backgroundColor:colors.gold,opacity:0.28,top:40,left:-130},
+  orbSand:{backgroundColor:colors.brandTint,opacity:0.9,top:420,right:-150},
+  content:{flexGrow:1,paddingHorizontal:space.lg,paddingTop:space.md,paddingBottom:space.xxl+space.sm},
+  page:{width:'100%',maxWidth:600,alignSelf:'center',gap:space.lg},
+  header:{alignItems:'center',gap:space.md},
+  backButton:{width:layout.minTouch+4,height:layout.minTouch+4,borderRadius:radius.pill,alignItems:'center',justifyContent:'center',
+    backgroundColor:onGlass.field,borderWidth:1,borderColor:onGlass.border,overflow:'hidden'},
+  headerTitle:{fontSize:type.title2,lineHeight:32},
+  headerSubtitle:{fontSize:type.subhead,lineHeight:22,color:colors.muted},
+  badge:{alignItems:'center',gap:6,borderRadius:radius.pill,paddingHorizontal:space.md,paddingVertical:5,alignSelf:'flex-start'},
+  badgeText:{fontSize:type.footnote,lineHeight:20},
+  tag:{borderRadius:radius.pill,paddingHorizontal:space.md,paddingVertical:5,backgroundColor:'#FFF0D1'},
+  tagBrand:{backgroundColor:colors.brandTint},
+  tagText:{fontSize:type.footnote,lineHeight:20,color:'#8A4F0B'},
+  stages:{gap:space.lg},
+  stageCount:{fontSize:type.footnote,lineHeight:20,color:colors.brand},
+  step:{flex:1,alignItems:'center',gap:space.sm},
+  connector:{position:'absolute',top:13,width:'100%',height:2,backgroundColor:colors.line},
+  connectorDone:{backgroundColor:colors.orange},
+  dot:{width:28,height:28,borderRadius:14,borderWidth:2,borderColor:colors.line,backgroundColor:colors.white,alignItems:'center',justifyContent:'center'},
+  dotDone:{backgroundColor:colors.orange,borderColor:colors.orange},
+  dotNow:{borderColor:colors.orange,borderWidth:4,backgroundColor:'#FFF0DD'},
+  stepText:{fontSize:type.caption,lineHeight:18,textAlign:'center',color:colors.muted},
+  check:{alignItems:'center',gap:space.md,minHeight:layout.minTouch+4,paddingHorizontal:space.md,paddingVertical:space.sm,borderRadius:radius.control,
+    borderWidth:1,borderColor:colors.line,backgroundColor:'rgba(255,249,244,0.9)',overflow:'hidden'},
+  checkOn:{borderColor:'#EBA65B',backgroundColor:'#FFF0DB'},
+  checkBox:{width:24,height:24,borderRadius:6,borderWidth:1.5,borderColor:colors.muted,alignItems:'center',justifyContent:'center'},
+  checkBoxOn:{backgroundColor:colors.orange,borderColor:colors.orange},
+  body:{fontSize:type.subhead,lineHeight:24,color:onGlass.soft},
+  meta:{fontSize:type.caption,lineHeight:18,color:colors.muted},
   fill:{flex:1,alignSelf:'stretch'},
   cardShadow:{borderRadius:radius.card+8,...shadow},
   card:{borderRadius:radius.card+8,overflow:'hidden',borderWidth:1,borderColor:onGlass.border},
