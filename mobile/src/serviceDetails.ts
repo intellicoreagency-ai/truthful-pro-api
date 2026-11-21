@@ -1,3 +1,4 @@
+import {tr} from './i18n';
 import {SERVICES, Service} from './services';
 
 /** Templates transcribed and normalized from the user's 42-page visual reference.
@@ -435,7 +436,7 @@ export const SERVICE_STRUCTURES:Record<string,ServiceStructure>=Object.fromEntri
   } satisfies ServiceStructure];
  }));
 export const structureFor=(id:string)=>SERVICE_STRUCTURES[id];
-export const wording=(item:Bilingual,language:import('./i18n').Lang)=>item[language]??item.en;
+export const wording=(item:Bilingual,language:import('./i18n').Lang)=>tr(item,language);
 
 export const tradeLicenceSectionTitles: Readonly<Record<string, Bilingual>> = {
   'renew-licence': bi('تجديد الرخصة', 'Licence Renewal'),

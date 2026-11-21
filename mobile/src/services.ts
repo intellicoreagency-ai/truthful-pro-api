@@ -1,3 +1,4 @@
+import {tr} from './i18n';
 /** Migrated from the existing approved 30-service Flutter catalogue.
  *  Illustrative UI text only: authority eligibility/requirements still need audit.
  */
@@ -274,8 +275,8 @@ export const SERVICES: Service[] = [
     "slug": "residency-fines"
   }
 ];
-export const serviceLabel = (s:Service,language:import('./i18n').Lang)=>language==='ar'?s.ar:s.en;
-export const serviceDescription = (s:Service,language:import('./i18n').Lang)=>language==='ar'?s.descAr:s.descEn;
+export const serviceLabel = (s:Service,language:import('./i18n').Lang)=>tr({ar:s.ar,en:s.en},language);
+export const serviceDescription = (s:Service,language:import('./i18n').Lang)=>tr({ar:s.descAr,en:s.descEn},language);
 
 // Editorial priority until the catalogue has real request counts.
 const cataloguePriority = [

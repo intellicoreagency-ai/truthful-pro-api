@@ -2,6 +2,8 @@
  * App languages (owner decision, 21 Nov 2026): Arabic, English, Russian, Chinese (Simplified), French, Spanish.
  * Arabic is the only right-to-left language. Any text not yet translated falls back to English, never to a blank.
  */
+import {PHRASES} from './phrases';
+
 export const LANGS=['ar','en','ru','zh','fr','es'] as const;
 export type Lang=typeof LANGS[number];
 export type Extra='ru'|'zh'|'fr'|'es';
@@ -21,7 +23,13 @@ export const LANG_INFO:Record<Lang,{native:string;short:string;locale:string}>={
 
 /** Bilingual record that may also carry the other languages. */
 export type Bi={ar:string;en:string}&Partial<Record<Extra,string>>;
-export const tr=(b:Bi|undefined|null,l:Lang):string=>b?(b[l]??b.en):'';
+const EXTRA_INDEX:Record<Extra,number>={ru:0,zh:1,fr:2,es:3};
+/** Text in `l`: the record's own translation, else the shared service vocabulary (by English text), else English. */
+export const tr=(b:Bi|undefined|null,l:Lang):string=>{
+  if(!b)return '';
+  if(l==='ar'||l==='en')return b[l];
+  return b[l]??PHRASES[b.en]?.[EXTRA_INDEX[l]]??b.en;
+};
 
 /** Per-screen copy: Arabic and English are required, the others fall back to English key by key. */
 export type Copy<T>={ar:T;en:T}&Partial<Record<Extra,Partial<T>>>;

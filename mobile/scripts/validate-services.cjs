@@ -13,9 +13,12 @@ function load(relative,localRequire=()=>{throw Error('unexpected import');}) {
   run(localRequire,module,module.exports);
   return module.exports;
 }
-const services=load('src/services.ts');
+const phrases=load('src/phrases.ts');
+const i18n=load('src/i18n.ts',id=>{if(id==='./phrases')return phrases;throw Error('Unknown internal import '+id);});
+const services=load('src/services.ts',id=>{if(id==='./i18n')return i18n;throw Error('Unknown internal import '+id);});
 const details=load('src/serviceDetails.ts',id=> {
  if(id==='./services')return services;
+ if(id==='./i18n')return i18n;
  throw Error('Unknown internal import '+id);
 });
 const items=services.SERVICES,records=details.SERVICE_STRUCTURES;
@@ -96,6 +99,11 @@ assert.ok(!app.includes("require('./assets/service_banners/"),
 assert.ok(app.includes('REJECTED_ASSET_QUARANTINE'),
   'Rejection gate must be explicit until approved assets are delivered');
 const counts={reference:items.filter(s=>records[s.id].contentStatus==='reference').length,reviewRequired:items.filter(s=>records[s.id].contentStatus==='review-required').length};
-console.log('PASS: all 30 structured bilingual services, contextual tabs, safe preview and RTL/LTR invariants',counts);
+// Every customer-facing service phrase must exist in Russian, Chinese, French and Spanish.
+{const missing=new Set();const need=en=>{const v=phrases.PHRASES[en];if(!v||v.length!==4||v.some(x=>!x))missing.add(en);};
+ for(const s of items){need(s.en);need(s.descEn);}
+ for(const r of Object.values(records)){need(r.about.en);for(const n of r.notes)need(n.en);for(const d of r.documents)need(d.en);for(const a of r.actions){need(a.en);for(const d of a.documents)need(d.en);}}
+ assert.equal(missing.size,0,'Missing translations: '+[...missing].join(' | '));}
+console.log('PASS: all 30 structured services in 6 languages, contextual tabs, safe preview and RTL/LTR invariants',counts);
 
 

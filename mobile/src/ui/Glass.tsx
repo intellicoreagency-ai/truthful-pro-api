@@ -12,6 +12,9 @@ import {colors,layout,lux,onGlass,radius,space,type} from '../theme';
 import {ScrollView} from '../navigation/TabBarLayout';
 import {statusLabels,steps,type Status} from '../clientModel';
 import {statusTone} from '../dashboard/statusStyle';
+import {COMMON} from '../i18n';
+const STATUS_WORD={ar:'الحالة',en:'Status',ru:'Статус',zh:'状态',fr:'Statut',es:'Estado'} as const;
+const REQUEST_STATUS={ar:'حالة المعاملة',en:'Request status',ru:'Статус заявки',zh:'申请状态',fr:'État de la demande',es:'Estado de la solicitud'} as const;
 import {tr} from '../i18n';
 
 /** Keeps references, amounts and phone numbers left-to-right inside Arabic text. */
@@ -104,7 +107,7 @@ export function GlassBackdrop(){
 export function ScreenHeader({lang,title,subtitle,onBack,backLabel,trailing}:{lang:Lang;title:string;subtitle?:string;onBack?:()=>void;backLabel?:string;trailing?:React.ReactNode}){
   const ar=lang==='ar';
   return <View style={[g.header,{flexDirection:rowFor(lang)}]}>
-    {onBack&&<ScalePressable accessibilityRole="button" accessibilityLabel={backLabel??(ar?'رجوع':'Go back')} onPress={onBack} style={g.backButton}>
+    {onBack&&<ScalePressable accessibilityRole="button" accessibilityLabel={backLabel??COMMON[lang].back} onPress={onBack} style={g.backButton}>
       <View pointerEvents="none"><Icon name={ar?'next':'back'} size={24} color={colors.ink}/></View>
     </ScalePressable>}
     <View style={g.flex1}>
@@ -144,7 +147,7 @@ const STATUS_ICON:Partial<Record<Status,IconName>>={completed:'check',needs_docu
 /** Status as icon + text on its tint (never colour alone). */
 export function StatusBadge({lang,status}:{lang:Lang;status:Status}){
   const tone=statusTone(status),label=tr(statusLabels[status],lang);
-  return <View accessible accessibilityLabel={`${lang==='ar'?'الحالة':'Status'}: ${label}`}
+  return <View accessible accessibilityLabel={`${STATUS_WORD[lang]}: ${label}`}
     style={[g.badge,{backgroundColor:tone.bg,flexDirection:rowFor(lang)}]}>
     <Icon name={STATUS_ICON[status]??'clock'} size={15} color={tone.fg}/>
     <Txt lang={lang} bold style={{...g.badgeText,color:tone.fg}}>{label}</Txt>
@@ -163,7 +166,7 @@ export function StageTracker({lang,stage}:{lang:Lang;stage:number}){
   const count=ar?`المرحلة ${digits(stage,lang)} من ${digits(5,lang)}`:`Stage ${stage} of 5`;
   return <View style={g.stages}>
     <View style={[g.between,{flexDirection:row}]}>
-      <Txt lang={lang} bold style={g.sectionTitle}>{ar?'حالة المعاملة':'Request status'}</Txt>
+      <Txt lang={lang} bold style={g.sectionTitle}>{REQUEST_STATUS[lang]}</Txt>
       <Txt lang={lang} style={g.stageCount}>{count}</Txt>
     </View>
     <View accessible accessibilityRole="progressbar" accessibilityLabel={`${count}: ${current}`}
