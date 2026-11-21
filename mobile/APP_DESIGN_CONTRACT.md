@@ -2,6 +2,7 @@
 
 ## Visual truth
 - **Sapphire & gold** (owner decision, 2026-11-21, **final**) replaces the beige/ivory design: pearl pages `#F3F5F8`, frosted white glass cards, ink-navy text `#0E1526`, sapphire actions `#1D3A9E`, champagne gold `#D9BC7E` details, deep navy `#0A1430` hero wash. Tokens live in `src/theme.ts`.
+- **Logo** (owner decision, 2026-11-21, **final**): the original Truthful logo artwork, unchanged in shape, recoloured to sapphire night `#0A1430` ground and champagne gold. Used for the in-app logo, app icon, Android adaptive icon (background `#0A1430`), splash and favicon. Do not redraw or recolour it.
 - Service banners are drawn in code in Sapphire & gold (text panel, gold medallion, gold wave) with the photo halves of the approved artwork (`assets/banner_photos`); the full warm-coloured banner images are no longer displayed.
 - The old black/neon screens in the user-provided **مرجع .pdf** (42 pages) are references for **service content, structure, sequence and documents**, **not** the new page color scheme.
 - Standardize banner/card sizes. **All 30 legacy banner images were rejected by the owner and removed from the Expo branch on 2026-11-18.** No previous service photo may be reused; the temporary brown/gold text surface is explicitly NOT an approved finished banner.

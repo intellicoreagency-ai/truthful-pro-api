@@ -25,6 +25,7 @@ Apple's Human Interface Guidelines (HIG) are the **base for the brand identity**
 
 ## Colour
 - Palette (owner decision, 21 Nov 2026 — **final, do not change**): **Sapphire & gold**. Pearl pages `#F3F5F8`, white/frosted-white glass cards, ink-navy text `#0E1526`, slate secondary text `#5B6475`, sapphire primary actions `#1D3A9E` with white text, champagne gold `#D9BC7E` for icons, rings and hairlines (gold as text only in the dark stops, e.g. `#76592A`), deep navy `#0A1430` for the Home hero wash and dark grounds. Champagne tints mark "needs attention"; no cream/beige surfaces.
+- **Logo** (owner decision, 2026-11-21, **final**): the original Truthful logo artwork, unchanged in shape, recoloured to sapphire night `#0A1430` ground and champagne gold. Used for the in-app logo, app icon, Android adaptive icon (background `#0A1430`), splash and favicon. Do not redraw or recolour it.
 - Service banners (`mobile/src/catalogue/CategoryBanner.tsx`): navy-sapphire text panel with a gold line-art medallion and real-text title, a gold S-wave, and the service photo on the far side (photo halves in `assets/banner_photos`, cropped from the approved artwork). Mirrored for Arabic. Never bake titles into images.
 - Use semantic roles, not ad-hoc hex values: background, surface/card, primary (brand), secondary text, separators, success, warning, destructive. Define each once in `mobile/src/theme.ts` (`colors`, `lux`, `glass`, `onGlass`) and reuse.
 - Contrast: body text ≥ 4.5:1, large text and icons ≥ 3:1. Never convey meaning with colour alone (add text or icon).
