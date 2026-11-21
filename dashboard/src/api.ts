@@ -62,7 +62,7 @@ export type ProblemRow = { id: string; delivery_version: number; text: string; s
 export type Detail = {
   work: WorkInfo; log: LogRow[]; submissions: SubmissionRow[]; problems: ProblemRow[]
   request: { id: string; serviceId: string; status: Status; assigneeId: string | null; createdAt: number; updatedAt: number; version: number; deliveryVersion: number; acknowledgedVersion: number; acknowledgedAt: number | null; data: { title?: Bi; name?: string; phone?: string; fields?: Record<string, string>; termsVersion?: string; termsAcceptedAt?: string }; staff: { expectedAt?: string; completedAt?: string; issue?: string; authorityRef?: string; authorityAt?: string } }
-  customer: { id: string; name: string; phone: string }; files: FileRow[]; deliveries: DeliveryRow[]; checks: CheckRow[]; blocked: { fileId: string; ruleCode: string; outcome: string }[]; events: EventRow[]; missing: MissingRow[]; transitions: Status[]
+  customer: { id: string; name: string; phone: string; email?: string | null; emailVerified?: boolean }; files: FileRow[]; deliveries: DeliveryRow[]; checks: CheckRow[]; blocked: { fileId: string; ruleCode: string; outcome: string }[]; events: EventRow[]; missing: MissingRow[]; transitions: Status[]
 }
 export type TeamRow = { id: string; name: string; role: Role; active: number; created_at: number }
 export type Overview = {

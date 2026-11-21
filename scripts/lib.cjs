@@ -6,6 +6,7 @@ exports.login=async(p,phone='0501234567',intl='971501234567')=>{
  await p.getByRole('link',{name:'إنشاء حساب'}).click();await p.waitForTimeout(500);
  await p.getByPlaceholder('اسمك كما في الهوية').fill('مستخدم تجريبي');
  await p.getByPlaceholder('05XXXXXXXX').fill(phone);
+ await p.getByPlaceholder('name@example.com').fill('u'+intl+'@example.test'); // the email is required
  for(let i=0;i<3;i++)await p.getByRole('checkbox').nth(i).click();
  await p.getByRole('button',{name:'التحقق عبر واتساب'}).click();await p.waitForTimeout(2000);
  const raw=JSON.stringify({entry:[{changes:[{value:{messages:[{from:intl,type:'text',text:{body:'x '+start.code}}]}}]}]});

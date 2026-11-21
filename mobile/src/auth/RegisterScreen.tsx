@@ -17,7 +17,7 @@ type Props={
 };
 
 /**
- * Create account: name, mobile, optional email, consents → WhatsApp confirmation → consents/name/email saved → signed in.
+ * Create account: name, mobile, email (required), consents → WhatsApp confirmation → consents/name/email saved → signed in.
  * The three consents are recorded with the legal version after the session exists; if saving fails the user can retry.
  */
 export function RegisterScreen({lang,onLanguage,logo,Text:T,inputFont,mode,onSignedIn,onLogin,onLegal}:Props){
@@ -27,14 +27,14 @@ export function RegisterScreen({lang,onLanguage,logo,Text:T,inputFont,mode,onSig
   const [errors,setErrors]=useState<{name?:string;phone?:string;email?:string;consent?:string}>({});
   const [saveError,setSaveError]=useState('');const [saving,setSaving]=useState(false);const [verified,setVerified]=useState(false);
 
-  /** After the session exists: consents (required), name and email (best effort). */
+  /** After the session exists: consents and email are required (retry on failure); the name is best effort. */
   const finish=async()=>{
     setSaving(true);setSaveError('');
     try{
       await Promise.all([recordConsent('terms',LEGAL_VERSION,true),recordConsent('privacy',LEGAL_VERSION,true),recordConsent('document_processing',LEGAL_VERSION,true)]);
     }catch(e){setSaving(false);setSaveError(e instanceof ApiError&&e.code==='network'?t.e_net:t.e_save);return;}
     try{if(name.trim())await setServerName(name.trim());}catch{/* shown later in the profile */}
-    try{if(email.trim()&&isEmail(email))await setServerEmail(email.trim());}catch{/* optional */}
+    try{await setServerEmail(email.trim());}catch(e){setSaving(false);setSaveError(e instanceof ApiError&&e.code==='network'?t.e_net:t.e_save);return;} // the email is essential contact data
     setSaving(false);onSignedIn();
   };
   const wa=useWaVerification(lang,()=>{setVerified(true);void finish();});
@@ -43,7 +43,7 @@ export function RegisterScreen({lang,onLanguage,logo,Text:T,inputFont,mode,onSig
     const e:typeof errors={};
     if(name.trim().length<2)e.name=t.e_name;
     if(mode==='register'&&!toE164(phone))e.phone=t.e_phone;
-    if(email.trim()&&!isEmail(email))e.email=t.e_email;
+    if(!email.trim())e.email=t.e_email_req;else if(!isEmail(email))e.email=t.e_email;
     if(!terms||!privacy||!docs)e.consent=t.e_consent;
     setErrors(e);return Object.keys(e).length===0;
   };

@@ -240,7 +240,7 @@ guarded.patch('/team/:id', roles('owner'), async (c) => {
 })
 
 // ---------- requests ----------
-type Row = { version: number; delivery_version: number; id: string; user_id: string; service_id: string; status: string; data: string; staff_data: string; assignee_id: string | null; created_at: number; updated_at: number; display_name: string | null; phone_enc: string; assignee_name?: string | null }
+type Row = { email_enc?: string | null; email_verified_at?: number | null; version: number; delivery_version: number; id: string; user_id: string; service_id: string; status: string; data: string; staff_data: string; assignee_id: string | null; created_at: number; updated_at: number; display_name: string | null; phone_enc: string; assignee_name?: string | null }
 const canSee = (c: C, assignee: string | null) => c.get('staffRole') !== 'agent' || assignee === null || assignee === c.get('staffId')
 
 guarded.get('/stats', roles(...OPS), async (c) => {
@@ -292,7 +292,7 @@ async function payGate(c: C, r: { id: string; service_id: string }, stage: 'auth
 async function loadRequest(c: C, id: string) {
   if (!isUuid(id)) return null
   const r = await c.env.DB.prepare(
-    `SELECT r.id,r.user_id,r.service_id,r.status,r.data,r.staff_data,r.assignee_id,r.created_at,r.updated_at,r.version,r.delivery_version,u.display_name,u.phone_enc
+    `SELECT r.id,r.user_id,r.service_id,r.status,r.data,r.staff_data,r.assignee_id,r.created_at,r.updated_at,r.version,r.delivery_version,u.display_name,u.phone_enc,u.email_enc,u.email_verified_at
      FROM requests r JOIN users u ON u.id=r.user_id WHERE r.id=? AND r.deleted_at IS NULL AND r.status!='draft'`).bind(id).first<Row>()
   return r && canSee(c, r.assignee_id) ? r : null
 }
@@ -333,7 +333,7 @@ guarded.get('/requests/:id', roles(...OPS), async (c) => {
   const submissions = (await c.env.DB.prepare('SELECT id,number,reference,submitted_at,state,returned_reason,returned_at FROM submissions WHERE request_id=? ORDER BY number').bind(r.id).all()).results
   const transitions = (await c.env.DB.prepare('SELECT t.id,t.from_status,t.to_status,t.actor_kind,t.actor_id,t.at,t.reason,t.internal_note,t.reference,m.name actor_name FROM request_transitions t LEFT JOIN staff m ON m.id=t.actor_id WHERE t.request_id=? ORDER BY t.at,t.rowid').bind(r.id).all()).results
   const problems = (await c.env.DB.prepare('SELECT id,delivery_version,text,status,created_at,resolved_at,resolution,resolution_note FROM delivery_problems WHERE request_id=? ORDER BY created_at').bind(r.id).all()).results
-  return c.json({ work, submissions, log: transitions, problems, request: { id: r.id, serviceId: r.service_id, status: r.status, assigneeId: r.assignee_id, createdAt: r.created_at, updatedAt: r.updated_at, version: r.version, deliveryVersion: r.delivery_version, acknowledgedVersion: ackV?.v ?? 0, acknowledgedAt: ackV?.at ?? null, data, staff: sd }, customer: { id: r.user_id, name: data.name || r.display_name || '', phone }, files: files.results, deliveries: deliveries.results, checks: checks.results, blocked, events: events.results, missing: missing.results, transitions: TRANSITIONS[r.status] ?? [] })
+  return c.json({ work, submissions, log: transitions, problems, request: { id: r.id, serviceId: r.service_id, status: r.status, assigneeId: r.assignee_id, createdAt: r.created_at, updatedAt: r.updated_at, version: r.version, deliveryVersion: r.delivery_version, acknowledgedVersion: ackV?.v ?? 0, acknowledgedAt: ackV?.at ?? null, data, staff: sd }, customer: { id: r.user_id, name: data.name || r.display_name || '', phone, email: r.email_enc ? await openText(c.env.DATA_KEY, `user-email:${r.user_id}`, r.email_enc).catch(() => null) : null, emailVerified: !!r.email_verified_at }, files: files.results, deliveries: deliveries.results, checks: checks.results, blocked, events: events.results, missing: missing.results, transitions: TRANSITIONS[r.status] ?? [] })
 })
 
 guarded.post('/requests/:id/assign', roles(...OPS), async (c) => {

@@ -23,6 +23,7 @@ import {pickClientFile,pruneOrphanFiles,readRequests,writeRequests,getBytes,save
 import {makeId,type ClientRequest,type ClientFile} from './src/clientModel';
 import {HomeScreen} from './src/HomeScreen';
 import {AuthFlow} from './src/auth/AuthFlow';
+import {ContactScreen} from './src/auth/ContactScreen';
 import {AccountScreen} from './src/AccountScreen';
 import {readAccount,saveAccount,emptyAccount,type AccountData} from './src/accountStorage';
 import {LegalScreen} from './src/LegalScreen';
@@ -148,6 +149,7 @@ export default function App() {
  const setLang=(next:Language)=>{setLangState(next);updateAccount({language:next});};
  const recordsRef=React.useRef(clientRecords);
  const [signedIn,setSignedIn]=useState(false);
+ const [needsEmail,setNeedsEmail]=useState(false); // an account without an email must add one before using the app
  const [legal,setLegal]=useState<'terms'|'privacy'|null>(null);
  const writeLocal=(records:ClientRequest[])=>{try{writeRequests(records);recordsRef.current=records;setClientRecords(records);return true}catch{return false}};
  const syncing=React.useRef(false);
@@ -185,7 +187,7 @@ export default function App() {
    setSessionExpiredHandler(()=>{setSignedIn(false);setPage('welcome')});
    void (async()=>{
      if(!await loadTokens())return;
-     try{await me();setSignedIn(true);setPage(p=>p==='welcome'?'home':p);void syncNow()}catch{/* offline: stay on welcome; session kept */}
+     try{const u=await me();setSignedIn(true);if(u.user.email_set===false)setNeedsEmail(true);setPage(p=>p==='welcome'?'home':p);void syncNow()}catch{/* offline: stay on welcome; session kept */}
    })();
  },[]);
  // Keep what the team does (status, requested documents, delivery files) fresh: on opening My Requests, when the app returns to the foreground, and about every minute while My Requests is open.
@@ -555,6 +557,9 @@ export default function App() {
  };
  React.useEffect(()=>{const sub=BackHandler.addEventListener('hardwareBackPress',()=>backRef.current());return ()=>sub.remove();},[]);
  if(!fontsLoaded&&!fontError) return <View style={styles.safe}/>;
+ if(signedIn&&needsEmail) return <SafeAreaProvider><SafeAreaView edges={['top','bottom','left','right']} style={styles.safe}><StatusBar barStyle="dark-content"/>
+   <ContactScreen lang={lang} onLanguage={setLang} logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily} onDone={()=>setNeedsEmail(false)} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);setNeedsEmail(false);go('welcome')}}/>
+ </SafeAreaView></SafeAreaProvider>;
  const barVisible=showsTabBar(page)&&!legal&&!(page==='requests'&&clientFocused);
  return <SafeAreaProvider><TabBarLayoutProvider><SafeAreaView edges={barVisible?['top','left','right']:['top','bottom','left','right']} style={[styles.safe,webViewportHeight!==undefined&&{height:webViewportHeight,flexGrow:0,flexShrink:0,flexBasis:'auto'}]}>
    <StatusBar barStyle="dark-content"/>

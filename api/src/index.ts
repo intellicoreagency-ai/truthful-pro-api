@@ -342,7 +342,12 @@ authed.patch('/requests/:id', async (c) => {
   // The customer's own moves are limited by where the request is: submit only from draft (a repeat is a no-op),
   // cancel only while the team has not filed it with the authority or finished it. Data edits stop once review starts.
   let status: string | null = null
-  if (wanted === 'submitted' && cur.status === 'draft') status = 'submitted'
+  if (wanted === 'submitted' && cur.status === 'draft') {
+    // The customer's email is essential contact information (invoices, documents, follow-up): no request is submitted without one.
+    const has = await c.env.DB.prepare('SELECT 1 x FROM users WHERE id=? AND email_enc IS NOT NULL').bind(c.get('userId')).first()
+    if (!has) return c.json({ error: 'email_required' }, 409)
+    status = 'submitted'
+  }
   if (wanted === 'cancelled') {
     if (cur.status === 'cancelled') status = null
     else if (['draft', 'submitted', 'review', 'needs_documents'].includes(cur.status)) status = 'cancelled'

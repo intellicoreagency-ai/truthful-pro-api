@@ -63,6 +63,7 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
           <Card title={t('customer')}>
             <dl className="kv">
               <dt>{t('name')}</dt><dd>{d.customer.name || '—'}</dd>
+              <dt>{t('emailLbl')}</dt><dd dir="ltr" style={{ textAlign: lang === 'ar' ? 'right' : 'left' }}>{d.customer.email ? <><a href={`mailto:${d.customer.email}`}>{d.customer.email}</a> <span className="tag">{d.customer.emailVerified ? t('emailVerified') : t('emailUnverified')}</span></> : '—'}</dd>
               <dt>{t('phone')}</dt>
               <dd dir="ltr" style={{ textAlign: lang === 'ar' ? 'right' : 'left' }}>{d.customer.phone} · <a href={`tel:${d.customer.phone}`}>{t('call')}</a> · <a href={`https://wa.me/${d.customer.phone.replace('+', '')}`} target="_blank" rel="noopener noreferrer">{t('whatsapp')}</a></dd>
             </dl>

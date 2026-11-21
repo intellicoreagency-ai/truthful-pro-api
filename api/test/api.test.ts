@@ -22,7 +22,9 @@ async function login(phone = '+971501234567') {
   const r = await call('POST', '/v1/auth/otp/request', { body: { phone, language: 'en' } })
   const j = await r.json() as { challengeId: string; devCode: string }
   const v = await call('POST', '/v1/auth/otp/verify', { body: { phone, challengeId: j.challengeId, code: j.devCode } })
-  return { res: v, json: await v.json() as { accessToken: string; refreshToken: string; isNewUser: boolean } }
+  const json = await v.json() as { accessToken: string; refreshToken: string; isNewUser: boolean }
+  if (json.accessToken) await call('PATCH', '/v1/me', { token: json.accessToken, body: { email: `u${phone.replace(/\D/g, '')}@example.test` } }) // essential contact data: needed to submit
+  return { res: v, json }
 }
 
 beforeAll(async () => {
@@ -318,7 +320,9 @@ describe('staff operations hub', () => {
     const s = await (await hit('POST', '/v1/auth/wa/start', { body: { phone } })).json() as { challengeId: string; pollToken: string; code: string }
     await deliver(phone.replace('+', ''), s.code)
     const r = await hit('POST', '/v1/auth/wa/poll', { body: { phone, challengeId: s.challengeId, pollToken: s.pollToken } })
-    return (await r.json() as { accessToken: string }).accessToken
+    const token = (await r.json() as { accessToken: string }).accessToken
+    await hit('PATCH', '/v1/me', { token, body: { email: `u${phone.replace(/\D/g, '')}@example.test` } }) // essential contact data
+    return token
   }
   const submitted = async (token: string) => {
     const { id } = await (await hit('POST', '/v1/requests', { token, body: { serviceId: 'emirates-id', data: { name: 'Ali', title: { ar: 'تجديد', en: 'Renew' } } } })).json() as { id: string }
@@ -599,6 +603,7 @@ describe('override, overview and customers', () => {
     const st = await (await hit('POST', '/v1/auth/wa/start', { phone: ph })).json() as { challengeId: string; pollToken: string; code: string }
     expect(await deliver('971521170010', st.code)).toBe(200)
     custToken = ((await (await hit('POST', '/v1/auth/wa/poll', { phone: ph, challengeId: st.challengeId, pollToken: st.pollToken })).json()) as { accessToken: string }).accessToken
+    await hit('PATCH', '/v1/me', { email: 'u971521170010@example.test' }, custToken)
     rid = ((await (await hit('POST', '/v1/requests', { serviceId: 'emirates-id', data: { name: 'Layla', title: { ar: 'تجديد', en: 'Renew' } } }, custToken)).json()) as { id: string }).id
     await hit('PATCH', `/v1/requests/${rid}`, { status: 'submitted' }, custToken)
   })
@@ -737,7 +742,9 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     const kx = await crypto.subtle.importKey('raw', new TextEncoder().encode('w-secret'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
     const sig = 'sha256=' + Buffer.from(await crypto.subtle.sign('HMAC', kx, new TextEncoder().encode(raw))).toString('hex')
     await app.fetch(new Request('https://api.test/webhooks/whatsapp', { method: 'POST', headers: { 'x-hub-signature-256': sig, 'content-type': 'application/json', 'cf-connecting-ip': '10.8.99.99' }, body: raw }), wenv())
-    return ((await (await hit('POST', '/v1/auth/wa/poll', { phone, challengeId: st.challengeId, pollToken: st.pollToken })).json()) as { accessToken: string }).accessToken
+    const token = ((await (await hit('POST', '/v1/auth/wa/poll', { phone, challengeId: st.challengeId, pollToken: st.pollToken })).json()) as { accessToken: string }).accessToken
+    await hit('PATCH', '/v1/me', { email: `u${phone.replace(/\D/g, '')}@example.test` }, token) // email is essential contact data: no submission without it
+    return token
   }
   let owner = '', cust = ''
   const submit = async (token = cust) => {
@@ -1461,6 +1468,21 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     d = await sdet(id); expect(d.work.next.code).toBe('await_receipt')
     const dv = await env.DB.prepare("SELECT version,status FROM deliveries WHERE request_id=? AND version IS NOT NULL ORDER BY version").bind(id).all<{ version: number; status: string }>()
     expect(dv.results.map((x) => [x.version, x.status])).toEqual([[1, 'superseded'], [2, 'published']]) // the earlier package is kept, not deleted
+  })
+  it('the customer email is essential: no request can be submitted without one, and staff see the customer\'s email and phone', async () => {
+    const t = await login('+971521190088')
+    const uid = (await env.DB.prepare("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").first<{ id: string }>())!.id
+    await env.DB.prepare('UPDATE users SET email_enc=NULL, email_verified_at=NULL WHERE id=?').bind(uid).run()
+    const id = ((await (await hit('POST', '/v1/requests', { serviceId: 'emirates-id', data: { name: 'M', title: { ar: 'ت', en: 'T' } } }, t)).json()) as { id: string }).id
+    const no = await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, t)
+    expect(no.status).toBe(409); expect(((await no.json()) as { error: string }).error).toBe('email_required')
+    expect((await hit('PATCH', '/v1/me', { email: 'bad' }, t)).status).toBe(400)
+    expect((await hit('PATCH', '/v1/me', { email: 'Mona.Test@Example.com' }, t)).status).toBe(200)
+    const me = await (await hit('GET', '/v1/me', undefined, t)).json() as { user: { email_set: boolean } }
+    expect(me.user.email_set).toBe(true)
+    expect((await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, t)).status).toBe(200)
+    const d = await (await hit('GET', `/staff/v1/requests/${id}`, undefined, owner)).json() as { customer: { phone: string; email: string | null; emailVerified: boolean } }
+    expect(d.customer).toMatchObject({ phone: '+971521190088', email: 'mona.test@example.com', emailVerified: false })
   })
   it('permissions: agents may draft but not issue; accountants issue; customers and other customers are kept out', async () => {
     const id = await submit()

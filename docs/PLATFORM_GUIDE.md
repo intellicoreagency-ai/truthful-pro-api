@@ -38,3 +38,8 @@
 - **Tokens** are stored only through `expo-secure-store` (iOS Keychain / Android Keystore, `WHEN_UNLOCKED_THIS_DEVICE_ONLY`) in `src/api.ts`; on web they stay in memory only.
 - Register records the three consents (terms, privacy, document processing) with the legal version once the session exists, then the name and the optional email (a welcome email with a confirmation link is sent only if email is configured). A failed consent save shows a retry; the user is not let in silently.
 - Old `WelcomeScreen` (with a non-functional email/password preview) was removed.
+
+### Email is essential contact data
+- Registration requires a valid email (and the mobile number from the WhatsApp verification). A number that signs in without an account finishes the account (name, **email**, consents) first; an older account without an email is stopped by `ContactScreen` until it adds one.
+- The server enforces it: a request cannot be submitted without an email on the account (`409 email_required`). Staff see the customer's email (with confirmed / not confirmed) and phone with call, WhatsApp and mail links on every request.
+- The email is stored encrypted; invoices are emailed only after the customer confirms it from the welcome email.

@@ -73,7 +73,7 @@ export async function waPoll(phone:string,c:Pick<WaChallenge,'challengeId'|'poll
 /** Display name for the account (the server stores it with the profile). */
 export async function setServerName(displayName:string){await call('PATCH','/v1/me',{body:{displayName}})}
 export async function logout(){try{if(mem.access)await call('POST','/v1/auth/logout')}catch{}await clearTokens()}
-export const me=async()=>json<{user:{id:string;display_name:string|null;language:'ar'|'en'}}>(await call('GET','/v1/me'));
+export const me=async()=>json<{user:{id:string;display_name:string|null;language:'ar'|'en';email_set?:boolean;email_verified?:boolean}}>(await call('GET','/v1/me'));
 export const recordConsent=(type:'terms'|'privacy'|'document_processing',version:string,accepted:boolean)=>call('POST','/v1/consents',{body:{type,version,accepted}});
 export const exportMyData=async()=>json<unknown>(await call('GET','/v1/me/export'));
 /** Saves the email on the server: a welcome email with a confirmation link is sent; invoices are emailed only after it is confirmed. */
