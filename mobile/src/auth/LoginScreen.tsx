@@ -29,7 +29,7 @@ export function LoginScreen({lang,onLanguage,logo,inputFont,onVerified,onRegiste
     </>}>
     <StepTransition stepKey={waiting?'wait':'form'}>
       {waiting
-        ?<WaitingStep lang={lang} Text={T} error={wa.error} onOpen={wa.openWhatsApp} onCancel={wa.cancel}/>
+        ?<WaitingStep lang={lang} Text={T} error={wa.error} onOpen={wa.openWhatsApp} onStagingConfirm={wa.stagingConfirm} onCancel={wa.cancel}/>
         :<View style={s.form}>
           <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.phone} value={phone} onChangeText={v=>{setPhone(v);if(fieldError)setFieldError(null);}}
             placeholder={t.phonePh} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" maxLength={16} returnKeyType="go" onSubmitEditing={submit}

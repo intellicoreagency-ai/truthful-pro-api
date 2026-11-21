@@ -1,6 +1,6 @@
 export type Lang=import('../i18n').Lang;
 export const authCopy={
-  ar:{
+  ar:{stagingConfirm:'تأكيد تجريبي بدون واتساب',stagingNote:'بيئة الاختبار فقط: رقمك ضمن قائمة المختبِرين.',
     brand:'تروثفل برو',
     loginTitle:'تسجيل الدخول',loginSub:'أدخل رقم جوالك وسنتحقق منه برسالة واتساب مجانية.',
     registerTitle:'إنشاء حساب',registerSub:'ثوانٍ قليلة لتبدأ بمتابعة معاملاتك.',
@@ -20,7 +20,7 @@ export const authCopy={
     termsLink:'شروط الاستخدام',privacyLink:'سياسة الخصوصية',
     back:'رجوع',
   },
-  en:{
+  en:{stagingConfirm:'Test confirm without WhatsApp',stagingNote:'Staging only: your number is on the tester list.',
     brand:'TRUTHFUL PRO',
     loginTitle:'Sign In',loginSub:'Enter your mobile number and we will verify it with a free WhatsApp message.',
     registerTitle:'Create Account',registerSub:'A few seconds to start tracking your transactions.',
@@ -40,7 +40,7 @@ export const authCopy={
     termsLink:'Terms of Use',privacyLink:'Privacy Policy',
     back:'Back',
   },
-  ru:{
+  ru:{stagingConfirm:'Тестовое подтверждение без WhatsApp',stagingNote:'Только тестовая среда: ваш номер в списке тестировщиков.',
     loginTitle:'Вход',loginSub:'Введите мобильный номер — мы подтвердим его бесплатным сообщением в WhatsApp.',
     registerTitle:'Регистрация',registerSub:'Несколько секунд — и вы сможете отслеживать свои заявки.',
     completeTitle:'Завершите регистрацию',completeSub:'Это ваш первый вход. Укажите имя и дайте согласие, чтобы продолжить.',
@@ -59,7 +59,7 @@ export const authCopy={
     termsLink:'Условия',privacyLink:'Конфиденциальность',
     back:'Назад',
   },
-  zh:{
+  zh:{stagingConfirm:'无需 WhatsApp 的测试确认',stagingNote:'仅限测试环境：您的号码在测试人员名单中。',
     loginTitle:'登录',loginSub:'输入您的手机号码，我们将通过免费的 WhatsApp 消息进行验证。',
     registerTitle:'创建账户',registerSub:'只需几秒，即可开始跟进您的业务。',
     completeTitle:'完善账户',completeSub:'这是您首次登录。请填写姓名并同意相关条款以继续。',
@@ -78,7 +78,7 @@ export const authCopy={
     termsLink:'使用条款',privacyLink:'隐私政策',
     back:'返回',
   },
-  fr:{
+  fr:{stagingConfirm:'Confirmation de test sans WhatsApp',stagingNote:'Environnement de test uniquement : votre numéro figure sur la liste des testeurs.',
     loginTitle:'Connexion',loginSub:'Saisissez votre numéro de mobile ; nous le vérifions par un message WhatsApp gratuit.',
     registerTitle:'Créer un compte',registerSub:'Quelques secondes pour commencer à suivre vos démarches.',
     completeTitle:'Finalisez votre compte',completeSub:'C’est votre première connexion. Indiquez votre nom et donnez votre accord pour continuer.',
@@ -97,7 +97,7 @@ export const authCopy={
     termsLink:'Conditions',privacyLink:'Confidentialité',
     back:'Retour',
   },
-  es:{
+  es:{stagingConfirm:'Confirmación de prueba sin WhatsApp',stagingNote:'Solo entorno de pruebas: su número está en la lista de probadores.',
     loginTitle:'Iniciar sesión',loginSub:'Introduzca su número de móvil y lo verificaremos con un mensaje gratuito de WhatsApp.',
     registerTitle:'Crear cuenta',registerSub:'Unos segundos para empezar a seguir sus trámites.',
     completeTitle:'Complete su cuenta',completeSub:'Es su primer inicio de sesión. Necesitamos su nombre y su consentimiento para continuar.',

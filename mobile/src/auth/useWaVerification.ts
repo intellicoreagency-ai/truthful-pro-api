@@ -1,6 +1,6 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {Linking} from 'react-native';
-import {ApiError,waPoll,waStart,type WaChallenge} from './../api';
+import {ApiError,waPoll,waStagingConfirm,waStart,type WaChallenge} from './../api';
 import {authCopy,type Lang} from './copy';
 import {apiLang,pick} from '../i18n';
 
@@ -24,12 +24,14 @@ export function useWaVerification(lang:Lang,onVerified:(info:{isNewUser:boolean;
 
   const start=useCallback(async(phone:string)=>{
     setError('');setBusy(true);
-    try{const c=await waStart(phone,apiLang(lang));setChallenge({...c,phone});void Linking.openURL(c.link).catch(()=>{});}
+    try{const c=await waStart(phone,apiLang(lang));setChallenge({...c,phone});if(!c.stagingConfirm)void Linking.openURL(c.link).catch(()=>{});}
     catch(e){setError(message(e));}
     finally{if(alive.current)setBusy(false);}
   },[lang,message]);
 
   const cancel=useCallback(()=>{setChallenge(null);setError('');},[]);
+  /** STAGING ONLY (offered by the server to listed testers): confirm without WhatsApp; the normal polling then signs in. */
+  const stagingConfirm=useCallback(()=>{if(challenge?.stagingConfirm)void waStagingConfirm(challenge.phone,challenge).catch(e=>setError(message(e)));},[challenge,message]);
   const openWhatsApp=useCallback(()=>{if(challenge)void Linking.openURL(challenge.link).catch(()=>{});},[challenge]);
 
   useEffect(()=>{
@@ -51,5 +53,5 @@ export function useWaVerification(lang:Lang,onVerified:(info:{isNewUser:boolean;
     return()=>{stop=true;clearTimeout(timer);};
   },[challenge,t,message]);
 
-  return {challenge,busy,error,setError,start,cancel,openWhatsApp};
+  return {challenge,busy,error,setError,start,cancel,openWhatsApp,stagingConfirm:challenge?.stagingConfirm?stagingConfirm:undefined};
 }

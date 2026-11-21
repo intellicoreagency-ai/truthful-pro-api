@@ -1325,6 +1325,28 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect((await env.DB.prepare('SELECT COUNT(*) n FROM receipt_acks WHERE request_id=?').bind(id).first<{ n: number }>())!.n).toBe(1)
     expect((await env.DB.prepare("SELECT COUNT(*) n FROM request_events WHERE request_id=? AND text_en='Customer confirmed receipt of the files'").bind(id).first<{ n: number }>())!.n).toBe(1)
   })
+  it('staging-only sign-in confirmation: only ENVIRONMENT=staging, only allow-listed testers; production and others are refused', async () => {
+    const json = (o: unknown) => new TextEncoder().encode(JSON.stringify(o))
+    const call = (e: Env, path: string, body: unknown) => asEnv(e, 'POST', path, '', json(body), { 'content-type': 'application/json' })
+    const staging = { ...wenv(), ENVIRONMENT: 'staging', WA_BUSINESS_NUMBER: '971500000000', STAGING_TESTER_PHONES: '+971521150001, +971521150002, 0521150009' } // local formats are ignored: E.164 only as Env
+    const prod = { ...staging, ENVIRONMENT: 'production' } as Env
+    const start = async (e: Env, phone: string) => (await (await call(e, '/v1/auth/wa/start', { phone })).json()) as { challengeId: string; pollToken: string; stagingConfirm?: boolean }
+    // production: never offered, never accepted, even for a listed number
+    const p = await start(prod, '+971521150001')
+    expect(p.stagingConfirm).toBeUndefined()
+    expect((await call(prod, '/v1/auth/wa/staging-confirm', { phone: '+971521150001', challengeId: p.challengeId, pollToken: p.pollToken })).status).toBe(404)
+    // staging, number not on the list: refused
+    const o = await start(staging, '+971521150009')
+    expect(o.stagingConfirm).toBeUndefined()
+    expect((await call(staging, '/v1/auth/wa/staging-confirm', { phone: '+971521150009', challengeId: o.challengeId, pollToken: o.pollToken })).status).toBe(404)
+    // staging, listed tester: offered; needs the matching poll token; then the normal poll signs in
+    const t = await start(staging, '+971521150002')
+    expect(t.stagingConfirm).toBe(true)
+    expect((await call(staging, '/v1/auth/wa/staging-confirm', { phone: '+971521150002', challengeId: t.challengeId, pollToken: 'x'.repeat(32) })).status).toBe(400)
+    expect((await call(staging, '/v1/auth/wa/staging-confirm', { phone: '+971521150002', challengeId: t.challengeId, pollToken: t.pollToken })).status).toBe(200)
+    const poll = (await (await call(staging, '/v1/auth/wa/poll', { phone: '+971521150002', challengeId: t.challengeId, pollToken: t.pollToken })).json()) as { status: string; accessToken?: string }
+    expect(poll.status).toBe('verified'); expect(poll.accessToken).toBeTruthy()
+  })
   it('real scanner (clamav-http): configuration rules, explicit verdicts only; outage or odd answers stay pending, never clean', async () => {
     const { scanBytes, scannerMode, uploadsBlocked } = await import('../src/scanner')
     const base = { ...wenv(), SCANNER_MODE: 'clamav-http', SCANNER_TOKEN: 't'.repeat(32) } as Env

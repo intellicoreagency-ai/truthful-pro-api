@@ -62,8 +62,11 @@ export async function verifyOtp(phone:string,challengeId:string,code:string){
   const j=await json<{accessToken:string;refreshToken:string;isNewUser:boolean}>(await call('POST','/v1/auth/otp/verify',{auth:false,body:{phone,challengeId,code}}));
   await saveTokens(j.accessToken,j.refreshToken);return j.isNewUser;
 }
-export type WaChallenge={challengeId:string;pollToken:string;code:string;expiresIn:number;link:string};
+/** stagingConfirm: only a STAGING server with this number on its tester list sets it (never production). */
+export type WaChallenge={challengeId:string;pollToken:string;code:string;expiresIn:number;link:string;stagingConfirm?:boolean};
 export const waStart=async(phone:string,language:'ar'|'en')=>json<WaChallenge>(await call('POST','/v1/auth/wa/start',{auth:false,body:{phone,language}}));
+/** STAGING ONLY: an allow-listed tester confirms without sending a WhatsApp message (the server refuses it everywhere else). */
+export async function waStagingConfirm(phone:string,c:Pick<WaChallenge,'challengeId'|'pollToken'>){await call('POST','/v1/auth/wa/staging-confirm',{auth:false,body:{phone,challengeId:c.challengeId,pollToken:c.pollToken}})}
 /** Resolves 'pending' | 'expired' | 'verified' (+ whether the number had no account yet). On 'verified' the session tokens are stored in the device keychain/keystore (expo-secure-store). */
 export async function waPoll(phone:string,c:Pick<WaChallenge,'challengeId'|'pollToken'>):Promise<{status:'pending'|'expired'|'verified';isNewUser?:boolean}>{
   const j=await json<{status:'pending'|'expired'|'verified';isNewUser?:boolean;accessToken?:string;refreshToken?:string}>(await call('POST','/v1/auth/wa/poll',{auth:false,body:{phone,challengeId:c.challengeId,pollToken:c.pollToken}}));

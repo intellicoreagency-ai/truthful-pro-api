@@ -123,7 +123,25 @@ app.post('/v1/auth/wa/start', async (c) => {
     .bind(id, phoneHash, await hmacHex(c.env.PEPPER, `wa:${code}`), await sha256Hex(poll), now + WA_TTL, now).run()
   const text = body?.language === 'en' ? `Verify my TRUTHFUL PRO account: ${code}` : `تأكيد حسابي في تروثفل برو: ${code}`
   await audit(c, 'wa.start', null)
-  return c.json({ challengeId: id, pollToken: poll, code, expiresIn: WA_TTL / 1000, link: `https://wa.me/${c.env.WA_BUSINESS_NUMBER}?text=${encodeURIComponent(text)}` })
+  return c.json({ challengeId: id, pollToken: poll, code, expiresIn: WA_TTL / 1000, link: `https://wa.me/${c.env.WA_BUSINESS_NUMBER}?text=${encodeURIComponent(text)}`, ...(stagingTester(c.env, phone) ? { stagingConfirm: true } : {}) })
+})
+
+/** STAGING ONLY: lets an allow-listed tester confirm sign-in without sending a WhatsApp message (no Meta set-up, no real message).
+ *  Never available unless ENVIRONMENT is exactly 'staging' AND the number is in STAGING_TESTER_PHONES; production refuses it outright. */
+const stagingTester = (env: Env, phone: string) => env.ENVIRONMENT === 'staging' && (env.STAGING_TESTER_PHONES ?? '').split(',').map((x) => normalizePhone(x.trim())).includes(phone)
+app.post('/v1/auth/wa/staging-confirm', async (c) => {
+  const body = await jsonBody(c)
+  const phone = normalizePhone(body?.phone)
+  const id = typeof body?.challengeId === 'string' ? body.challengeId : '', poll = typeof body?.pollToken === 'string' ? body.pollToken : ''
+  if (!phone || !stagingTester(c.env, phone)) return c.json({ error: 'not_found' }, 404)
+  if (!isUuid(id) || !/^[A-Za-z0-9_-]{20,64}$/.test(poll)) return c.json({ error: 'invalid_request' }, 400)
+  if (!(await allow(c.env, `wastg:${clientIp(c)}`, 30, 600))) return c.json({ error: 'too_many_requests' }, 429)
+  const phoneHash = await hmacHex(c.env.PEPPER, `phone:${phone}`)
+  const ch = await c.env.DB.prepare("SELECT poll_hash,phone_hash FROM wa_challenges WHERE id=? AND purpose='customer'").bind(id).first<{ poll_hash: string; phone_hash: string }>()
+  if (!ch || !timingSafeEqual(ch.poll_hash, await sha256Hex(poll)) || ch.phone_hash !== phoneHash) return c.json({ error: 'invalid_request' }, 400)
+  const upd = await c.env.DB.prepare('UPDATE wa_challenges SET verified_at=? WHERE id=? AND expires_at>? AND verified_at IS NULL').bind(Date.now(), id, Date.now()).run()
+  await audit(c, 'wa.staging_confirm', null, { ok: !!upd.meta.changes })
+  return c.json({ ok: true })
 })
 
 app.get('/webhooks/whatsapp', (c) => {

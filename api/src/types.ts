@@ -34,6 +34,7 @@ export interface Env {
   WA_TOKEN?: string             // optional: lets us send a free confirmation reply
   WA_PHONE_NUMBER_ID?: string   // optional, needed with WA_TOKEN
   WA_OTP_TEMPLATE?: string      // name of the approved WhatsApp *authentication* template (paid by Meta per message)
+  STAGING_TESTER_PHONES?: string // STAGING ONLY: comma-separated E.164 numbers that may confirm sign-in without WhatsApp (ignored unless ENVIRONMENT=staging)
   WA_GRAPH_BASE?: string        // defaults to https://graph.facebook.com/v21.0 (override only for local tests)
 }
 export type Vars = { userId: string; sessionId: string; staffId: string; staffRole: 'owner' | 'manager' | 'agent' | 'accountant' }

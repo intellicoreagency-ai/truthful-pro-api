@@ -35,3 +35,42 @@ bucket_name = "truthful-pro-v2-documents"
 #   PEPPER        random 32+ bytes, base64  (OTP + phone hashing)
 #   DATA_KEY      random 32 bytes, base64   (AES-GCM for phone + documents)
 #   TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM   (SMS delivery)
+
+# ============================ STAGING (separate Worker, database and file store) ============================
+# Deploy ONLY with:  npx wrangler deploy --env staging   (see docs/STAGING.md). Never touches the default Worker above.
+# Safety: no outbound messages or payments are possible in staging as configured here:
+#   - WhatsApp: WA_TOKEN / WA_OTP_TEMPLATE are NOT set, so the server never sends a WhatsApp message;
+#   - email: EMAIL_MODE is NOT set, so nothing is emailed (the outbox only queues);
+#   - payments: there is no payment gateway in the code; payments are reported and verified by hand.
+[env.staging]
+name = "truthful-pro-api-v2-staging"
+workers_dev = true
+
+[env.staging.assets]
+directory = "../dashboard/dist"
+run_worker_first = ["/v1/*", "/staff/v1/*", "/webhooks/*", "/health"]
+
+[env.staging.triggers]
+crons = ["*/10 * * * *"]
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+OTP_TTL_SECONDS = "300"
+WA_BUSINESS_NUMBER = "971585144005"
+SCANNER_MODE = "fake-test"          # test scanner (marks files clean, quarantines the EICAR test string); ignored in production
+COMPANY_NAME_AR = "تروثفل لخدمات التخليص ذ.م.م"
+COMPANY_NAME_EN = "Truthful Clearance Services LLC"
+# ALLOWED_ORIGINS, PUBLIC_BASE_URL, STAGING_TESTER_PHONES: set after the first deploy (docs/STAGING.md, step 4)
+
+# Create these once (docs/STAGING.md, step 2), then paste the real database_id:
+#   npx wrangler d1 create truthful-pro-v2-staging-db
+#   npx wrangler r2 bucket create truthful-pro-v2-staging-documents
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "truthful-pro-v2-staging-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[env.staging.r2_buckets]]
+binding = "DOCS"
+bucket_name = "truthful-pro-v2-staging-documents"

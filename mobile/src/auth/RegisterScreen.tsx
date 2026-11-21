@@ -63,7 +63,7 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
     footer={waiting?null:mode==='register'?<View style={[s.row,{flexDirection:lang==='ar'?'row-reverse':'row'}]}><T lang={lang} style={s.muted}>{t.haveAccount}</T><TextLink tone="photo" lang={lang} Text={T} label={t.toLogin} onPress={onLogin}/></View>:null}>
     <StepTransition stepKey={waiting?'wait':'form'}>
       {waiting
-        ?<WaitingStep lang={lang} Text={T} error={saveError||wa.error} onOpen={wa.openWhatsApp} onCancel={()=>{wa.cancel();setVerified(false);setSaveError('');}} onRetry={verified&&!saving?()=>void finish():undefined}/>
+        ?<WaitingStep lang={lang} Text={T} error={saveError||wa.error} onOpen={wa.openWhatsApp} onStagingConfirm={wa.stagingConfirm} onCancel={()=>{wa.cancel();setVerified(false);setSaveError('');}} onRetry={verified&&!saving?()=>void finish():undefined}/>
         :<View style={s.form}>
           <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.name} icon="user" value={name} onChangeText={v=>{setName(v);setErrors(x=>({...x,name:undefined}));}}
             placeholder={t.namePh} autoComplete="name" textContentType="name" maxLength={80} returnKeyType="next" error={errors.name}/>
