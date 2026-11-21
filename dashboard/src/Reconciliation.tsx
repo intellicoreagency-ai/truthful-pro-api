@@ -12,7 +12,7 @@ export function Reconciliation() {
   return (
     <>
       <h1>{t('recTitle')}</h1>
-      <div className="msg" style={{ background: '#fbe6e3', color: 'var(--bad)' }}>{t('finTest')}</div>
+      <div className="msg bad">{t('finTest')}</div>
       <label className="field"><span>{t('recDate')}</span><input type="date" value={date || data?.date || ''} onChange={(e) => setDate(e.target.value)} /></label>
       {loading && !data ? <p className="muted">{t('loading')}</p> : data && (
         <>

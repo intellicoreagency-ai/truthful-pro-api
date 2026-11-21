@@ -11,6 +11,8 @@ import { Security } from './Security'
 import { PaymentsQueue } from './Finance'
 import { CustomerDetail, Customers } from './Customers'
 import { useI18n } from './i18n'
+import { Icon } from './kanban/Icon'
+import { initials } from './kanban/model'
 
 type Me = { id: string; name: string; role: Role }
 
@@ -41,31 +43,45 @@ export default function App() {
   const canFin = canTeam || me.role === 'accountant'
   const cur = (s: string) => (section === s ? 'page' : undefined)
 
+  const link = (s: string, href: string, icon: string, label: string) => (
+    <a href={href} aria-current={cur(s)}><Icon name={icon} />{label}</a>
+  )
   return (
     <div className="shell">
-      <header className="topbar">
-        <div className="topbar-in">
+      <aside className="side">
+        <div className="side-top">
           <a className="brand" href="#/"><img src="/logo.png" alt="" /><span>{t('brand')}<small>{t('team')}</small></span></a>
-          <nav className="nav" aria-label="main">
-            <a href="#/" aria-current={cur('')}>{t('overview')}</a>
-            <a href="#/requests" aria-current={cur('requests')}>{t('requests')}</a>
-            {canTeam && <a href="#/customers" aria-current={cur('customers')}>{t('customers')}</a>}
-            {canFin && <a href="#/payments" aria-current={cur('payments')}>{t('paymentsQueue')}</a>}
-            {canFin && <a href="#/reconciliation" aria-current={cur('reconciliation')}>{t('recTitle')}</a>}
-            {canFin && <a href="#/fees" aria-current={cur('fees')}>{t('feesTitle')}</a>}
-            {canTeam && <a href="#/team" aria-current={cur('team')}>{t('members')}</a>}
-            <a href="#/security" aria-current={cur('security')}>{t('security')}</a>
-          </nav>
-          <input className="search-top" type="search" aria-label={t('searchAll')} placeholder={t('searchAll')} onKeyDown={(e) => { if (e.key === 'Enter') { const v = (e.target as HTMLInputElement).value.trim(); go('#/requests' + (v ? '?q=' + encodeURIComponent(v) : '')) } }} />
-          <button className="btn sm" onClick={toggle}>{t('lang')}</button>
-          <button className="btn sm" onClick={async () => { await api.logout(); setMe(null) }}>{t('logout')}</button>
+          <div className="side-acts">
+            <button className="btn sm ghost" onClick={toggle}>{t('lang')}</button>
+            <button className="iconbtn m-only" onClick={async () => { await api.logout(); setMe(null) }} aria-label={t('logout')} title={t('logout')}><Icon name="logout" /></button>
+          </div>
         </div>
-      </header>
+        <label className="search-top"><Icon name="search" />
+          <input type="search" aria-label={t('searchAll')} placeholder={t('searchAll')} onKeyDown={(e) => { if (e.key === 'Enter') { const v = (e.target as HTMLInputElement).value.trim(); go('#/requests' + (v ? '?q=' + encodeURIComponent(v) : '')) } }} />
+        </label>
+        <nav className="nav" aria-label="main">
+          {link('', '#/', 'grid', t('overview'))}
+          {link('requests', '#/requests', 'inbox', t('requests'))}
+          {canTeam && link('customers', '#/customers', 'users', t('customers'))}
+          {canFin && link('payments', '#/payments', 'card', t('paymentsQueue'))}
+          {canFin && link('reconciliation', '#/reconciliation', 'scale', t('recTitle'))}
+          {canFin && link('fees', '#/fees', 'tag', t('feesTitle'))}
+          {canTeam && link('team', '#/team', 'team', t('members'))}
+          {link('security', '#/security', 'shield', t('security'))}
+        </nav>
+        <div className="side-foot">
+          <span className="avatar" aria-hidden="true">{initials(me.name)}</span>
+          <span className="who"><b>{me.name}</b><small>{t(me.role)}</small></span>
+          <button className="iconbtn" onClick={async () => { await api.logout(); setMe(null) }} aria-label={t('logout')} title={t('logout')}><Icon name="logout" /></button>
+        </div>
+      </aside>
+      <div className="content">
       {offer && api.passkeysSupported() && section !== 'security' && (
         <div className="banner" role="note"><div className="banner-in">
+          <Icon name="shield" />
           <span>{t('bioBanner')}</span>
           <button className="btn primary sm" onClick={() => go('#/security')}>{t('bioEnable')}</button>
-          <button className="btn sm" onClick={() => { try { sessionStorage.setItem('tp.pk.later', '1') } catch { /* */ } setOffer(false) }}>{t('bioLater')}</button>
+          <button className="btn sm ghost" onClick={() => { try { sessionStorage.setItem('tp.pk.later', '1') } catch { /* */ } setOffer(false) }}>{t('bioLater')}</button>
         </div></div>
       )}
       <main className="main">
@@ -79,6 +95,7 @@ export default function App() {
           : section === 'security' ? <Security />
           : <Overview go={go} name={me.name} />}
       </main>
+      </div>
     </div>
   )
 }

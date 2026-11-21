@@ -80,7 +80,7 @@ export function RequestDetail({ id, me, back }: { id: string; me: { id: string; 
           <Card title={t('documents')}>
             {d.files.filter((f) => f.kind === 'source').length === 0 && <p className="muted">{t('noFiles')}</p>}
             {d.files.filter((f) => f.kind === 'source').map((f) => (
-              <div key={f.id} style={{ borderBottom: '1px dashed var(--line)', paddingBottom: 8, marginBottom: 8 }}>
+              <div key={f.id} className="subrow">
                 <div className="file" style={{ borderBottom: 0 }}>
                   <span>{f.label || f.name}<br /><span className="muted small">{f.name} · {Math.max(1, Math.round(f.size / 1024))} KB</span></span>
                   <button className="btn sm" onClick={() => openFile(f)}>{t('view')}</button>
@@ -172,6 +172,10 @@ function Actions({ d, me, act }: { d: Detail; me: { id: string; role: Role }; ac
   const [file, setFile] = useState<File | null>(null)
   const mine = r.assigneeId === me.id
   const canAsk = d.transitions.includes('needs_documents')
+  // The server requires a reason when the authority sent the request back (from authority/decision), for rejection and for cancellation.
+  const fromAuthority = r.status === 'authority' || r.status === 'decision'
+  const [askReason, setAskReason] = useState('')
+  const needsReason = to === 'rejected' || to === 'cancelled' || (to === 'needs_documents' && fromAuthority)
 
   return (
     <>
@@ -189,26 +193,27 @@ function Actions({ d, me, act }: { d: Detail; me: { id: string; role: Role }; ac
                 <option value="">—</option>{d.transitions.map((s) => <option key={s} value={s}>{STATUS_LABEL[s][lang]}</option>)}
               </select></Field>
             {to === 'authority' && <Field label={t('authorityRef')}><input dir="ltr" value={reference} onChange={(e) => setReference(e.target.value)} /></Field>}
-            {to === 'rejected' && <Field label={t('rejectReason')}><input value={rejReason} onChange={(e) => setRejReason(e.target.value)} /></Field>}
+            {needsReason && <Field label={to === 'rejected' ? t('rejectReason') : to === 'needs_documents' ? t('authorityAsked') : t('reason')}><input value={rejReason} onChange={(e) => setRejReason(e.target.value)} /></Field>}
             <Field label={t('expected')}><input type="date" value={expected} onChange={(e) => setExpected(e.target.value)} /></Field>
             <Field label={t('note')}><textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-            <button className="btn primary" disabled={!to || (to === 'authority' && reference.trim().length < 3) || (to === 'rejected' && rejReason.trim().length < 3)} onClick={() => act(async () => { await move(to as Status, { note: note || undefined, expectedAt: expected || undefined, reference: reference.trim() || undefined, reason: rejReason.trim() || undefined, expectedVersion: r.version }); setTo(''); setNote(''); setReference(''); setRejReason('') })}>{t('apply')}</button>
+            <button className="btn primary" disabled={!to || (to === 'authority' && reference.trim().length < 3) || (needsReason && rejReason.trim().length < 3)} onClick={() => act(async () => { await move(to as Status, { note: note || undefined, expectedAt: expected || undefined, reference: reference.trim() || undefined, reason: rejReason.trim() || undefined, expectedVersion: r.version }); setTo(''); setNote(''); setReference(''); setRejReason('') })}>{t('apply')}</button>
           </>
         )}
       </Card>
       {canAsk && (
         <Card title={t('askMissing')}>
           {rows.map((row, i) => (
-            <div key={i} style={{ borderBottom: '1px dashed var(--line)', marginBottom: 10 }}>
+            <div key={i} className="subrow">
               <Field label={t('docNameAr')}><input value={row.ar} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, ar: e.target.value } : x)))} /></Field>
               <Field label={t('docNameEn')}><input dir="ltr" value={row.en} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, en: e.target.value } : x)))} /></Field>
               <Field label={t('noteToCustomer')}><input value={row.note} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))} /></Field>
             </div>
           ))}
+          {fromAuthority && <Field label={t('authorityAsked')}><textarea rows={2} value={askReason} onChange={(e) => setAskReason(e.target.value)} /></Field>}
           <div className="row">
             <button className="btn sm" onClick={() => setRows([...rows, { ar: '', en: '', note: '' }])}>{t('addRow')}</button>
-            <button className="btn primary sm" disabled={!rows.every((x) => x.ar.trim() && x.en.trim())}
-              onClick={() => act(async () => { await api.missing(r.id, rows.map((x) => ({ labelAr: x.ar.trim(), labelEn: x.en.trim(), noteAr: x.note.trim(), noteEn: x.note.trim() })), r.version); setRows([{ ar: '', en: '', note: '' }]) })}>{t('send')}</button>
+            <button className="btn primary sm" disabled={!rows.every((x) => x.ar.trim() && x.en.trim()) || (fromAuthority && askReason.trim().length < 3)}
+              onClick={() => act(async () => { await api.missing(r.id, rows.map((x) => ({ labelAr: x.ar.trim(), labelEn: x.en.trim(), noteAr: x.note.trim(), noteEn: x.note.trim() })), r.version, fromAuthority ? askReason.trim() : undefined); setRows([{ ar: '', en: '', note: '' }]); setAskReason('') })}>{t('send')}</button>
           </div>
         </Card>
       )}

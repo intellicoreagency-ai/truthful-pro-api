@@ -50,7 +50,7 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
 
   return (
     <Card title={t('finance')}>
-      <div className="msg" style={{ background: '#fbe6e3', color: 'var(--bad)' }}>{t('finTest')}</div>
+      <div className="msg bad">{t('finTest')}</div>
       <p className="muted small">{t('finTax')}</p>
       {msg && <div className={`msg ${msg.ok ? 'ok' : ''}`} role="status">{msg.text}</div>}
       <dl className="kv">
@@ -193,7 +193,7 @@ export function PaymentsQueue({ go }: { go: (h: string) => void }) {
   return (
     <>
       <h1>{t('paymentsQueue')}</h1>
-      <div className="msg" style={{ background: '#fbe6e3', color: 'var(--bad)' }}>{t('finTest')}</div>
+      <div className="msg bad">{t('finTest')}</div>
       {msg && <div className="msg">{msg}</div>}
       {loading && !data ? <p className="muted">{t('loading')}</p> : !data?.length ? <div className="empty">{t('queueEmpty')}</div> : (
         <div className="list">
