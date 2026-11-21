@@ -114,6 +114,13 @@ export async function pushRequest(r:ClientRequest,getBytes:(f:ClientFile)=>Promi
   return{...next,syncedAt:new Date().toISOString()};
 }
 
+/** Creates the request on the server and RETURNS only when the server has stored it (the reference is the server's). Idempotent: the same local id (clientKey) never creates a second request. */
+export async function createRemoteRequest(r:ClientRequest):Promise<{id:string}>{
+  return json<{id:string}>(await call('POST','/v1/requests',{body:{serviceId:r.serviceId,data:toServerData(r),renewalOf:undefined,clientKey:r.id}}));
+}
+/** Moves a draft to "submitted" (the server refuses it without an email on the account). */
+export async function submitRemoteRequest(remoteId:string){await call('PATCH',`/v1/requests/${remoteId}`,{body:{status:'submitted'}})}
+
 export const needsSync=(r:ClientRequest)=>!r.sample&&(!r.syncedAt||r.updatedAt>r.syncedAt);
 
 /** Server is authoritative for status/stage. Local-only records (unsynced drafts) are kept. */

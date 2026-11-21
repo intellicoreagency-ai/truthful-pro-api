@@ -14,3 +14,14 @@ exports.login=async(p,phone='0501234567',intl='971501234567')=>{
  await fetch('http://localhost:8788/webhooks/whatsapp',{method:'POST',headers:{'x-hub-signature-256':sig,'content-type':'application/json'},body:raw});
  await p.waitForTimeout(4500);
 };
+
+// New Request screen (Step 4): pick the service and type, fill the applicant, create on the server, then continue to the documents step.
+exports.newRequestUI=async(p,name='منى العلي',phone='0529990011')=>{
+ await p.getByText('بدء معاملة').first().click();await p.waitForTimeout(900);
+ await p.getByRole('button',{name:/^الخدمة/}).click();await p.waitForTimeout(500);
+ await p.getByRole('radio',{name:/الهوية الإماراتية/}).first().click();await p.waitForTimeout(600);
+ await p.getByRole('radio',{name:/تجديد الهوية/}).first().click();await p.waitForTimeout(500);
+ await p.getByPlaceholder('الاسم كما في الهوية').fill(name);await p.getByPlaceholder('05XXXXXXXX').fill(phone);
+ await p.getByRole('button',{name:'إنشاء الطلب'}).click();await p.waitForTimeout(2500);
+ await p.getByRole('button',{name:'رفع المستندات'}).click();await p.waitForTimeout(1500);
+};

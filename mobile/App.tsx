@@ -24,6 +24,7 @@ import {pickClientFile,pruneOrphanFiles,readRequests,writeRequests,getBytes,save
 import {makeId,type ClientRequest,type ClientFile} from './src/clientModel';
 import {HomeScreen} from './src/HomeScreen';
 import {AuthFlow} from './src/auth/AuthFlow';
+import {NewRequestScreen} from './src/newRequest/NewRequestScreen';
 import type {SyncStatus} from './src/dashboard/DashboardScreen';
 import {ContactScreen} from './src/auth/ContactScreen';
 import {AccountScreen} from './src/AccountScreen';
@@ -33,7 +34,7 @@ import {TERMS,PRIVACY} from './src/legal';
 import {apiEnabled,hasSession,loadTokens,logout,me,pullRequests,pushRequest,needsSync,exportMyData,deleteAccount,setServerEmail,setSessionExpiredHandler} from './src/api';
 
 type Language='ar'|'en';
-type Page='welcome'|'home'|'services'|'detail'|'requests'|'profile'|'request';
+type Page='welcome'|'home'|'services'|'detail'|'requests'|'profile'|'request'|'newrequest';
 type DetailTab='about'|'documents'|'fees';
 type LocalFile={name:string;size?:number;uri:string;clientFile?:ClientFile};
 type RequestDraft={
@@ -299,7 +300,7 @@ export default function App() {
    <SoftButton onPress={switchLang} style={styles.headRound}><Text maxFontSizeMultiplier={1.35} style={{fontWeight:'800',color:C.orange}}>{ar?'EN':'ع'}</Text></SoftButton>
    <SoftButton onPress={()=>go('profile')} label={t.profile} style={styles.headRound}><Icon name="user" color={C.ink}/></SoftButton>
  </View>;
- const selectNav=(key:TabKey)=>key==='request'?(page==='detail'?(setClientDraft(null),startRequest()):page==='request'?undefined:(setClientDraft(null),openCatalogue(true))):key==='services'?openCatalogue():go(key);
+ const selectNav=(key:TabKey)=>key==='request'?(page==='detail'?(setClientDraft(null),startRequest()):page==='request'||page==='newrequest'?undefined:(setClientDraft(null),go('newrequest'))):key==='services'?openCatalogue():go(key);
  const tabLabels:Record<TabKey,string>={home:t.home,services:t.services,request:t.request,requests:t.requests,profile:t.profile};
  const blurTarget=React.useRef<React.ComponentRef<typeof View>>(null);
  const sectionHeader=(s:string)=><View style={[styles.sectionHead,{flexDirection:row}]}>
@@ -564,6 +565,7 @@ export default function App() {
    if(page==='welcome'||page==='home') return false;
    if(page==='detail'){go(detailOrigin);return true;}
    if(page==='request'){go('detail');setTab('about');return true;}
+   if(page==='newrequest'){go('requests');return true;}
    go('home');return true;
  };
  React.useEffect(()=>{const sub=BackHandler.addEventListener('hardwareBackPress',()=>backRef.current());return ()=>sub.remove();},[]);
@@ -583,7 +585,8 @@ export default function App() {
          onFavorite={id=>{const item=catalogueServices.find(service=>service.id===id);if(item) open(item);}}
          onRequests={()=>go('requests')} onBrowse={()=>openCatalogue()} onLanguage={setLang}
          onLeave={()=>go('welcome')} logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily}/>
-       :page==='requests'?<ClientWorkspace onRefresh={syncNow} syncStatus={syncStatus} loadedOnce={loadedOnce} lang={lang} onLanguage={switchLang} onFocusChange={setClientFocused} records={clientRecords} save={saveClientRecords} onStart={()=>{setClientDraft(null);openCatalogue(true);}} onResume={resumeClient} drafts={savedDrafts.map(item=>({key:item.key,title:wording(item.action,lang),resume:()=>open(item.service,item.action.id)}))}/>:page==='request'&&action?<RequestWizard onLegal={setLegal} key={chosen.id+'/'+action.id+'/'+(clientDraft??clientSeed?.id??'new')} lang={lang} serviceId={chosen.id} action={action} create={createClientRequest} onDone={()=>{setClientSeed(null);go('requests');}} onKeep={kept=>setClientSeed(kept)} onBack={()=>{go('detail');setTab('about');}} defaults={{name:account.name,phone:account.phone}} initial={clientRecords.find(r=>r.id===clientDraft)??(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id?clientSeed:undefined)}/>:simplePage()}
+       :page==='newrequest'?<NewRequestScreen lang={lang} account={{name:account.name,phone:account.phone}} signedIn={signedIn} onSaved={r=>{saveClientRecords([...clientRecords.filter(v=>v.id!==r.id),r])}} onOpenDocuments={r=>resumeClient(r.serviceId,r.actionId,r.id)} onBack={()=>go('requests')} onSignIn={()=>go('welcome')}/>
+       :page==='requests'?<ClientWorkspace onRefresh={syncNow} syncStatus={syncStatus} loadedOnce={loadedOnce} lang={lang} onLanguage={switchLang} onFocusChange={setClientFocused} records={clientRecords} save={saveClientRecords} onStart={()=>{setClientDraft(null);go('newrequest');}} onResume={resumeClient} drafts={savedDrafts.map(item=>({key:item.key,title:wording(item.action,lang),resume:()=>open(item.service,item.action.id)}))}/>:page==='request'&&action?<RequestWizard onLegal={setLegal} key={chosen.id+'/'+action.id+'/'+(clientDraft??clientSeed?.id??'new')} lang={lang} serviceId={chosen.id} action={action} create={createClientRequest} onDone={()=>{setClientSeed(null);go('requests');}} onKeep={kept=>setClientSeed(kept)} onBack={()=>{go('detail');setTab('about');}} defaults={{name:account.name,phone:account.phone}} initial={clientRecords.find(r=>r.id===clientDraft)??(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id?clientSeed:undefined)}/>:simplePage()}
    </BlurTargetView>
    {legal&&<View style={StyleSheet.absoluteFill}><LegalScreen lang={lang} doc={legal==='terms'?TERMS:PRIVACY} onBack={()=>setLegal(null)} Text={AppText}/></View>}
    {barVisible&&<TabBar active={activeTab(page)} labels={tabLabels} onSelect={selectNav} blurTarget={blurTarget} accessory={page==='detail'?detailCTA():undefined} labelFont={sel=>({...font(lang,sel),...(lang==='ar'?{fontFamily:'ReferenceArabic'}:null)})}/>}

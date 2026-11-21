@@ -1,5 +1,5 @@
 // Browser acceptance for Phase 3 (customer app UI + dashboard UI): quote -> acceptance -> invoice -> payment with proof -> verification -> receipt -> document view -> refund. Needs wrangler dev :8788 on a FRESH state (rm -rf api/.wrangler/state; migrations apply) with SCANNER_MODE=fake-test, OWNER_PHONE/OWNER_SETUP_KEY, ALLOWED_ORIGINS=http://localhost:8767, the web build (EXPO_PUBLIC_API_URL) served on :8767, scripts/lib.cjs, doc.pdf and photo.jpg in the cwd. Issued financial rows cannot be deleted by design, so reset the DB state instead of deleting rows.
-const {chromium}=require('playwright');const crypto=require('crypto');const fs=require('fs');const {login}=require('./lib.cjs');
+const {chromium}=require('playwright');const crypto=require('crypto');const fs=require('fs');const {login,newRequestUI}=require('./lib.cjs');
 const B='http://localhost:8788';
 function unb32(s){const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';let bits=0,v=0;const o=[];for(const c of s){v=(v<<5)|A.indexOf(c);bits+=5;if(bits>=8){o.push((v>>>(bits-8))&255);bits-=8}}return Buffer.from(o)}
 function code(secret,off=0){const c=Math.floor(Date.now()/30000)+off;const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(c));const h=crypto.createHmac('sha1',unb32(secret)).update(b).digest();const o=h[19]&15;const n=((h[o]&0x7f)<<24)|(h[o+1]<<16)|(h[o+2]<<8)|h[o+3];return String(n%1000000).padStart(6,'0')}
@@ -15,8 +15,7 @@ const ok=(l,c)=>{console.log((c?'PASS ':'FAIL ')+l);if(!c)process.exitCode=1};
  const cp=await (await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:1})).newPage();
  const cerrs=[];cp.on('pageerror',e=>cerrs.push(e.message));
  await login(cp,'0529990021','971529990021');
- await cp.getByText('بدء معاملة').first().click();await cp.waitForTimeout(1200);await cp.mouse.click(195,460);await cp.waitForTimeout(1500);
- await cp.getByText('تجديد الهوية',{exact:true}).first().click();await cp.waitForTimeout(500);await cp.getByText('بدء الطلب',{exact:true}).last().click();await cp.waitForTimeout(1500);
+ await newRequestUI(cp);
  const inp=cp.locator('input');await inp.nth(0).fill('هدى المنصوري');await inp.nth(1).fill('0529990021');await cp.getByText('التالي',{exact:true}).click();await cp.waitForTimeout(900);
  for(let i=0;i<2;i++){const [fc]=await Promise.all([cp.waitForEvent('filechooser'),cp.getByText('رفع الملف',{exact:true}).first().click()]);await fc.setFiles(['doc.pdf','photo.jpg'][i]);await cp.waitForTimeout(800)}
  await cp.getByText('التالي',{exact:true}).click();await cp.waitForTimeout(900);await cp.getByRole('checkbox').last().click();
