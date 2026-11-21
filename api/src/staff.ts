@@ -6,7 +6,6 @@ import { MAX_FILE_BYTES, isUuid, normalizePhone, safeFileName, sniffFile } from 
 import { allow, audit, clientIp, jsonBody, type C } from './security'
 import { RULES, passportValidity } from './rules'
 import { scanBytes, uploadsBlocked } from './scanner'
-import { enqueueInvoiceEmail } from './mail'
 import { activeSubmission, liteWork, openSubmission, recordTransition, scheduleReminders, workFor } from './ops'
 import { allocateManually, approvePayment, creditFor, documentStatements, govFor, insertAuthorityPayment, insertPayment, isFils, refundable, reverseAllocation, parseGovUrl, parseItems, renderDocument, totalsFor, type DocRow } from './finance'
 import { newSecret, otpauthUri, verifyTotp } from './totp'
@@ -938,9 +937,9 @@ const numberOf = async (c: C, docId: string | null) => docId ? (await c.env.DB.p
 guarded.get('/requests/:id/finance', roles(...FIN_VIEW), async (c) => {
   const r = await finRequest(c, c.req.param('id'))
   if (!r) return c.json({ error: 'not_found' }, 404)
-  const qs = await c.env.DB.prepare('SELECT id,version,status,total_fils,gov_fils,gov_pay_url,issued_at,accepted_at,document_id FROM quotes WHERE request_id=? ORDER BY version').bind(r.id).all<{ id: string; version: number; status: string; total_fils: number; gov_fils: number; gov_pay_url: string | null; issued_at: number | null; accepted_at: number | null; document_id: string | null }>()
+  const qs = await c.env.DB.prepare('SELECT id,version,status,total_fils,gov_fils,gov_pay_url,issued_at,accepted_at,declined_at,decline_reason,quote_document_id,document_id FROM quotes WHERE request_id=? ORDER BY version').bind(r.id).all<{ id: string; version: number; status: string; total_fils: number; gov_fils: number; gov_pay_url: string | null; issued_at: number | null; accepted_at: number | null; declined_at: number | null; decline_reason: string | null; quote_document_id: string | null; document_id: string | null }>()
   const quotes = []
-  for (const q of qs.results) quotes.push({ ...q, number: await numberOf(c, q.document_id), items: await itemsOf(c, q.id) })
+  for (const q of qs.results) quotes.push({ ...q, number: await numberOf(c, q.quote_document_id ?? q.document_id), invoiceNumber: await numberOf(c, q.document_id), items: await itemsOf(c, q.id) })
   const payments = await c.env.DB.prepare('SELECT id,kind,amount_fils,method,reference,status,created_by_kind,created_at,decided_at,decision_note,reason,receipt_id,proof_file_id,refund_of FROM payments WHERE request_id=? ORDER BY created_at').bind(r.id).all()
   const documents = await c.env.DB.prepare('SELECT id,doc_type,number,status,void_reason,total_fils,created_at,related_id FROM fin_documents WHERE request_id=? ORDER BY created_at').bind(r.id).all()
   const authority = await c.env.DB.prepare('SELECT id,amount_fils,reference,status,reported_by_kind,created_at,verified_at,note,proof_file_id FROM authority_payments WHERE request_id=? ORDER BY created_at').bind(r.id).all()
@@ -972,35 +971,44 @@ guarded.post('/requests/:id/quotes', roles(...FIN_VIEW), async (c) => {
   } catch { return c.json({ error: 'conflict' }, 409) }
 })
 
-// Issue the fee statement as an INVOICE for the Company's own fee (there is no customer-facing quotation: the fee is agreed in advance).
-// Government fees appear on it only as information; the customer pays them to the authority and holds the authority's own receipt.
+// Send the quote to the customer for approval (manual pricing per request). It becomes 'issued' and a QUO test document is created.
+// The invoice is issued ONLY when the customer accepts this exact version in the app (see acceptQuote). A newer version replaces a
+// quote still waiting for the customer; a re-quote after acceptance needs the customer's acceptance again before anything is re-invoiced.
+// Government fees appear only as information; the customer pays them to the authority and holds the authority's own receipt.
 guarded.post('/quotes/:qid/issue', roles(...FIN), async (c) => {
   const qid = c.req.param('qid')
   const q = isUuid(qid) ? await c.env.DB.prepare('SELECT id,request_id,version,status,total_fils,gov_fils FROM quotes WHERE id=?').bind(qid).first<{ id: string; request_id: string; version: number; status: string; total_fils: number; gov_fils: number }>() : null
   const r = q ? await finRequest(c, q.request_id) : null
   if (!q || !r) return c.json({ error: 'not_found' }, 404)
   if (q.status !== 'draft') return c.json({ error: 'not_a_draft' }, 409)
+  if (['cancelled', 'rejected'].includes(r.status)) return c.json({ error: 'request_closed' }, 409)
   const items = await itemsOf(c, q.id)
   if (items.length === 0 || q.total_fils <= 0) return c.json({ error: 'empty_quote' }, 400)
-  const active = await c.env.DB.prepare("SELECT 1 x FROM fin_documents WHERE request_id=? AND doc_type='invoice' AND status='issued'").bind(r.id).first()
-  if (active) return c.json({ error: 'invoice_active' }, 409) // cancel the invoice (with a reason) before re-pricing
+  const inv = await c.env.DB.prepare("SELECT id FROM fin_documents WHERE request_id=? AND doc_type='invoice' AND status='issued'").bind(r.id).first<{ id: string }>()
+  if (inv) { // a re-quote: whatever blocks replacing the invoice must be settled first, so the customer's acceptance can always complete
+    const busy = await c.env.DB.prepare("SELECT (SELECT COUNT(*) FROM payments WHERE invoice_id=?1 AND kind='payment' AND status='pending_verification') pend, (SELECT COUNT(*) FROM refund_requests WHERE invoice_id=?1 AND status IN ('requested','approved')) refunds").bind(inv.id).first<{ pend: number; refunds: number }>()
+    if ((busy?.pend ?? 0) > 0) return c.json({ error: 'pending_payments' }, 409)
+    if ((busy?.refunds ?? 0) > 0) return c.json({ error: 'open_refund' }, 409)
+  }
+  const g0 = await govFor(c.env, r.id) // once the customer has paid/reported the official fee, it is fixed: differences go through adjustments
+  if (q.gov_fils > 0 && g0.total > 0 && g0.verified + g0.reported > 0) return c.json({ error: 'government_fee_set' }, 409)
   const now = Date.now(), docId = newId()
-  const snapshot = { ...reqMeta(r), lines: items.map((i) => ({ kind: i.kind, ar: i.description_ar, en: i.description_en, amount: i.amount_fils })), totals: { total: q.total_fils, paid: 0, refunded: 0, remaining: q.total_fils }, govTotal: q.gov_fils, extra: { version: q.version } }
+  const snapshot = { ...reqMeta(r), lines: items.map((i) => ({ kind: i.kind, ar: i.description_ar, en: i.description_en, amount: i.amount_fils })), totals: { total: q.total_fils }, govTotal: q.gov_fils, extra: { version: q.version, awaitingCustomerApproval: true } }
   try {
     await c.env.DB.batch([
-      c.env.DB.prepare("UPDATE quotes SET status='superseded' WHERE request_id=? AND status IN ('issued','accepted')").bind(r.id),
-      c.env.DB.prepare("UPDATE quotes SET status='accepted', issued_at=?, issued_by=?, accepted_at=?, document_id=? WHERE id=? AND status='draft'").bind(now, c.get('staffId'), now, docId, q.id),
-      ...(await documentStatements(c.env, { id: docId, requestId: r.id, type: 'invoice', relatedId: q.id, totalFils: q.total_fils, snapshot, createdBy: c.get('staffId'), now })),
+      c.env.DB.prepare("UPDATE quotes SET status='superseded' WHERE request_id=? AND status='issued'").bind(r.id), // an older version still waiting is replaced
+      c.env.DB.prepare("UPDATE quotes SET status='issued', issued_at=?, issued_by=?, quote_document_id=? WHERE id=? AND status='draft'").bind(now, c.get('staffId'), docId, q.id),
+      ...(await documentStatements(c.env, { id: docId, requestId: r.id, type: 'quote', relatedId: q.id, totalFils: q.total_fils, snapshot, createdBy: c.get('staffId'), now })),
     ])
-  } catch { return c.json({ error: 'invoice_exists' }, 409) }
-  await visibleEvent(c, r.id, 'صدرت فاتورة بأتعاب الشركة (نسخة تجريبية)', 'An invoice for the Company fee was issued (test copy)')
-  await enqueueInvoiceEmail(c.env, r.user_id, docId).catch(() => null)
-  await audit(c, 'finance.invoice_issue', null, { requestId: r.id, version: q.version, by: c.get('staffId') })
-  return c.json({ ok: true, documentId: docId, number: await numberOf(c, docId), version: q.version }, 201)
+  } catch { return c.json({ error: 'conflict' }, 409) }
+  await visibleEvent(c, r.id, `عرض سعر بانتظار موافقتك (الإصدار ${q.version})`, `A quotation is waiting for your approval (version ${q.version})`)
+  await audit(c, 'finance.quote_sent', null, { requestId: r.id, version: q.version, by: c.get('staffId') })
+  return c.json({ ok: true, status: 'issued', quoteDocumentId: docId, number: await numberOf(c, docId), version: q.version }, 201)
 })
 
-// The Company's fee per service (owner/manager). It drives the automatic invoice at submission.
-guarded.get('/fees', roles('owner', 'manager', 'accountant'), async (c) => c.json({ fees: (await c.env.DB.prepare('SELECT service_id,fee_fils,updated_at FROM service_fees ORDER BY service_id').all()).results }))
+// PLACEHOLDER reference amounts per service (dummy data, NOT approved prices). They are never invoiced automatically:
+// the dashboard may only offer one as a starting value for a manual quote, which the customer must still approve.
+guarded.get('/fees', roles('owner', 'manager', 'accountant'), async (c) => c.json({ placeholder: true, fees: (await c.env.DB.prepare('SELECT service_id,fee_fils,updated_at,is_placeholder FROM service_fees ORDER BY service_id').all()).results }))
 guarded.put('/fees/:serviceId', roles('owner', 'manager'), async (c) => {
   const sid = c.req.param('serviceId')
   if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(sid)) return c.json({ error: 'invalid_request' }, 400)
@@ -1018,7 +1026,7 @@ guarded.post('/requests/:id/government-fee', roles(...FIN), async (c) => {
   if (!r) return c.json({ error: 'not_found' }, 404)
   const q = await c.env.DB.prepare("SELECT id,gov_fils FROM quotes WHERE request_id=? AND status='accepted' ORDER BY version DESC LIMIT 1").bind(r.id).first<{ id: string; gov_fils: number }>()
   if (!q) return c.json({ error: 'no_invoice' }, 409)
-  if (q.gov_fils > 0) return c.json({ error: 'government_fee_set' }, 409)
+  if (q.gov_fils > 0 || (await govFor(c.env, r.id)).total > 0) return c.json({ error: 'government_fee_set' }, 409)
   const b = await jsonBody(c)
   if (!isFils(b?.amountFils) || b.amountFils > 100000000) return c.json({ error: 'invalid_request' }, 400)
   const url = parseGovUrl(c.env, b?.url)

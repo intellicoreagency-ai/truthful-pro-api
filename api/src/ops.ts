@@ -75,6 +75,7 @@ export async function workFor(env: Env, r: Req, now = Date.now()): Promise<Work>
   const gate = pol?.pay_gate ?? 'authority'
   const del = await env.DB.prepare("SELECT (SELECT COUNT(*) FROM deliveries WHERE request_id=?1 AND status='draft') draft, COALESCE((SELECT MAX(version) FROM deliveries WHERE request_id=?1 AND status='published'),0) v, (SELECT COUNT(*) FROM receipt_acks a WHERE a.request_id=?1 AND a.delivery_version=(SELECT MAX(version) FROM deliveries WHERE request_id=?1 AND status='published')) acked, (SELECT COUNT(*) FROM delivery_problems WHERE request_id=?1 AND status='open') probs, (SELECT COUNT(*) FROM request_files WHERE request_id=?1 AND kind='source' AND deleted_at IS NULL AND scan_status!='clean') unscanned, (SELECT COUNT(*) FROM refund_requests WHERE request_id=?1 AND status IN ('requested','approved')) openRefunds").bind(r.id).first<{ draft: number; v: number; acked: number; probs: number; unscanned: number; openRefunds: number }>()
   const dState: Work['delivery']['state'] = del && del.v > 0 ? (del.acked > 0 ? 'received' : 'awaiting_receipt') : del && del.draft > 0 ? 'draft' : 'none'
+  const pendingQuote = await env.DB.prepare("SELECT version FROM quotes WHERE request_id=? AND status='issued'").bind(r.id).first<{ version: number }>()
   const unpaidCompany = !!tot.invoice && tot.remaining > 0
   const govUnpaid = gov.total > 0 && gov.state !== 'paid'
   const payUnmet = gate === 'authority' ? (!tot.invoice || tot.remaining > 0 || tot.pending > 0 || govUnpaid) : false
@@ -82,10 +83,11 @@ export async function workFor(env: Env, r: Req, now = Date.now()): Promise<Work>
   let next = T('none', 'لا إجراء مطلوب', 'No action needed', 'none')
   const s = r.status
   if (s === 'submitted') next = r.assignee_id ? T('start_review', 'ابدأ مراجعة المستفيد والبيانات والملفات', 'Start reviewing the beneficiary, data and files') : T('assign', 'عيّن موظفاً مسؤولاً ثم ابدأ المراجعة', 'Assign an owner, then start the review', 'manager')
-  else if (s === 'review') next = (del?.unscanned ?? 0) > 0 ? T('await_scan', 'بانتظار فحص الملفات الأمني', 'Waiting for the security scan', 'none') : !tot.invoice ? T('issue_invoice', 'أصدر فاتورة أتعاب الشركة', 'Issue the Company fee invoice', 'finance') : T('finish_review', 'أكمل مراجعة الملفات: اعتمدها أو اطلب الاستكمال', 'Finish reviewing the files: accept them or request what is missing')
+  else if (s === 'review') next = (del?.unscanned ?? 0) > 0 ? T('await_scan', 'بانتظار فحص الملفات الأمني', 'Waiting for the security scan', 'none') : pendingQuote && !tot.invoice ? T('await_quote_approval', 'بانتظار موافقة العميل على عرض السعر', 'Waiting for the customer to approve the quotation', 'none') : !tot.invoice ? T('send_quote', 'سعّر الطلب وأرسل عرض السعر للعميل للموافقة', 'Price the request and send the quotation for the customer\'s approval', 'finance') : T('finish_review', 'أكمل مراجعة الملفات: اعتمدها أو اطلب الاستكمال', 'Finish reviewing the files: accept them or request what is missing')
   else if (s === 'needs_documents') { waitingOn = 'customer'; next = T('chase_customer', 'تابع العميل لاستكمال النواقص', 'Follow up with the customer for the missing items') }
   else if (s === 'ready_for_authority') {
-    if (tot.pending > 0) next = T('verify_payment', 'تحقق من دفعة العميل المعلّقة', 'Verify the customer\'s pending payment', 'finance')
+    if (pendingQuote) { waitingOn = 'customer'; next = T('await_quote_approval', 'بانتظار موافقة العميل على عرض السعر', 'Waiting for the customer to approve the quotation', 'none') }
+    else if (tot.pending > 0) next = T('verify_payment', 'تحقق من دفعة العميل المعلّقة', 'Verify the customer\'s pending payment', 'finance')
     else if (payUnmet) { waitingOn = 'customer'; next = T('await_payment', govUnpaid && !unpaidCompany ? 'بانتظار دفع العميل الرسم الحكومي للجهة' : 'بانتظار دفع العميل أتعاب الشركة', govUnpaid && !unpaidCompany ? 'Waiting for the customer to pay the government fee' : 'Waiting for the customer to pay the Company fee', 'none') }
     else next = T('submit_authority', 'قدّم المعاملة للجهة وسجّل المرجع والتاريخ', 'Submit to the authority and record the reference and date')
   } else if (s === 'authority') { waitingOn = 'authority'; next = T('follow_authority', 'تابع الجهة؛ سجّل القرار أو طلبها لمستندات إضافية', 'Follow up with the authority; record the decision or its request for more documents') }
@@ -107,6 +109,7 @@ export async function workFor(env: Env, r: Req, now = Date.now()): Promise<Work>
   let c = { ar: 'استلمنا طلبك وفريقنا يعمل عليه.', en: 'We have your request and our team is working on it.', actionRequired: false, action: null as string | null }
   if (s === 'needs_documents') c = { ar: 'مطلوب منك: أرسل المستندات المطلوبة لنكمل.', en: 'Needed from you: send the requested documents so we can continue.', actionRequired: true, action: 'send_documents' }
   else if (s === 'completed' && dState === 'awaiting_receipt') c = { ar: 'ملفاتك جاهزة: عاينها وأكد الاستلام.', en: 'Your files are ready: open them and confirm receipt.', actionRequired: true, action: 'confirm_receipt' }
+  else if (pendingQuote && !['completed', 'rejected', 'cancelled'].includes(s)) c = { ar: 'مطلوب منك: راجع عرض السعر ووافق عليه أو اعتذر عنه.', en: 'Needed from you: review the quotation, then approve or decline it.', actionRequired: true, action: 'approve_quote' }
   else if (['submitted', 'review', 'needs_documents', 'ready_for_authority'].includes(s) && unpaidCompany && tot.pending === 0) c = { ar: 'مطلوب منك: ادفع أتعاب الشركة (تحويل بنكي أو نقداً) وارفع إثبات التحويل.', en: 'Needed from you: pay the Company fee (bank transfer or cash) and upload the transfer proof.', actionRequired: true, action: 'pay_company_fee' }
   else if (['ready_for_authority', 'authority'].includes(s) && govUnpaid && gov.reported === 0) c = { ar: 'مطلوب منك: ادفع الرسم الحكومي للجهة عبر الرابط الرسمي ثم أبلغنا.', en: 'Needed from you: pay the government fee to the authority through the official link, then tell us.', actionRequired: true, action: 'pay_government_fee' }
   else if (s === 'authority') c = { ar: 'قُدّمت معاملتك للجهة وننتظر ردها.', en: 'Your transaction is with the authority; we are waiting for its reply.', actionRequired: false, action: null }
@@ -118,7 +121,7 @@ export async function workFor(env: Env, r: Req, now = Date.now()): Promise<Work>
   const closed = s === 'cancelled' || s === 'rejected' || (s === 'completed' && waitingOn === 'none')
   return {
     waitingOn, next, followUpAt: r.follow_up_at, overdue: !closed && !!r.follow_up_at && r.follow_up_at < now,
-    payment: { company: tot.state, government: gov.state }, delivery: { state: dState, version: del?.v ?? 0 }, openProblem: (del?.probs ?? 0) > 0, customer: c,
+    payment: { company: pendingQuote && !tot.invoice ? 'awaiting_approval' : tot.state, government: gov.state }, delivery: { state: dState, version: del?.v ?? 0 }, openProblem: (del?.probs ?? 0) > 0, customer: c,
   }
 }
 export { creditFor }

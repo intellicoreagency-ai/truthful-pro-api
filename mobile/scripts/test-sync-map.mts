@@ -83,6 +83,13 @@ const withGov=toClientRequest(row({status:'review'}),{files:[file(F1)],finance:{
 assert.equal(withGov.finance!.gov!.total,35000);assert.equal(withGov.finance!.gov!.entries[0]!.status,'verified');assert.equal(withGov.finance!.gov!.payUrl,'https://mol.gov.ae/p');
 const unpriced=toClientRequest(row(),{files:[file(F1)],finance:{quotes:[],payments:[],documents:[],totals:{total:0,paid:0,refunded:0,pending:0,remaining:0,state:'unpriced',invoice:null}}});
 assert.equal(unpriced.money.quoted,false);assert.equal(unpriced.finance!.quote,undefined);
+// a quotation waiting for the customer's approval is shown as pending; it is never the accepted price and creates no invoice in the app
+const waiting=toClientRequest(row({status:'review'}),{files:[file(F1)],finance:{quotes:[{id:'q9',version:1,status:'issued',number:'T-QUO-2026-000009',document_id:'d9',total_fils:70000,items:[{kind:'service_fee',description_ar:'أ',description_en:'fee',amount_fils:70000}]}],payments:[],documents:[{id:'d9',doc_type:'quote',number:'T-QUO-2026-000009',status:'issued',total_fils:70000,created_at:1_700_000_000_000}],totals:{total:0,paid:0,refunded:0,pending:0,remaining:0,state:'unpriced',invoice:null}}});
+assert.equal(waiting.finance!.pendingQuote!.id,'q9');assert.equal(waiting.finance!.pendingQuote!.documentId,'d9');assert.equal(waiting.finance!.pendingQuote!.total,70000);
+assert.equal(waiting.finance!.quote,undefined,'a quotation not yet approved is not the price');assert.equal(waiting.finance!.invoice,undefined);assert.equal(waiting.money.quoted,false);
+// a re-quote waiting while an earlier price is accepted: both are visible, the accepted one still governs
+const requote=toClientRequest(row({status:'review'}),{files:[file(F1)],finance:{...money10,quotes:[...money10.quotes,{id:'q3',version:3,status:'issued',number:'T-QUO-2026-000003',total_fils:120000,items:[{kind:'service_fee',description_ar:'أ',description_en:'s',amount_fils:120000}]}]}});
+assert.equal(requote.finance!.quote!.version,2);assert.equal(requote.finance!.pendingQuote!.version,3);assert.equal(requote.finance!.totals.total,100000);
 
 assert.ok(isServerId(U));assert.ok(!isServerId('abc-123'));
 console.log('PASS: server-to-app mapping (status, timeline, requested documents, delivery, dates, pending uploads).');

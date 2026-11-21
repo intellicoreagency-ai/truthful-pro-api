@@ -158,6 +158,14 @@ export async function reportAuthorityPayment(remoteRequestId:string,proof:Client
   const proofFileId=proof&&bytes?await upload(remoteRequestId,proof,bytes):undefined;
   return json<{id:string;status:string}>(await call('POST',`/v1/requests/${remoteRequestId}/authority-payments`,{body:{amountFils:p.amountFils,reference:p.reference,proofFileId,clientKey:p.clientKey}}));
 }
+/** The customer approves the exact quotation version they were shown; the server then issues the invoice. Safe to retry (a replay returns the same invoice). */
+export async function acceptQuote(remoteRequestId:string,quoteId:string,version:number){
+  return json<{ok:boolean;invoiceId:string;number:string|null;replay:boolean}>(await call('POST',`/v1/requests/${remoteRequestId}/quotes/${quoteId}/accept`,{body:{version}}));
+}
+/** The customer declines the quotation (optional reason). The team can send a new version. Safe to retry. */
+export async function declineQuote(remoteRequestId:string,quoteId:string,reason:string){
+  return json<{ok:boolean;replay:boolean}>(await call('POST',`/v1/requests/${remoteRequestId}/quotes/${quoteId}/decline`,{body:{reason}}));
+}
 /** Opens a tracked delivery-problem case for the team (the server keeps it; nothing about the request is deleted). */
 export async function reportDeliveryProblem(remoteRequestId:string,text:string){await call('POST',`/v1/requests/${remoteRequestId}/problems`,{body:{text}})}
 export async function fetchDocumentHtml(docId:string):Promise<string>{return await (await call('GET',`/v1/documents/${docId}`)).text()}

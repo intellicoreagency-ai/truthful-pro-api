@@ -5,7 +5,7 @@ import { Card, useAsync } from './ui'
 import { SERVICE_NAMES } from './serviceNames'
 import { aedToFils, fmtFils } from './Finance'
 
-/** The Company's own fee per service. When a customer submits that service, an invoice for this fee is issued automatically. */
+/** PLACEHOLDER reference amounts per service (dummy data, not approved prices). Nothing is invoiced from them: every request is priced by a quotation the customer approves. */
 export function Fees({ canEdit }: { canEdit: boolean }) {
   const { t, lang } = useI18n()
   const { data, reload } = useAsync(() => api.fees(), [])
@@ -19,6 +19,7 @@ export function Fees({ canEdit }: { canEdit: boolean }) {
   return (
     <>
       <h1>{t('feesTitle')}</h1>
+      <div className="msg bad" role="note">{t('feesDummy')}</div>
       <p className="muted">{t('feesNote')}</p>
       {msg && <div className="msg">{msg}</div>}
       <Card>

@@ -8,7 +8,7 @@ import {Txt,type Lang} from '../ui/Txt';
 import {GlassButton,GlassCard,GlassField,Note,SectionTitle,ValueRow,g,ltr,rowFor,useReduceTransparency} from '../ui/Glass';
 import {makeId,type ClientFile,type ClientFinance,type ClientRequest} from '../clientModel';
 import {getBytes,openHtmlDocument,pickClientFile} from '../clientStorage';
-import {fetchDocumentHtml,reportAuthorityPayment,submitPayment} from '../api';
+import {acceptQuote,declineQuote,fetchDocumentHtml,reportAuthorityPayment,submitPayment} from '../api';
 import {tr} from '../i18n';
 
 type Act=(fn:()=>Promise<void>|void)=>void;
@@ -50,6 +50,35 @@ function GovSection({lang,r,gov,act,onChanged,setMessage}:{lang:Lang;r:ClientReq
   </View>;
 }
 
+/** A quotation waiting for the customer: nothing is invoiced until they approve this exact version. */
+function QuoteApproval({lang,r,q,act,onChanged,setMessage}:{lang:Lang;r:ClientRequest;q:NonNullable<ClientFinance['pendingQuote']>;act:Act;onChanged:()=>void;setMessage:(m:string)=>void}){
+  const tx=(a:string,e:string)=>tr({ar:a,en:e},lang);
+  const [declining,setDeclining]=useState(false);const [reason,setReason]=useState('');
+  const fees=q.items.filter(i=>i.kind==='service_fee'),gov=q.items.filter(i=>i.kind==='government_fee');
+  const fail=()=>setMessage(tx('تعذّر الإرسال. تحقق من الاتصال وحاول مجدداً','Could not send. Check your connection and try again'));
+  const accept=()=>act(async()=>{if(!r.remoteId)return;try{await acceptQuote(r.remoteId,q.id,q.version);onChanged()}catch(e){const c=(e as {code?:string}).code;if(c==='stale_quote'||c==='not_pending'){setMessage(tx('تغيّر عرض السعر. حدّث الصفحة لرؤية الإصدار الحالي','The quotation changed. Refresh to see the current version'));onChanged()}else fail()}});
+  const decline=()=>act(async()=>{if(!r.remoteId)return;try{await declineQuote(r.remoteId,q.id,reason.trim());setDeclining(false);setReason('');onChanged()}catch{fail()}});
+  return <View style={[g.note,{gap:10}]}>
+    <Txt lang={lang} bold style={g.sectionTitle}>{tx('عرض سعر بانتظار موافقتك','A quotation is waiting for your approval')}</Txt>
+    <Txt lang={lang} style={g.noteText}>{tx('لن تصدر الفاتورة إلا بعد موافقتك على هذا العرض.','No invoice is issued until you approve this quotation.')}</Txt>
+    <View>
+      {fees.map((i,k)=><ValueRow key={k} lang={lang} label={tr(i,lang)} value={money(i.amount)}/>)}
+      <ValueRow lang={lang} strong last label={tx('إجمالي أتعاب الشركة','Company fee total')} value={money(q.total)}/>
+    </View>
+    {gov.length>0&&<View>
+      {gov.map((i,k)=><ValueRow key={k} lang={lang} label={`${tr(i,lang)} — ${tx('تُدفع للجهة مباشرة','paid to the authority directly')}`} value={money(i.amount)} last={k===gov.length-1}/>)}
+    </View>}
+    {q.documentId&&<GlassButton lang={lang} compact label={tx('عرض عرض السعر','View the quotation')} onPress={()=>act(async()=>{await openHtmlDocument(q.number??'quotation',await fetchDocumentHtml(q.documentId!))})}/>}
+    {!declining&&<GlassButton lang={lang} primary icon="check" label={tx('أوافق على عرض السعر','I approve the quotation')} onPress={accept}/>}
+    {!declining&&<GlassButton lang={lang} label={tx('لا أوافق','I do not approve')} onPress={()=>setDeclining(true)}/>}
+    {declining&&<View style={{gap:10}}>
+      <GlassField lang={lang} label={tx('السبب (اختياري)','Reason (optional)')} accessibilityLabel={tx('السبب','Reason')} value={reason} onChangeText={setReason} maxLength={300}/>
+      <GlassButton lang={lang} primary label={tx('إرسال الاعتذار للفريق','Send to the team')} onPress={decline}/>
+      <GlassButton lang={lang} label={tx('رجوع','Back')} onPress={()=>setDeclining(false)}/>
+    </View>}
+  </View>;
+}
+
 export function FinancePanel({lang,r,act,onChanged,setMessage}:{lang:Lang;r:ClientRequest;act:Act;onChanged:()=>void;setMessage:(m:string)=>void}){
   const ar=lang==='ar',row=rowFor(lang),tx=(a:string,e:string)=>tr({ar:a,en:e},lang);
   const reduce=useReduceTransparency();
@@ -66,11 +95,12 @@ export function FinancePanel({lang,r,act,onChanged,setMessage}:{lang:Lang;r:Clie
   return <GlassCard reduce={reduce}>
     <SectionTitle lang={lang}>{tx('الفاتورة والدفع','Invoice & payment')}</SectionTitle>
     <Note lang={lang} tone="danger">{tx('نسخة تجريبية — لا قيمة مالية لهذه المستندات','TEST COPY — these documents have no financial value')}</Note>
+    {f.pendingQuote&&<QuoteApproval lang={lang} r={r} q={f.pendingQuote} act={act} onChanged={onChanged} setMessage={setMessage}/>}
     {f.quote?<View>
       {f.quote.items.filter(i=>i.kind==='service_fee').map((i,k)=><ValueRow key={k} lang={lang} label={`${kind[i.kind]?.[ar?0:1]}: ${tr(i,lang)}`} value={money(i.amount)}/>)}
       <ValueRow lang={lang} strong last label={`${tx('إجمالي أتعاب الشركة','Company fee total')}${f.invoice?.number?' ('+ltr(f.invoice.number)+')':''}`} value={money(f.quote.total)}/>
       <Txt lang={lang} style={g.noteText}>{tx('الضريبة غير مهيأة ولم تُحتسب. هذه المستندات ليست فواتير ضريبية.','Tax is not configured and was not calculated. These are not tax invoices.')}</Txt>
-    </View>:<Note lang={lang}>{tx('بانتظار إصدار الفاتورة من الفريق','Waiting for the team to issue your invoice')}</Note>}
+    </View>:f.pendingQuote?null:<Note lang={lang}>{tx('سيُسعّر الفريق طلبك ويرسل لك عرض سعر لتوافق عليه قبل أي فاتورة','The team will price your request and send you a quotation to approve before any invoice')}</Note>}
     {(f.credit??0)>0&&<Note lang={lang} tone="success">{tx('رصيدك الدائن لدينا (مبلغ زائد لم يُخصص لمعاملة): ','Your credit with us (excess not allocated to a transaction): ')}{money(f.credit!)}</Note>}
     {f.gov&&f.invoice&&<View style={g.note}>
       <Txt lang={lang} bold>{tx('التكلفة الكاملة لمعاملتك','Full cost of your transaction')}</Txt>

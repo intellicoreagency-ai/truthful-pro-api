@@ -8,7 +8,7 @@ import { staff } from './staff'
 import { scanBytes, scannerMode, uploadsBlocked } from './scanner'
 import { fireReminders, recordTransition, workFor } from './ops'
 import { emailMode, confirmEmail, enqueueInvoiceEmail, flushAll, setCustomerEmail, validEmail } from './mail'
-import { autoInvoice, creditFor, govFor, insertAuthorityPayment, insertPayment, isFils, renderDocument, totalsFor, type DocRow } from './finance'
+import { acceptQuote, creditFor, declineQuote, govFor, insertAuthorityPayment, insertPayment, isFils, renderDocument, totalsFor, type DocRow } from './finance'
 
 const ACCESS_TTL = 15 * 60 * 1000
 const REFRESH_TTL = 30 * 24 * 3600 * 1000
@@ -364,7 +364,6 @@ authed.patch('/requests/:id', async (c) => {
     const [ar, en] = status === 'submitted' ? ['تم إرسال الطلب', 'Request submitted'] : ['أُلغي الطلب', 'Request cancelled']
     await c.env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(newId(), id, ar, en, Date.now()).run()
     await recordTransition(c.env, { requestId: id, from: cur.status, to: status, actor: { kind: 'customer', id: c.get('userId') }, reason: typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) : null }).catch(() => null)
-    if (status === 'submitted') await autoInvoice(c.env, id).catch(() => null) // the fee invoice appears in the app straight away; a failure here never blocks submission
   }
   return c.json({ ok: true, applied: true, status: status ?? cur.status })
 })
@@ -406,20 +405,44 @@ authed.delete('/requests/:id', async (c) => {
 
 /** What a customer may see of the money side: issued quotes, the active invoice, their payments and documents. Never drafts or staff identities. */
 async function customerFinance(c: C, requestId: string) {
-  const qs = await c.env.DB.prepare("SELECT id,version,status,total_fils,gov_fils,issued_at,accepted_at,document_id FROM quotes WHERE request_id=? AND status!='draft' ORDER BY version").bind(requestId).all<{ id: string; version: number; status: string; total_fils: number; gov_fils: number; issued_at: number | null; accepted_at: number | null; document_id: string | null }>()
+  const qs = await c.env.DB.prepare("SELECT id,version,status,total_fils,gov_fils,issued_at,accepted_at,declined_at,decline_reason,quote_document_id,document_id FROM quotes WHERE request_id=? AND status!='draft' ORDER BY version").bind(requestId).all<{ id: string; version: number; status: string; total_fils: number; gov_fils: number; issued_at: number | null; accepted_at: number | null; declined_at: number | null; decline_reason: string | null; quote_document_id: string | null; document_id: string | null }>()
   const quotes = []
   for (const q of qs.results) {
     const items = await c.env.DB.prepare('SELECT kind,description_ar,description_en,amount_fils FROM quote_items WHERE quote_id=? ORDER BY position').bind(q.id).all()
-    const n = q.document_id ? await c.env.DB.prepare('SELECT number FROM fin_documents WHERE id=?').bind(q.document_id).first<{ number: string }>() : null
-    quotes.push({ id: q.id, version: q.version, status: q.status, number: n?.number ?? null, total_fils: q.total_fils, gov_fils: q.gov_fils, issued_at: q.issued_at, accepted_at: q.accepted_at, items: items.results })
+    const docId = q.quote_document_id ?? q.document_id
+    const n = docId ? await c.env.DB.prepare('SELECT number FROM fin_documents WHERE id=?').bind(docId).first<{ number: string }>() : null
+    quotes.push({ id: q.id, version: q.version, status: q.status, number: n?.number ?? null, document_id: q.quote_document_id, total_fils: q.total_fils, gov_fils: q.gov_fils, issued_at: q.issued_at, accepted_at: q.accepted_at, declined_at: q.declined_at, decline_reason: q.decline_reason, items: items.results })
   }
   const payments = await c.env.DB.prepare('SELECT id,kind,amount_fils,method,status,created_at,decided_at,decision_note,receipt_id FROM payments WHERE request_id=? ORDER BY created_at').bind(requestId).all()
   const documents = await c.env.DB.prepare('SELECT id,doc_type,number,status,total_fils,created_at FROM fin_documents WHERE request_id=? ORDER BY created_at').bind(requestId).all()
   const authority = await c.env.DB.prepare('SELECT id,amount_fils,reference,status,created_at,note FROM authority_payments WHERE request_id=? ORDER BY created_at').bind(requestId).all()
-  return { quotes, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, requestId), gov: await govFor(c.env, requestId), authorityPayments: authority.results,
+  const pending = quotes.find((q) => q.status === 'issued') ?? null // the quote waiting for the customer's approval, if any
+  return { quotes, pendingQuote: pending, payments: payments.results, documents: documents.results, totals: await totalsFor(c.env, requestId), gov: await govFor(c.env, requestId), authorityPayments: authority.results,
     credit: await creditFor(c.env, (await c.env.DB.prepare('SELECT user_id FROM requests WHERE id=?').bind(requestId).first<{ user_id: string }>())?.user_id ?? ''),
     refundRequests: (await c.env.DB.prepare("SELECT id,amount_fils,resolution,status,requested_at,executed_at FROM refund_requests WHERE request_id=? ORDER BY requested_at").bind(requestId).all()).results, tax: { configured: false }, test: true }
 }
+
+// The customer approves the quote they were shown (exact version). This is what issues the invoice: nothing is invoiced without it.
+authed.post('/requests/:id/quotes/:qid/accept', async (c) => {
+  const id = c.req.param('id'), qid = c.req.param('qid'), uid = c.get('userId')
+  if (!isUuid(id) || !isUuid(qid)) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const res = await acceptQuote(c.env, { requestId: id, quoteId: qid, version: b?.version, userId: uid, now: Date.now() })
+  if (!res.ok) return c.json({ error: res.error }, res.error === 'not_found' ? 404 : 409)
+  if (!res.replay) await audit(c, 'finance.quote_accepted', uid, { requestId: id, quoteId: qid, invoiceId: res.invoiceId })
+  const n = await c.env.DB.prepare('SELECT number FROM fin_documents WHERE id=?').bind(res.invoiceId).first<{ number: string }>()
+  return c.json({ ok: true, invoiceId: res.invoiceId, documentId: res.invoiceId, number: n?.number ?? null, replay: res.replay }, res.replay ? 200 : 201)
+})
+authed.post('/requests/:id/quotes/:qid/decline', async (c) => {
+  const id = c.req.param('id'), qid = c.req.param('qid'), uid = c.get('userId')
+  if (!isUuid(id) || !isUuid(qid)) return c.json({ error: 'not_found' }, 404)
+  const b = await jsonBody(c)
+  const reason = typeof b?.reason === 'string' ? b.reason.trim().slice(0, 300) || null : null
+  const res = await declineQuote(c.env, { requestId: id, quoteId: qid, userId: uid, reason, now: Date.now() })
+  if (!res.ok) return c.json({ error: res.error }, res.error === 'not_found' ? 404 : 409)
+  if (!res.replay) await audit(c, 'finance.quote_declined', uid, { requestId: id, quoteId: qid })
+  return c.json({ ok: true, replay: res.replay })
+})
 
 // The customer reports a manual payment with proof. It stays "pending verification" until an authorised staff member approves it.
 authed.post('/requests/:id/payments', async (c) => {

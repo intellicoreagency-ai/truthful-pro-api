@@ -1,6 +1,8 @@
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import { getPlatformProxy } from 'wrangler'
 import { readFileSync, readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { app } from '../src/index'
 import type { Env } from '../src/types'
 
@@ -31,10 +33,10 @@ beforeAll(async () => {
   const p = await getPlatformProxy<Env>({ configPath: new URL('../wrangler.toml', import.meta.url).pathname, persist: false })
   dispose = p.dispose
   env = { ...p.env, PEPPER: b64(32), DATA_KEY: b64(32), ENVIRONMENT: 'test', DEV_OTP_ECHO: '1', SCANNER_MODE: 'fake-test' } as Env
-  const dir = new URL('../migrations/', import.meta.url)
-  for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
-    const sql = readFileSync(new URL(file, dir), 'utf8')
-    const stmts = sql.split(/;\s*\n/).map((x) => x.trim()).filter(Boolean)
+  const dir = fileURLToPath(new URL('../migrations/', import.meta.url).href) // a path string: avoids the DOM/Node URL type clash
+  for (const file of readdirSync(dir).filter((f: string) => f.endsWith('.sql')).sort()) {
+    const sql: string = readFileSync(join(dir, file), 'utf8')
+    const stmts = sql.split(/;\s*\n/).map((x: string) => x.trim()).filter(Boolean)
     await env.DB.batch(stmts.map((x) => env.DB.prepare(x))) // one transaction per migration, like production
   }
 })
@@ -1075,7 +1077,10 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
   ] // company fee AED 1,000.00; government AED 350.00 is paid by the customer to the authority and is NOT in the total
   const draftQuote = (id: string, items: unknown = ITEMS, token = owner) => hit('POST', `/staff/v1/requests/${id}/quotes`, { items }, token)
   const fin = async (id: string) => (await (await hit('GET', `/staff/v1/requests/${id}/finance`, undefined, owner)).json()) as { quotes: { id: string; version: number; status: string; number: string | null; total_fils: number }[]; payments: { id: string; kind: string; status: string; amount_fils: number; receipt_id: string | null; refund_of: string | null }[]; documents: { id: string; doc_type: string; number: string; status: string; related_id: string | null }[]; totals: { total: number; paid: number; refunded: number; net: number; pending: number; remaining: number; state: string }; tax: { configured: boolean }; test: boolean }
-  const issueQuote = async (id: string, items: unknown = ITEMS) => { const q = (await (await draftQuote(id, items)).json()) as { id: string; version: number }; const r = await hit('POST', `/staff/v1/quotes/${q.id}/issue`, {}, owner); return { q, r } } // issuing creates the invoice for the Company fee (no quotation step)
+  // manual pricing per request: staff drafts and SENDS the quote; the invoice exists only once the CUSTOMER accepts that exact version
+  const sendQuote = async (id: string, items: unknown = ITEMS, token = owner) => { const q = (await (await draftQuote(id, items)).json()) as { id: string; version: number }; const r = await hit('POST', `/staff/v1/quotes/${q.id}/issue`, {}, token); return { q, r } }
+  const acceptQuote = (id: string, q: { id: string; version: number }, token = cust) => hit('POST', `/v1/requests/${id}/quotes/${q.id}/accept`, { version: q.version }, token)
+  const issueQuote = async (id: string, items: unknown = ITEMS) => { const { q, r: sent } = await sendQuote(id, items); if (sent.status !== 201) return { q, r: sent, sent }; return { q, r: await acceptQuote(id, q), sent } } // r = the customer's acceptance (it issues the invoice)
   const priced = async (id: string) => { const { q, r } = await issueQuote(id); const inv = await r.json() as { documentId: string; number: string }; return { q, inv } }
   const proof = async (id: string) => { await env.DB.prepare('DELETE FROM rate_limits').run(); return ((await (await hit('PUT', `/v1/requests/${id}/files`, undefined, cust, { 'x-file-name': 'transfer.pdf' }, pdf())).json()) as { id: string }).id }
   let refSeq = 0
@@ -1110,6 +1115,7 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
       expect((await hit('PATCH', `/staff/v1/quotes/${q.id}/pay-link`, { url: bad }, owner)).status).toBe(400)
     expect((await hit('PATCH', `/staff/v1/quotes/${q.id}/pay-link`, { url: 'https://mol.gov.ae/pay?x=1' }, owner)).status).toBe(200)
     expect((await hit('POST', `/staff/v1/quotes/${q.id}/issue`, {}, owner)).status).toBe(201)
+    expect((await acceptQuote(id, q)).status).toBe(201) // the customer approves it; that issues the invoice
     const t = (await fin(id)).totals
     expect(t).toMatchObject({ total: 100000, remaining: 100000 }) // government fees are not part of what the customer owes us
     const c = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { finance: { gov: { total: number; payUrl: string; remaining: number; state: string } } }
@@ -1158,30 +1164,93 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     await hit('POST', `/staff/v1/authority-payments/${a.id}/verify`, {}, owner)
     expect((await go()).status).toBe(200)
   })
-  it('the invoice for the Company fee is issued automatically at submission when the service has a fee; the government fee is attached once afterwards', async () => {
+  it('service fees are placeholders only: never invoiced automatically; each request is priced by a quotation the customer approves; the government fee is attached once afterwards', async () => {
     const agent = await staffToken('agent')
     expect((await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: 25000 }, agent)).status).toBe(403)
     expect((await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: 0 }, owner)).status).toBe(400)
     expect((await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: 25000 }, owner)).status).toBe(200)
+    const fees = await (await hit('GET', '/staff/v1/fees', undefined, owner)).json() as { placeholder: boolean; fees: { service_id: string; is_placeholder: number }[] }
+    expect(fees.placeholder).toBe(true); expect(fees.fees.find((f) => f.service_id === 'emirates-id')!.is_placeholder).toBe(1) // labelled as dummy data
+    expect(env.DB.prepare("UPDATE service_fees SET is_placeholder=0 WHERE service_id='emirates-id'").run()).rejects.toThrow() // cannot be turned into an approved price list
     const id = await submit() // creates + submits an emirates-id request
+    expect((await fin(id)).documents).toHaveLength(0) // a placeholder fee never creates an invoice
+    let cd = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { finance: { totals: { total: number }; documents: unknown[]; pendingQuote: unknown }; work: { stage: { action: string | null }; payment: { company: string } } }
+    expect(cd.finance.documents).toHaveLength(0); expect(cd.finance.pendingQuote).toBeNull(); expect(cd.work.stage.action).toBeNull()
+    // staff prices THIS request and sends it: the customer sees the quotation and is asked to approve it; still no invoice
+    const { q, r: sent } = await sendQuote(id, [ITEMS[1]])
+    expect(sent.status).toBe(201); expect(((await sent.json()) as { number: string }).number).toMatch(/^T-QUO-/)
+    cd = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as typeof cd
+    expect(cd.finance.pendingQuote).toMatchObject({ id: q.id, version: 1, total_fils: 70000 }); expect(cd.work.stage.action).toBe('approve_quote'); expect(cd.work.payment.company).toBe('awaiting_approval')
+    expect((await fin(id)).documents.map((d) => d.doc_type)).toEqual(['quote'])
+    // the customer accepts the exact version: the invoice is issued from it; accepting again changes nothing
+    expect((await hit('POST', `/v1/requests/${id}/quotes/${q.id}/accept`, { version: 2 }, cust)).status).toBe(409) // not the version they were shown
+    const acc = await acceptQuote(id, q); expect(acc.status).toBe(201)
+    expect(((await acc.json()) as { number: string }).number).toMatch(/^T-INV-/)
+    expect((await acceptQuote(id, q)).status).toBe(200) // replay: same invoice
     const f = await fin(id)
-    expect(f.documents.map((d) => d.doc_type)).toEqual(['invoice']); expect(f.documents[0]!.number).toMatch(/^T-INV-/)
-    expect(f.totals).toMatchObject({ total: 25000, remaining: 25000, state: 'awaiting_payment' })
-    const cd = await (await hit('GET', `/v1/requests/${id}`, undefined, cust)).json() as { finance: { totals: { total: number }; documents: unknown[] }; events: { text_en: string }[] }
-    expect(cd.finance.totals.total).toBe(25000); expect(cd.finance.documents).toHaveLength(1) // the customer sees it at once
-    // submitting again changes nothing: still one invoice
-    await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, cust)
-    expect((await fin(id)).documents.filter((d) => d.doc_type === 'invoice')).toHaveLength(1)
+    expect(f.documents.map((d) => d.doc_type)).toEqual(['quote', 'invoice']); expect(f.totals).toMatchObject({ total: 70000, remaining: 70000, state: 'awaiting_payment' })
     // government fee: attached once, official host only
     expect((await hit('POST', `/staff/v1/requests/${id}/government-fee`, { amountFils: 35000, url: 'https://evil.example.com/x' }, owner)).status).toBe(400)
     expect((await hit('POST', `/staff/v1/requests/${id}/government-fee`, { amountFils: 35000, url: 'https://mol.gov.ae/pay' }, owner)).status).toBe(200)
     expect((await hit('POST', `/staff/v1/requests/${id}/government-fee`, { amountFils: 99999 }, owner)).status).toBe(409) // cannot be changed afterwards
-    expect(env.DB.prepare('UPDATE quotes SET gov_fils=1 WHERE request_id=?').bind(id).run()).rejects.toThrow()
     const g = (await (await hit('GET', `/staff/v1/requests/${id}/finance`, undefined, owner)).json()) as { gov: { total: number; payUrl: string }; totals: { total: number } }
-    expect(g.gov).toMatchObject({ total: 35000, payUrl: 'https://mol.gov.ae/pay' }); expect(g.totals.total).toBe(25000)
-    // a service without a configured fee is not invoiced automatically
+    expect(g.gov).toMatchObject({ total: 35000, payUrl: 'https://mol.gov.ae/pay' }); expect(g.totals.total).toBe(70000)
     await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: null }, owner)
-    const id2 = await submit(); expect((await fin(id2)).documents).toHaveLength(0)
+  })
+  it('quotation approval: decline, re-quote, and a later price increase needs a new approval; money already paid is carried over, never lost or doubled', async () => {
+    const me = await login('+971521140098') // its own customer, so the credit checks below are not shared with other tests
+    const id = await submit(me)
+    const myProof = async () => { await env.DB.prepare('DELETE FROM rate_limits').run(); return ((await (await hit('PUT', `/v1/requests/${id}/files`, undefined, me, { 'x-file-name': 'transfer.pdf' }, pdf())).json()) as { id: string }).id }
+    const myPay = async (amount: number) => pay(id, amount, { token: me, file: await myProof() })
+    // the customer declines; the team sends a new version; another customer can never act on it
+    const v1 = await sendQuote(id, [ITEMS[1]])
+    const other = await login('+971521140099')
+    expect((await acceptQuote(id, v1.q, other)).status).toBe(404)
+    expect((await hit('POST', `/v1/requests/${id}/quotes/${v1.q.id}/decline`, { reason: 'Too high' }, me)).status).toBe(200)
+    expect((await hit('POST', `/v1/requests/${id}/quotes/${v1.q.id}/decline`, {}, me)).status).toBe(200) // replay
+    expect((await acceptQuote(id, v1.q, me)).status).toBe(409) // a declined quote cannot be accepted
+    expect((await fin(id)).documents.filter((d) => d.doc_type === 'invoice')).toHaveLength(0)
+    const v2 = await sendQuote(id, [{ ...ITEMS[1], amountFils: 60000 }])
+    // sending a newer version replaces one still waiting
+    const v3 = await sendQuote(id, [{ ...ITEMS[1], amountFils: 50000 }])
+    expect((await acceptQuote(id, v2.q, me)).status).toBe(409)
+    expect((await acceptQuote(id, v3.q, me)).status).toBe(201)
+    // the customer pays part of it; staff approves
+    const p1 = (await (await myPay(30000)).json()) as { id: string }; expect((await approve(p1.id)).status).toBe(200)
+    expect((await fin(id)).totals).toMatchObject({ total: 50000, net: 30000, remaining: 20000 })
+    // the price goes UP: a new quotation; until the customer approves it, the accepted price and invoice stand
+    const v4 = await sendQuote(id, [{ ...ITEMS[1], amountFils: 80000 }])
+    expect(v4.r.status).toBe(201)
+    let f = await fin(id)
+    expect(f.totals).toMatchObject({ total: 50000, net: 30000 }); expect(f.quotes.find((x) => x.id === v4.q.id)!.status).toBe('issued')
+    const cd = await (await hit('GET', `/v1/requests/${id}`, undefined, me)).json() as { work: { stage: { action: string } } }
+    expect(cd.work.stage.action).toBe('approve_quote')
+    // a pending payment would block replacing the invoice, so the quote cannot be sent while one waits
+    const p2 = (await (await myPay(10000)).json()) as { id: string }
+    expect((await sendQuote(id, [{ ...ITEMS[1], amountFils: 90000 }])).r.status).toBe(409)
+    expect((await acceptQuote(id, v4.q, me)).status).toBe(409) // nor accepted: verify the payment first
+    expect((await approve(p2.id)).status).toBe(200)
+    // accepted: old invoice voided with a credit note, new invoice at the new price, both payments carried over exactly once
+    expect((await acceptQuote(id, v4.q, me)).status).toBe(201)
+    f = await fin(id)
+    const invs = f.documents.filter((d) => d.doc_type === 'invoice')
+    expect(invs.map((d) => d.status)).toEqual(['void', 'issued'])
+    expect(f.documents.filter((d) => d.doc_type === 'credit_note')).toHaveLength(1)
+    expect(f.totals).toMatchObject({ total: 80000, net: 40000, remaining: 40000 })
+    const credit = await (await hit('GET', `/v1/requests/${id}`, undefined, me)).json() as { finance: { credit: { unallocated: number } } }
+    expect(credit.finance.credit.unallocated).toBe(0) // nothing lost, nothing counted twice
+    // the price goes DOWN below what was paid: the excess becomes the customer's credit, the invoice is fully paid
+    const v5 = await sendQuote(id, [{ ...ITEMS[1], amountFils: 25000 }])
+    expect((await acceptQuote(id, v5.q, me)).status).toBe(201)
+    f = await fin(id)
+    expect(f.totals).toMatchObject({ total: 25000, net: 25000, remaining: 0, state: 'paid' })
+    const c2 = await (await hit('GET', `/v1/requests/${id}`, undefined, me)).json() as { finance: { credit: { unallocated: number } } }
+    expect(c2.finance.credit.unallocated).toBe(15000)
+    // agents may draft but never send; the customer can never accept a draft
+    const agent = await staffToken('agent')
+    const d = (await (await draftQuote(id, [ITEMS[1]], agent)).json()) as { id: string; version: number }
+    expect((await hit('POST', `/staff/v1/quotes/${d.id}/issue`, {}, agent)).status).toBe(403)
+    expect((await acceptQuote(id, d, me)).status).toBe(409)
   })
   it('real scanner (clamav-http): configuration rules, explicit verdicts only; outage or odd answers stay pending, never clean', async () => {
     const { scanBytes, scannerMode, uploadsBlocked } = await import('../src/scanner')
@@ -1232,23 +1301,27 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
       }
     } finally { globalThis.fetch = real }
   })
-  it('email: welcome email first with a confirmation link; the invoice is emailed when the customer starts the transaction, only to a confirmed address', async () => {
+  it('email: welcome email first with a confirmation link; the invoice is emailed once the customer accepts the quotation, only to a confirmed address', async () => {
     const { mailbox } = await import('../src/mail')
     mailbox.length = 0
     const e = { ...wenv(), EMAIL_MODE: 'capture', PUBLIC_BASE_URL: 'https://api.test' } as Env
     const json = (o: unknown) => new TextEncoder().encode(JSON.stringify(o))
     const J = (method: string, path: string, token: string, body: unknown) => asEnv(e, method, path, token, json(body), { 'content-type': 'application/json' })
-    await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: 25000 }, owner)
     const t = await login('+971521190077')
     expect((await J('PATCH', '/v1/me', t, { email: 'not-an-email' })).status).toBe(400)
     expect((await J('PATCH', '/v1/me', t, { email: 'Hind.Test@Example.com' })).status).toBe(200)
     expect(mailbox).toHaveLength(1)
     expect(mailbox[0]!.to).toBe('hind.test@example.com'); expect(mailbox[0]!.subject).toContain('Welcome')
     expect(((await (await hit('GET', '/v1/me', undefined, t)).json()) as { user: { email_set: boolean; email_verified: boolean } }).user).toMatchObject({ email_set: true, email_verified: false })
-    // the customer starts the transaction: the invoice is created at once but NOT emailed to an unconfirmed address
+    // the customer starts the transaction: nothing is invoiced at submission
     const id = ((await (await hit('POST', '/v1/requests', { serviceId: 'emirates-id', data: { name: 'H', title: { ar: 'ت', en: 'T' } } }, t)).json()) as { id: string }).id
     await J('PATCH', `/v1/requests/${id}`, t, { status: 'submitted' })
-    expect((await fin(id)).documents.map((d) => d.doc_type)).toEqual(['invoice'])
+    expect((await fin(id)).documents).toHaveLength(0)
+    // staff sends a quotation; the customer accepts it: the invoice now exists but is NOT emailed to an unconfirmed address
+    const { q } = await sendQuote(id, [{ kind: 'service_fee', descriptionAr: 'أتعاب', descriptionEn: 'Fee', amountFils: 25000 }])
+    const acc = await asEnv(e, 'POST', `/v1/requests/${id}/quotes/${q.id}/accept`, t, json({ version: q.version }), { 'content-type': 'application/json' })
+    expect(acc.status).toBe(201)
+    expect((await fin(id)).documents.map((d) => d.doc_type)).toEqual(['quote', 'invoice'])
     expect(mailbox).toHaveLength(1)
     // confirming the address (link in the welcome email) releases the invoice email, after the welcome email
     const link = /confirm\?token=([^"&]+)/.exec(mailbox[0]!.html)![1]!
@@ -1267,7 +1340,6 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     const t2 = await login('+971521190078')
     await hit('PATCH', '/v1/me', { email: 'nobody@example.com' }, t2)
     expect(mailbox).toHaveLength(0)
-    await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: null }, owner)
   })
   it('cancellation after the government fee was paid: shows authority fee, earned fee and refundable amount; moves no money by itself', async () => {
     await hit('PUT', '/staff/v1/policies/emirates-id', { payGate: 'authority', retainPct: 30 }, owner)
@@ -1352,10 +1424,13 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
   const cwork = async (id: string, token = cust) => ((await (await hit('GET', `/v1/requests/${id}`, undefined, token)).json()) as { work: { stage: { actionRequired: boolean; action: string | null; ar: string }; payment: { company: string }; delivery: { state: string } } }).work
   const st = (id: string, body: Record<string, unknown>) => hit('POST', `/staff/v1/requests/${id}/status`, body, owner)
   it('full successful cycle: next action and waiting party at every step; payment, status and delivery are independent; all moves logged; renewal reminders', async () => {
-    await hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: 25000 }, owner)
-    const id = await submit().finally(() => hit('PUT', '/staff/v1/fees/emirates-id', { feeFils: null }, owner)) // 3: server received it, numbered it, invoice issued automatically
+    const id = await submit() // 3: server received it and numbered it; nothing is invoiced yet
     let d = await sdet(id)
     expect(d.work).toMatchObject({ waitingOn: 'staff', next: { code: 'assign' } }) // 4: someone must own it
+    // 5: the team prices this request; the customer approves the quotation; that issues the invoice
+    const { q: fq } = await sendQuote(id, [{ kind: 'service_fee', descriptionAr: 'أتعاب الشركة', descriptionEn: 'Company fee', amountFils: 25000 }])
+    expect((await cwork(id)).stage.action).toBe('approve_quote')
+    expect((await acceptQuote(id, fq)).status).toBe(201)
     expect((await cwork(id)).stage.action).toBe('pay_company_fee') // the customer is told what is needed from them
     const mgr = await staffToken('manager')
     await st(id, { status: 'review' }); d = await sdet(id)
@@ -1499,7 +1574,10 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     const q = await (await draftQuote(id, ITEMS, agent)).json() as { id: string; version: number }
     expect((await hit('POST', `/staff/v1/quotes/${q.id}/issue`, {}, agent)).status).toBe(403)
     const iss = await hit('POST', `/staff/v1/quotes/${q.id}/issue`, {}, accountant)
-    expect(iss.status).toBe(201); expect((await iss.json() as { number: string }).number).toMatch(/^T-INV-\d{4}-\d{6}$/)
+    expect(iss.status).toBe(201); expect((await iss.json() as { number: string }).number).toMatch(/^T-QUO-\d{4}-\d{6}$/) // sent for approval: a quotation, not an invoice
+    expect((await acceptQuote(id, q, await login('+971521190031'))).status).toBe(404) // another customer cannot approve it
+    const acc = await acceptQuote(id, q)
+    expect(acc.status).toBe(201); expect((await acc.json() as { number: string }).number).toMatch(/^T-INV-\d{4}-\d{6}$/)
     const other = await login('+971521190030')
     expect((await pay(id, 1000, { token: other })).status).toBe(404)
     const docId = (await fin(id)).documents[0]!.id
@@ -1507,25 +1585,25 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect((await hit('GET', `/v1/documents/${docId}`, undefined, cust)).status).toBe(200)
     expect((await hit('GET', `/staff/v1/documents/${docId}`, undefined, accountant)).status).toBe(200)
   })
-  it('issuing creates the invoice at once (no quotation); the fee statement is frozen; re-pricing needs the invoice cancelled and a new version supersedes it', async () => {
+  it('sending creates a quotation, not an invoice; the customer\'s acceptance issues the invoice; a sent statement is frozen; re-pricing is a new version the customer accepts again', async () => {
     const id = await submit()
-    const { q, r } = await issueQuote(id); expect(r.status).toBe(201)
-    expect((await fin(id)).documents.map((d) => d.doc_type)).toEqual(['invoice']) // no quote document is produced
+    const { q, r, sent } = await issueQuote(id); expect(sent.status).toBe(201); expect(r.status).toBe(201)
+    expect((await fin(id)).documents.map((d) => d.doc_type)).toEqual(['quote', 'invoice']) // the quotation the customer saw, then the invoice
     expect((await fin(id)).quotes[0]!.status).toBe('accepted')
-    // the database itself refuses edits to an issued statement
+    // the database itself refuses edits to a sent statement
     expect(env.DB.prepare('UPDATE quote_items SET amount_fils=1 WHERE quote_id=?').bind(q.id).run()).rejects.toThrow()
     expect(env.DB.prepare('DELETE FROM quote_items WHERE quote_id=?').bind(q.id).run()).rejects.toThrow()
     expect(env.DB.prepare('UPDATE quotes SET total_fils=1 WHERE id=?').bind(q.id).run()).rejects.toThrow()
     expect(env.DB.prepare('DELETE FROM quotes WHERE id=?').bind(q.id).run()).rejects.toThrow()
-    // with an invoice in force, re-pricing needs the invoice cancelled first
+    // re-pricing: a new version is sent; the accepted price and its invoice stand until the customer accepts the new one
     const v2 = (await (await draftQuote(id, [ITEMS[0], { ...ITEMS[1], amountFils: 60000 }])).json()) as { id: string; version: number }
     expect(v2.version).toBe(2)
-    expect((await hit('POST', `/staff/v1/quotes/${v2.id}/issue`, {}, owner)).status).toBe(409)
-    const inv = (await fin(id)).documents[0]!
-    expect((await hit('POST', `/staff/v1/invoices/${inv.id}/cancel`, { reason: 'Re-priced after documents review' }, owner)).status).toBe(200)
     expect((await hit('POST', `/staff/v1/quotes/${v2.id}/issue`, {}, owner)).status).toBe(201)
-    const f = await fin(id); expect(f.quotes.map((x) => x.status)).toEqual(['superseded', 'accepted'])
+    let f = await fin(id); expect(f.quotes.map((x) => x.status)).toEqual(['accepted', 'issued']); expect(f.totals.total).toBe(100000)
+    expect((await acceptQuote(id, v2)).status).toBe(201)
+    f = await fin(id); expect(f.quotes.map((x) => x.status)).toEqual(['superseded', 'accepted'])
     expect(f.totals.total).toBe(60000)
+    expect(f.documents.filter((d) => d.doc_type === 'invoice').map((d) => d.status)).toEqual(['void', 'issued'])
   })
   it('financial documents are immutable and carry the test marking; tax is never zero-rated or described as a tax invoice', async () => {
     const id = ((await (await hit('POST', '/v1/requests', { serviceId: 'emirates-id', data: { name: '<script>alert(1)</script>', title: { ar: 'خدمة', en: '<b>x</b>' } } }, cust)).json()) as { id: string }).id

@@ -217,7 +217,8 @@ export async function refundable(env: Env, invoiceId: string): Promise<number> {
 // ---------- the customer's own payment to the authority (tracked; never part of the company's balance) ----------
 export type GovState = 'none' | 'unpaid' | 'reported' | 'paid'
 export async function govFor(env: Env, requestId: string) {
-  const q0 = await env.DB.prepare("SELECT id,version,gov_fils,gov_pay_url,gov_beneficiary FROM quotes WHERE request_id=? AND status IN ('issued','accepted') ORDER BY version DESC LIMIT 1").bind(requestId).first<{ id: string; version: number; gov_fils: number; gov_pay_url: string | null; gov_beneficiary: string | null }>()
+  // The government statement belongs to the quote the customer accepted when it was set; a later company-fee re-quote does not move it.
+  const q0 = await env.DB.prepare("SELECT id,version,gov_fils,gov_pay_url,gov_beneficiary FROM quotes WHERE request_id=? AND accepted_at IS NOT NULL ORDER BY (gov_fils>0) DESC, version DESC LIMIT 1").bind(requestId).first<{ id: string; version: number; gov_fils: number; gov_pay_url: string | null; gov_beneficiary: string | null }>()
   const adj = q0 ? (await env.DB.prepare('SELECT COALESCE(SUM(delta_fils),0) d FROM gov_adjustments WHERE quote_id=?').bind(q0.id).first<{ d: number }>())?.d ?? 0 : 0
   const q = q0 ? { ...q0, expected: q0.gov_fils, adjustments: adj, gov_fils: q0.gov_fils + adj } : null
   if (!q || q.gov_fils <= 0) return { quoteId: q?.id ?? null, beneficiary: null as string | null, expected: 0, adjustments: 0, total: 0, payUrl: null as string | null, verified: 0, reported: 0, remaining: 0, state: 'none' as GovState }
@@ -232,7 +233,7 @@ export async function insertAuthorityPayment(env: Env, p: { id: string; requestI
     const r = await env.DB.prepare(
       `INSERT INTO authority_payments (id,request_id,quote_id,amount_fils,reference,proof_file_id,status,client_key,reported_by_kind,reported_by,created_at)
        SELECT ?,?,?,?,?,?,'reported',?,?,?,?
-       WHERE EXISTS (SELECT 1 FROM quotes WHERE id=? AND request_id=? AND status IN ('issued','accepted') AND gov_fils>0)
+       WHERE EXISTS (SELECT 1 FROM quotes WHERE id=? AND request_id=? AND accepted_at IS NOT NULL AND gov_fils>0)
          AND ? <= (SELECT gov_fils FROM quotes WHERE id=?) + COALESCE((SELECT SUM(delta_fils) FROM gov_adjustments WHERE quote_id=?),0) - COALESCE((SELECT SUM(amount_fils) FROM authority_payments WHERE quote_id=? AND status IN ('reported','verified')),0)`
     ).bind(p.id, p.requestId, p.quoteId, p.amount, p.reference, p.proofFileId, p.clientKey, p.byKind, p.by, p.now, p.quoteId, p.requestId, p.amount, p.quoteId, p.quoteId, p.quoteId).run()
     return r.meta.changes ? { ok: true } : { ok: false, error: 'exceeds_government_total' }
@@ -244,29 +245,71 @@ export async function insertAuthorityPayment(env: Env, p: { id: string; requestI
   }
 }
 
-/** Issues the invoice for the Company's own fee for this service, once, when a request is submitted. No fee configured for the service -> nothing happens (staff price it manually). */
-export async function autoInvoice(env: Env, requestId: string): Promise<{ documentId: string } | null> {
-  const r = await env.DB.prepare("SELECT r.id,r.user_id,r.service_id,r.data,u.display_name FROM requests r JOIN users u ON u.id=r.user_id WHERE r.id=? AND r.deleted_at IS NULL AND r.status!='draft'").bind(requestId).first<{ id: string; user_id: string; service_id: string; data: string; display_name: string | null }>()
-  if (!r) return null
-  const fee = await env.DB.prepare('SELECT fee_fils FROM service_fees WHERE service_id=?').bind(r.service_id).first<{ fee_fils: number }>()
-  if (!fee) return null
-  if (await env.DB.prepare("SELECT 1 x FROM fin_documents WHERE request_id=? AND doc_type='invoice' AND status='issued'").bind(requestId).first()) return null
-  let d: any = {}; try { d = JSON.parse(r.data) } catch { /* */ }
-  const now = Date.now(), qid = crypto.randomUUID(), docId = crypto.randomUUID()
-  const ar = 'أتعاب الشركة', en = 'Company fee'
-  const snapshot = { customerName: d.name || r.display_name || '', requestTitle: d.title ?? null, requestRef: r.id.slice(0, 8), lines: [{ kind: 'service_fee', ar, en, amount: fee.fee_fils }], totals: { total: fee.fee_fils, paid: 0, refunded: 0, remaining: fee.fee_fils }, govTotal: 0, extra: { version: 1, auto: true } }
-  try {
-    const mx = await env.DB.prepare('SELECT MAX(version) v FROM quotes WHERE request_id=?').bind(requestId).first<{ v: number | null }>()
-    const version = (mx?.v ?? 0) + 1
-    await env.DB.batch([
-      env.DB.prepare("INSERT INTO quotes (id,request_id,version,status,total_fils,gov_fils,created_by,created_at) VALUES (?,?,?,'draft',?,0,'system',?)").bind(qid, requestId, version, fee.fee_fils, now),
-      env.DB.prepare('INSERT INTO quote_items (id,quote_id,kind,description_ar,description_en,amount_fils,position) VALUES (?,?,?,?,?,?,0)').bind(crypto.randomUUID(), qid, 'service_fee', ar, en, fee.fee_fils),
-      env.DB.prepare("UPDATE quotes SET status='superseded' WHERE request_id=? AND status IN ('issued','accepted')").bind(requestId),
-      env.DB.prepare("UPDATE quotes SET status='accepted', issued_at=?, issued_by='system', accepted_at=?, document_id=? WHERE id=? AND status='draft'").bind(now, now, docId, qid),
-      ...(await documentStatements(env, { id: docId, requestId, type: 'invoice', relatedId: qid, totalFils: fee.fee_fils, snapshot, createdBy: 'system', now })),
-      env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'staff','status',?,?,1,?)").bind(crypto.randomUUID(), requestId, 'صدرت فاتورة أتعاب الشركة تلقائياً (نسخة تجريبية)', 'The invoice for the Company fee was issued automatically (test copy)', now),
-    ])
-    await enqueueInvoiceEmail(env, r.user_id, docId).catch(() => null) // emailed (after the welcome email) once the customer's address is confirmed
-    return { documentId: docId }
-  } catch { return null }
+/**
+ * The customer accepts the quote that is waiting for them. ONE transaction:
+ *   the quote becomes 'accepted' (any earlier accepted version is superseded) and the invoice is issued from exactly its lines.
+ *   If an earlier invoice is active (a re-quote), it is voided with a credit note and the money already allocated to it is carried
+ *   to the new invoice (reverse + allocate ledger entries); anything above the new total stays as the customer's unallocated credit.
+ * Idempotent: accepting an already-accepted quote returns its invoice. Refused while payments wait for verification or a refund is open.
+ */
+export type AcceptResult = { ok: true; invoiceId: string; replay: boolean } | { ok: false; error: 'not_found' | 'not_pending' | 'stale_quote' | 'pending_payments' | 'open_refund' | 'conflict' }
+export async function acceptQuote(env: Env, p: { requestId: string; quoteId: string; version: unknown; userId: string; now: number }): Promise<AcceptResult> {
+  const q = await env.DB.prepare('SELECT q.id,q.version,q.status,q.total_fils,q.gov_fils,q.document_id FROM quotes q JOIN requests r ON r.id=q.request_id WHERE q.id=? AND q.request_id=? AND r.user_id=? AND r.deleted_at IS NULL')
+    .bind(p.quoteId, p.requestId, p.userId).first<{ id: string; version: number; status: string; total_fils: number; gov_fils: number; document_id: string | null }>()
+  if (!q) return { ok: false, error: 'not_found' }
+  if (q.status === 'accepted' && q.document_id) return { ok: true, invoiceId: q.document_id, replay: true }
+  if (q.status !== 'issued') return { ok: false, error: 'not_pending' }
+  if (p.version !== q.version) return { ok: false, error: 'stale_quote' } // the customer approves the exact version they were shown
+  const r = await env.DB.prepare("SELECT r.id,r.data,u.display_name FROM requests r JOIN users u ON u.id=r.user_id WHERE r.id=?").bind(p.requestId).first<{ id: string; data: string; display_name: string | null }>()
+  const old = await env.DB.prepare("SELECT id,number,total_fils FROM fin_documents WHERE request_id=? AND doc_type='invoice' AND status='issued'").bind(p.requestId).first<{ id: string; number: string; total_fils: number }>()
+  if (old) {
+    const busy = await env.DB.prepare("SELECT (SELECT COUNT(*) FROM payments WHERE invoice_id=?1 AND kind='payment' AND status='pending_verification') pend, (SELECT COUNT(*) FROM refund_requests WHERE invoice_id=?1 AND status IN ('requested','approved')) refunds").bind(old.id).first<{ pend: number; refunds: number }>()
+    if ((busy?.pend ?? 0) > 0) return { ok: false, error: 'pending_payments' }
+    if ((busy?.refunds ?? 0) > 0) return { ok: false, error: 'open_refund' }
+  }
+  const items = (await env.DB.prepare('SELECT kind,description_ar,description_en,amount_fils FROM quote_items WHERE quote_id=? ORDER BY position').bind(q.id).all<{ kind: string; description_ar: string; description_en: string; amount_fils: number }>()).results
+  let d: any = {}; try { d = JSON.parse(r?.data ?? '{}') } catch { /* */ }
+  const meta = { customerName: d.name || r?.display_name || '', requestTitle: d.title ?? null, requestRef: p.requestId.slice(0, 8) }
+  const now = p.now, invId = crypto.randomUUID()
+  const carried = old ? (await env.DB.prepare('SELECT payment_id, SUM(amount_fils) net FROM allocations WHERE invoice_id=? GROUP BY payment_id HAVING SUM(amount_fils)>0 ORDER BY MIN(created_at)').bind(old.id).all<{ payment_id: string; net: number }>()).results : []
+  const paidBefore = carried.reduce((a, x) => a + x.net, 0)
+  const snapshot = { ...meta, lines: items.map((i) => ({ kind: i.kind, ar: i.description_ar, en: i.description_en, amount: i.amount_fils })), totals: { total: q.total_fils, paid: Math.min(paidBefore, q.total_fils), refunded: 0, remaining: Math.max(0, q.total_fils - paidBefore) }, govTotal: q.gov_fils, extra: { version: q.version, acceptedByCustomer: true, ...(old ? { originalNumber: old.number } : {}) } }
+  const stmts = [
+    env.DB.prepare("UPDATE quotes SET status='superseded' WHERE request_id=? AND status='accepted'").bind(p.requestId),
+    env.DB.prepare("UPDATE quotes SET status='accepted', accepted_at=?, accepted_by=?, document_id=? WHERE id=? AND status='issued'").bind(now, p.userId, invId, q.id),
+    // guard: if the quote was not accepted by THIS statement (declined or accepted concurrently), insert a NULL into a NOT NULL column so the whole batch rolls back
+    env.DB.prepare("INSERT INTO doc_counters (doc_type,year,next) SELECT 'guard',0,NULL WHERE NOT EXISTS (SELECT 1 FROM quotes WHERE id=? AND document_id=?)").bind(q.id, invId),
+  ]
+  if (old) {
+    const reason = `Replaced by quotation version ${q.version}, accepted by the customer`
+    stmts.push(env.DB.prepare("UPDATE fin_documents SET status='void', void_reason=?, voided_at=?, voided_by=? WHERE id=? AND status='issued'").bind(reason, now, p.userId, old.id))
+    stmts.push(...(await documentStatements(env, { id: crypto.randomUUID(), requestId: p.requestId, type: 'credit_note', relatedId: old.id, totalFils: old.total_fils, snapshot: { ...meta, lines: [], totals: {}, extra: { originalNumber: old.number, reason } }, createdBy: p.userId, now })))
+  }
+  stmts.push(...(await documentStatements(env, { id: invId, requestId: p.requestId, type: 'invoice', relatedId: q.id, totalFils: q.total_fils, snapshot, createdBy: p.userId, now })))
+  let room = q.total_fils
+  for (const a of carried) {
+    stmts.push(env.DB.prepare("INSERT INTO allocations (id,payment_id,request_id,invoice_id,amount_fils,kind,reason,created_by,created_at) VALUES (?,?,?,?,?,'reverse','moved to the new invoice',?,?)").bind(crypto.randomUUID(), a.payment_id, p.requestId, old!.id, -a.net, p.userId, now))
+    const take = Math.min(a.net, room)
+    if (take > 0) { stmts.push(env.DB.prepare("INSERT INTO allocations (id,payment_id,request_id,invoice_id,amount_fils,kind,reason,created_by,created_at) VALUES (?,?,?,?,?,'allocate','carried over from the replaced invoice',?,?)").bind(crypto.randomUUID(), a.payment_id, p.requestId, invId, take, p.userId, now)); room -= take }
+  }
+  stmts.push(env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(crypto.randomUUID(), p.requestId, `وافق العميل على عرض السعر (الإصدار ${q.version}) وصدرت الفاتورة (نسخة تجريبية)`, `The customer accepted the quotation (version ${q.version}); the invoice was issued (test copy)`, now))
+  try { await env.DB.batch(stmts) } catch {
+    const again = await env.DB.prepare("SELECT status,document_id FROM quotes WHERE id=?").bind(q.id).first<{ status: string; document_id: string | null }>()
+    return again?.status === 'accepted' && again.document_id ? { ok: true, invoiceId: again.document_id, replay: true } : { ok: false, error: 'conflict' }
+  }
+  await enqueueInvoiceEmail(env, p.userId, invId).catch(() => null) // emailed once the customer's address is confirmed
+  return { ok: true, invoiceId: invId, replay: false }
+}
+
+/** The customer declines the quote waiting for them, with an optional reason. The team can then send a new version. */
+export async function declineQuote(env: Env, p: { requestId: string; quoteId: string; userId: string; reason: string | null; now: number }): Promise<{ ok: true; replay: boolean } | { ok: false; error: 'not_found' | 'not_pending' }> {
+  const q = await env.DB.prepare('SELECT q.id,q.version,q.status,q.declined_at FROM quotes q JOIN requests r ON r.id=q.request_id WHERE q.id=? AND q.request_id=? AND r.user_id=? AND r.deleted_at IS NULL').bind(p.quoteId, p.requestId, p.userId).first<{ id: string; version: number; status: string; declined_at: number | null }>()
+  if (!q) return { ok: false, error: 'not_found' }
+  if (q.declined_at) return { ok: true, replay: true }
+  if (q.status !== 'issued') return { ok: false, error: 'not_pending' }
+  const [u] = await env.DB.batch([
+    env.DB.prepare("UPDATE quotes SET status='superseded', declined_at=?, decline_reason=? WHERE id=? AND status='issued'").bind(p.now, p.reason, q.id),
+    env.DB.prepare("INSERT INTO request_events (id,request_id,actor,kind,text_ar,text_en,visible,created_at) VALUES (?,?,'customer','status',?,?,1,?)").bind(crypto.randomUUID(), p.requestId, `اعتذر العميل عن عرض السعر (الإصدار ${q.version})`, `The customer declined the quotation (version ${q.version})`, p.now),
+  ])
+  return u!.meta.changes ? { ok: true, replay: false } : { ok: false, error: 'not_pending' }
 }

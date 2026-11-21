@@ -39,7 +39,8 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
   const draft = f.quotes.find((q) => q.status === 'draft')
   const live = [...f.quotes].filter((q) => q.status !== 'draft').pop()
   const stateLabel: Record<string, Key> = { unpriced: 'stUnpriced', awaiting_payment: 'stAwaiting', partial: 'stPartial', paid: 'stPaid', refunded: 'stRefunded' }
-  const qLabel: Record<string, Key> = { draft: 'quoteDraft', issued: 'quoteIssued', accepted: 'quoteAccepted', superseded: 'quoteSuperseded' }
+  const qLabel: Record<string, Key> = { draft: 'quoteDraft', issued: 'quoteIssued', accepted: 'quoteAccepted', superseded: 'quoteSuperseded', declined: 'quoteDeclined' }
+  const pending = f.quotes.find((q) => q.status === 'issued')
   const dLabel: Record<string, Key> = { quote: 'dQuote', invoice: 'dInvoice', receipt: 'dReceipt', credit_note: 'dCredit' }
   const kLabel: Record<string, Key> = { government_fee: 'kGov', service_fee: 'kSvc' }
   const pLabel: Record<string, Key> = { pending_verification: 'pPending', approved: 'pApproved', rejected: 'pRejected' }
@@ -63,10 +64,12 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
 
       <h3 style={{ marginTop: 14 }}>{t('feeStatement')}</h3>
       {f.quotes.filter((q) => q.status !== 'draft').map((q) => (
-        <div className="file" key={q.id}><span>v{q.version} · <span dir="ltr">{q.number}</span> · <span dir="ltr">{fmtFils(q.total_fils)}</span></span><span className={`badge ${q.status === 'accepted' ? 'b-completed' : q.status === 'issued' ? 'b-review' : 'b-draft'}`}>{t(qLabel[q.status] ?? 'quoteDraft')}</span></div>
+        <div className="file" key={q.id}><span>v{q.version} · <span dir="ltr">{q.number}</span>{q.invoiceNumber ? <> → <span dir="ltr">{q.invoiceNumber}</span></> : null} · <span dir="ltr">{fmtFils(q.total_fils)}</span>{q.declined_at && q.decline_reason ? <><br /><span className="muted small">{t('declineReason')}: {q.decline_reason}</span></> : null}</span><span className={`badge ${q.status === 'accepted' ? 'b-completed' : q.status === 'issued' ? 'b-review' : q.declined_at ? 'b-rejected' : 'b-draft'}`}>{t(qLabel[q.declined_at ? 'declined' : q.status] ?? 'quoteDraft')}</span></div>
       ))}
-      {!inv && (
+      {pending && <div className="msg" role="status">{t('quoteWaiting')}</div>}
+      {(
         <div style={{ marginTop: 8 }}>
+          <p className="muted small">{t(inv ? 'requoteNote' : 'quoteNote')}</p>
           <b className="small">{t('quoteDraft')}{draft ? ` v${draft.version}` : ''}</b>
           {lines.map((l, i) => (
             <div key={i} className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 8, margin: '6px 0' }}>
@@ -80,7 +83,7 @@ export function FinanceCard({ requestId, role, setPreview }: { requestId: string
           <div className="row">
             <button className="btn sm" onClick={() => setLines([...lines, { kind: 'service_fee', ar: '', en: '', amount: '' }])}>{t('addLine')}</button>
             <button className="btn sm" disabled={!valid} onClick={() => run(() => api.draftQuote(requestId, parsed.map((l) => ({ kind: l.kind, descriptionAr: l.ar.trim(), descriptionEn: l.en.trim(), amountFils: l.fils as number })), payUrl.trim()))}>{t('saveDraft')}</button>
-            {canFin && draft && <button className="btn primary sm" onClick={() => run(() => api.issueQuote(draft.id))}>{t('issueInvoice')}</button>}
+            {canFin && draft && <button className="btn primary sm" onClick={() => run(() => api.sendQuote(draft.id), t('quoteSent'))}>{t('sendQuote')}</button>}
           </div>
           {draft && <p className="muted small">{draft.items.map((i) => `${t(kLabel[i.kind] ?? 'kSvc')}: ${fmtFils(i.amount_fils)}`).join(' · ')}</p>}
         </div>
