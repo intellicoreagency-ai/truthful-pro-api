@@ -71,6 +71,7 @@ export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaul
       <SectionTitle lang={lang}>{tx('بيانات مقدم الطلب','Applicant details')}</SectionTitle>
       <GlassField lang={lang} label={tx('الاسم الكامل','Full name')} value={name} onChangeText={setName} autoComplete="name"/>
       <GlassField lang={lang} label={tx('رقم الهاتف','Phone number')} keyboardType="phone-pad" value={phone} onChangeText={setPhone} autoComplete="tel"/>
+      <GlassField lang={lang} label={tx('ملاحظات (اختياري)','Notes (optional)')} value={fields.notes??''} onChangeText={value=>setFields(a=>{const n={...a};if(value)n.notes=value;else delete n.notes;return n})} multiline maxLength={500}/>
       {hasAgeRule&&<>
         <GlassField lang={lang} label={tx('تاريخ ميلاد المكفول (YYYY-MM-DD)','Sponsored person date of birth (YYYY-MM-DD)')} accessibilityLabel={tx('تاريخ ميلاد المكفول','Sponsored person date of birth')}
           placeholder="YYYY-MM-DD" value={fields['applicant-dob']??''} onChangeText={value=>setFields(a=>({...a,'applicant-dob':value}))}/>

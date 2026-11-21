@@ -421,4 +421,5 @@ export const PHRASES:Record<string,[string,string,string,string]>={
 "Reason":["Причина","原因","Motif","Motivo"],
 "Send to the team":["Отправить команде","发送给团队","Envoyer à l’équipe","Enviar al equipo"],
 "The team will price your request and send you a quotation to approve before any invoice":["Команда оценит заявку и пришлёт предложение на одобрение до выставления счёта","团队将为您的申请报价，并在开具任何发票前请您确认报价","L’équipe chiffrera votre demande et vous enverra un devis à accepter avant toute facture","El equipo valorará su solicitud y le enviará un presupuesto para aprobar antes de cualquier factura"],
+"Notes (optional)":["Комментарий (необязательно)","备注（选填）","Remarques (facultatif)","Notas (opcional)"],
 };

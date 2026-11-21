@@ -26,14 +26,14 @@ import {ServicesScreen} from './src/services/ServicesScreen';
 import {ServiceDetailsScreen,StartRequestBar} from './src/services/ServiceDetailsScreen';
 import {FallbackScreen} from './src/FallbackScreen';
 import {AuthFlow} from './src/auth/AuthFlow';
-import {NewRequestScreen} from './src/newRequest/NewRequestScreen';
+import {NewRequestScreen,type NewRequestChoice} from './src/newRequest/NewRequestScreen';
 import type {SyncStatus} from './src/dashboard/DashboardScreen';
 import {ContactScreen} from './src/auth/ContactScreen';
 import {AccountScreen} from './src/AccountScreen';
 import {readAccount,saveAccount,emptyAccount,type AccountData} from './src/accountStorage';
 import {LegalScreen} from './src/LegalScreen';
 import {TERMS,PRIVACY} from './src/legal';
-import {apiEnabled,hasSession,loadTokens,logout,me,pullRequests,pushRequest,needsSync,exportMyData,deleteAccount,setServerEmail,setSessionExpiredHandler} from './src/api';
+import {apiEnabled,setServerName,hasSession,loadTokens,logout,me,pullRequests,pushRequest,needsSync,exportMyData,deleteAccount,setServerEmail,setSessionExpiredHandler} from './src/api';
 import {LANGS,LANG_INFO,LANG_MENU_TITLE,LANG_NAMES,isLang,pick as pickCopy,tr} from './src/i18n';
 import {SelectSheet} from './src/newRequest/SelectSheet';
 
@@ -146,11 +146,19 @@ export default function App() {
      return false;
    }
  };
+ /** A signed-in account shows the name the server holds (set at registration or later), never "Guest". */
+ const applyServerName=(n:string|null|undefined)=>{const v=(n??'').trim();if(v&&v!==accountRef.current.name)updateAccount({name:v})};
+ const refreshServerName=()=>{void me().then(u=>applyServerName(u.user.display_name)).catch(()=>{})};
+ /** Name edits in My Account also reach the server when signed in (so the team and every device see the same name). */
+ const updateAccountSynced=(fields:Partial<AccountData>)=>{const ok=updateAccount(fields);if(ok&&signedIn&&typeof fields.name==='string'&&fields.name.trim())void setServerName(fields.name.trim()).catch(()=>{});return ok};
  const [clientRecords,setClientRecords]=useState(readRequests);
  const [clientFocused,setClientFocused]=useState(false);
  const [clientDraft,setClientDraft]=useState<string|null>(null);
  // Unsaved starting point for the wizard; persisted only by Save draft / Confirm (prevents duplicate drafts).
  const [clientSeed,setClientSeed]=useState<ClientRequest|null>(null);
+ /** Where the request flow was entered from (Back returns there), and the New Request choices to restore. */
+ const [requestOrigin,setRequestOrigin]=useState<'detail'|'newrequest'>('detail');
+ const [newRequestChoice,setNewRequestChoice]=useState<NewRequestChoice|null>(null);
  const setLang=(next:Language)=>{setLangState(next);updateAccount({language:next});};
  const recordsRef=React.useRef(clientRecords);
  const [signedIn,setSignedIn]=useState(false);
@@ -190,7 +198,7 @@ export default function App() {
  const saveClientRecords=(records:ClientRequest[])=>{const ok=writeLocal(records);if(ok&&apiEnabled&&hasSession()){clearTimeout(syncTimer.current);syncTimer.current=setTimeout(()=>void syncNow(),600)}return ok};
  const wipeLocal=async()=>{writeLocal([]);try{await pruneOrphanFiles([])}catch{}try{saveAccount({...emptyAccount,language:lang});accountRef.current={...emptyAccount,language:lang};setAccount(accountRef.current)}catch{}};
  const createClientRequest=(r:ClientRequest)=>saveClientRecords([...clientRecords.filter(v=>v.id!==r.id),r]);
- const resumeClient=(serviceId:string,id:string,draftId?:string,renewalOf?:string)=>{const service=SERVICES.find(s=>s.id===serviceId);if(!service)return;
+ const resumeClient=(serviceId:string,id:string,draftId?:string,renewalOf?:string)=>{const service=SERVICES.find(s=>s.id===serviceId);if(!service)return;setRequestOrigin('detail');
    // A renewal is a new request linked to the source; the source record is never modified.
    const source=renewalOf?clientRecords.find(r=>r.id===renewalOf):undefined;const now=new Date().toISOString();
    setClientSeed(source?{id:makeId(),serviceId,actionId:id,title:source.title,createdAt:now,updatedAt:now,status:'draft',stage:1,name:source.name,phone:source.phone,fields:{},files:[],missing:[],events:[],money:{government:0,handling:0,tax:0,extra:0,paid:0,refunded:0,quoted:false},renewalOf:source.id}:null);
@@ -201,7 +209,7 @@ export default function App() {
    setSessionExpiredHandler(()=>{setSignedIn(false);setPage('welcome')});
    void (async()=>{
      if(!await loadTokens())return;
-     try{const u=await me();setSignedIn(true);if(u.user.email_set===false)setNeedsEmail(true);setPage(p=>p==='welcome'?'home':p);void syncNow()}catch{/* offline: stay on welcome; session kept */}
+     try{const u=await me();applyServerName(u.user.display_name);setSignedIn(true);if(u.user.email_set===false)setNeedsEmail(true);setPage(p=>p==='welcome'?'home':p);void syncNow()}catch{/* offline: stay on welcome; session kept */}
    })();
  },[]);
  // Keep what the team does (status, requested documents, delivery files) fresh: on opening My Requests, when the app returns to the foreground, and about every minute while My Requests is open.
@@ -290,10 +298,21 @@ export default function App() {
      // Continue unsaved input kept from a previous visit to the same transaction.
      if(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id){const extra=initial.files.filter(f=>!clientSeed.files.some(x=>x.id===f.id));if(extra.length)setClientSeed({...clientSeed,files:[...clientSeed.files,...extra]});}
      else setClientSeed(initial);
-     setClientDraft(null);go('request');return;
+     setRequestOrigin('detail');setClientDraft(null);go('request');return;
    }
    selectTab('about');
    setNeedsAction(true);
+ };
+ /** New Request → the SAME request flow (RequestWizard + createClientRequest) as the service page. Earlier input for the same transaction is kept; the name, phone and notes typed here win. */
+ const continueFromNew=(c:NewRequestChoice&{service:Service})=>{
+   const {service,...choice}=c;setNewRequestChoice(choice);
+   setChosen(service);setBusiness(service.business);setAction(c.actionId);setClientDraft(null);
+   const a=structureFor(service.id).actions.find(x=>x.id===c.actionId);if(!a)return;
+   const now=new Date().toISOString();
+   const same=clientSeed&&clientSeed.serviceId===service.id&&clientSeed.actionId===a.id?clientSeed:null;
+   const fields={...(same?.fields??{}),...(c.notes?{notes:c.notes}:{})};if(!c.notes)delete fields.notes;
+   setClientSeed(same?{...same,name:c.name,phone:c.phone,fields}:{id:makeId(),serviceId:service.id,actionId:a.id,title:{ar:a.ar,en:a.en},createdAt:now,updatedAt:now,status:'draft',stage:1,name:c.name,phone:c.phone,fields,files:[],missing:[],events:[],money:{government:0,handling:0,tax:0,extra:0,paid:0,refunded:0,quoted:false}});
+   setRequestOrigin('newrequest');go('request');
  };
  const title=(s:Service)=>serviceLabel(s,lang);
  const selectNav=(key:TabKey)=>key==='request'?(page==='detail'?(setClientDraft(null),startRequest()):page==='request'||page==='newrequest'?undefined:(setClientDraft(null),go('newrequest'))):key==='services'?openCatalogue():go(key);
@@ -324,7 +343,7 @@ export default function App() {
    if(legal){setLegal(null);return true}
    if(page==='welcome'||page==='home') return false;
    if(page==='detail'){go(detailOrigin);return true;}
-   if(page==='request'){go('detail');setTab('about');return true;}
+   if(page==='request'){if(requestOrigin==='newrequest')go('newrequest');else{go('detail');setTab('about');}return true;}
    if(page==='newrequest'){go('requests');return true;}
    go('home');return true;
  };
@@ -338,7 +357,7 @@ export default function App() {
    <StatusBar barStyle="dark-content"/>
    {languageMenu}
    <BlurTargetView ref={blurTarget} key={page==='detail'?'detail:'+chosen.id:page} style={styles.screen}>
-     {page==='welcome'?<AuthFlow lang={lang} onLanguage={switchLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal} logo={officialLogo}/>
+     {page==='welcome'?<AuthFlow lang={lang} onLanguage={switchLang} onGuest={()=>go('home')} onSignedIn={ph=>{setSignedIn(true);if(ph&&!accountRef.current.phone)updateAccount({phone:ph});refreshServerName();go('home');void syncNow()}} onLegal={setLegal} logo={officialLogo}/>
      :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents'||!!r.whatNow?.actionRequired)}/>:page==='services'?<ServicesScreen lang={lang} business={business} onAudience={setBusiness} query={query} onQuery={setQuery} services={allServices}
          choosing={choosingService} onOpen={service=>open(service)} onLanguage={switchLang} onProfile={()=>go('profile')}/>
      :page==='detail'?<ServiceDetailsScreen lang={lang} service={chosen} banner={bannerFor(chosen)} onBack={()=>go(detailOrigin)} onLanguage={switchLang} scrollRef={detailScroll}
@@ -347,15 +366,15 @@ export default function App() {
          files={draft.files} fields={draft.fields} onPick={id=>void pick(id)} onRemoveFile={removeFile}
          onField={(id,value)=>editDraft(current=>({...current,fields:{...current.fields,[id]:value}}))}/>
      :page==='profile'?
-       <AccountScreen lang={lang} account={account} update={updateAccount} signedIn={signedIn} onEmail={setServerEmail} onLegal={setLegal} onExport={async()=>{await saveDataExport(await exportMyData());return true}} onDelete={async()=>{await deleteAccount();await wipeLocal();setSignedIn(false);go('welcome');return true}} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);go('welcome')}} requests={clientRecords.length+savedDrafts.length}
+       <AccountScreen lang={lang} account={account} update={updateAccountSynced} signedIn={signedIn} onEmail={setServerEmail} onLegal={setLegal} onExport={async()=>{await saveDataExport(await exportMyData());return true}} onDelete={async()=>{await deleteAccount();await wipeLocal();setSignedIn(false);go('welcome');return true}} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);go('welcome')}} requests={clientRecords.length+savedDrafts.length}
          documents={Object.entries(drafts).flatMap(([key,item])=>Object.entries(item.files).map(([id,file])=>({key:key+'/'+id,name:file.name})))}
          favorites={catalogueServices.filter(item=>account.favorites.includes(item.id)).map(item=>({id:item.id,label:title(item)}))}
          onFavorite={id=>{const item=catalogueServices.find(service=>service.id===id);if(item) open(item);}}
          onRequests={()=>go('requests')} onBrowse={()=>openCatalogue()} onLanguage={setLang}
          onLeave={()=>go('welcome')}
          alerts={clientRecords.filter(r=>r.status==='needs_documents'||!!r.whatNow?.actionRequired).map(r=>({id:r.id,title:tr(r.title,lang),note:tr(r.whatNow,lang)??tr(statusLabels[r.status],lang)}))}/>
-       :page==='newrequest'?<NewRequestScreen lang={lang} account={{name:account.name,phone:account.phone}} signedIn={signedIn} onSaved={r=>{saveClientRecords([...clientRecords.filter(v=>v.id!==r.id),r])}} onOpenDocuments={r=>resumeClient(r.serviceId,r.actionId,r.id)} onBack={()=>go('requests')} onSignIn={()=>go('welcome')}/>
-       :page==='requests'?<ClientWorkspace onRefresh={syncNow} syncStatus={syncStatus} loadedOnce={loadedOnce} lang={lang} onLanguage={switchLang} onFocusChange={setClientFocused} records={clientRecords} save={saveClientRecords} onStart={()=>{setClientDraft(null);go('newrequest');}} onResume={resumeClient} drafts={savedDrafts.map(item=>({key:item.key,title:wording(item.action,lang),resume:()=>open(item.service,item.action.id)}))}/>:page==='request'&&action?<RequestWizard onLegal={setLegal} key={chosen.id+'/'+action.id+'/'+(clientDraft??clientSeed?.id??'new')} lang={lang} serviceId={chosen.id} action={action} create={createClientRequest} onDone={()=>{setClientSeed(null);go('requests');}} onKeep={kept=>setClientSeed(kept)} onBack={()=>{go('detail');setTab('about');}} defaults={{name:account.name,phone:account.phone}} initial={clientRecords.find(r=>r.id===clientDraft)??(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id?clientSeed:undefined)}/>:<FallbackScreen lang={lang} onServices={()=>openCatalogue()}/>}
+       :page==='newrequest'?<NewRequestScreen key={newRequestChoice?JSON.stringify(newRequestChoice):'fresh'} lang={lang} account={{name:account.name,phone:account.phone}} initial={newRequestChoice} onContinue={continueFromNew} onBack={()=>go('requests')}/>
+       :page==='requests'?<ClientWorkspace onRefresh={syncNow} syncStatus={syncStatus} loadedOnce={loadedOnce} lang={lang} onLanguage={switchLang} onFocusChange={setClientFocused} records={clientRecords} save={saveClientRecords} onStart={()=>{setClientDraft(null);go('newrequest');}} onResume={resumeClient} drafts={savedDrafts.map(item=>({key:item.key,title:wording(item.action,lang),resume:()=>open(item.service,item.action.id)}))}/>:page==='request'&&action?<RequestWizard onLegal={setLegal} key={chosen.id+'/'+action.id+'/'+(clientDraft??clientSeed?.id??'new')} lang={lang} serviceId={chosen.id} action={action} create={createClientRequest} onDone={()=>{setClientSeed(null);setNewRequestChoice(null);go('requests');}} onKeep={kept=>{setClientSeed(kept);if(requestOrigin==='newrequest')setNewRequestChoice(c=>c&&c.serviceId===kept.serviceId&&c.actionId===kept.actionId?{...c,name:kept.name,phone:kept.phone,notes:kept.fields.notes??''}:c)}} onBack={()=>{if(requestOrigin==='newrequest')go('newrequest');else{go('detail');setTab('about');}}} defaults={{name:account.name,phone:account.phone}} initial={clientRecords.find(r=>r.id===clientDraft)??(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id?clientSeed:undefined)}/>:<FallbackScreen lang={lang} onServices={()=>openCatalogue()}/>}
    </BlurTargetView>
    {legal&&<View style={StyleSheet.absoluteFill}><LegalScreen lang={lang} doc={legal==='terms'?TERMS:PRIVACY} onBack={()=>setLegal(null)}/></View>}
    {barVisible&&<TabBar active={activeTab(page)} labels={tabLabels} onSelect={selectNav} blurTarget={blurTarget} accessory={page==='detail'?<StartRequestBar lang={lang} onPress={startRequest}/>:undefined} rtl={lang==='ar'} labelFont={sel=>lang==='ar'?{fontFamily:sel?'CairoBold':'CairoSemiBold',fontWeight:'normal'}:{fontWeight:sel?'700':'500'}}/>}

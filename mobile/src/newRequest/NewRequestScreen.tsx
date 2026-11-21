@@ -1,5 +1,5 @@
 import React,{useMemo,useState} from 'react';
-import {ActivityIndicator,KeyboardAvoidingView,Platform,StyleSheet,TextInput,View} from 'react-native';
+import {KeyboardAvoidingView,Platform,StyleSheet,TextInput,View} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Entrance,GoldBadge,GoldText,LuxCard,ScalePressable} from '../ui/Premium';
 import {GlassBackdrop,useReduceTransparency} from '../ui/Glass';
@@ -7,29 +7,30 @@ import {Icon} from '../Icons';
 import {Txt} from '../ui/Txt';
 import {ScrollView} from '../navigation/TabBarLayout';
 import {colors,layout,lux,onGlass,radius,space,type} from '../theme';
-import {type Service} from '../services';
+import {SERVICES,type Service} from '../services';
 import {CATEGORIES,branchesFor,serviceForBranch,type Category} from '../catalogue/categories';
 import {structureFor,type ServiceAction} from '../serviceDetails';
-import {makeId,type ClientRequest} from '../clientModel';
-import {ApiError,createRemoteRequest,submitRemoteRequest} from '../api';
 import {toE164} from '../auth/phone';
 import {SelectSheet,type SheetSection} from './SelectSheet';
 import {pick,tr} from '../i18n';
 
 type Lang=import('../i18n').Lang;
-export type CreatedInfo={record:ClientRequest;submitted:boolean;onServer:boolean};
+/** What the customer chose and typed here. It is handed to the ONE request flow (RequestWizard) and given back if they return. */
+export type NewRequestChoice={mainKey:string;serviceId:string;actionId:string;name:string;phone:string;notes:string};
 type Props={
-  lang:Lang;account:{name:string;phone:string};signedIn:boolean;
-  /** called as soon as the record exists (server-stored or local): the app keeps it in its list */
-  onSaved:(record:ClientRequest)=>void;onOpenDocuments:(record:ClientRequest)=>void;onBack:()=>void;onSignIn:()=>void;
+  lang:Lang;account:{name:string;phone:string};
+  /** previous choices and input, restored when the customer comes back from the next step */
+  initial?:NewRequestChoice|null;
+  /** continue into the same request flow used from a service page (documents, review, consent, submit) */
+  onContinue:(choice:NewRequestChoice&{service:Service})=>void;onBack:()=>void;
 };
 
 const copy={
   ar:{title:'طلب جديد',sub:'اختر الخدمة وأكمل بياناتك لإنشاء معاملتك.',
     chooseGroup:'اختر خدمتك',main:'الخدمة الرئيسية',pickMain:'اختر الخدمة الرئيسية',service:'الخدمة الفرعية',pickService:'اختر الخدمة الفرعية',action:'نوع المعاملة',pickAction:'اختر نوع المعاملة',individuals:'خدمات الأفراد',companies:'خدمات الشركات',searchService:'ابحث عن خدمة',
     applicant:'بيانات مقدّم الطلب',name:'الاسم الكامل',namePh:'الاسم كما في الهوية',phone:'رقم الجوال',phonePh:'05XXXXXXXX',notes:'ملاحظات (اختياري)',notesPh:'أي تفاصيل تساعدنا في إنجاز معاملتك',
-    docs:'المستندات المطلوبة',docsNote:'ترفع المستندات في الخطوة التالية بعد إنشاء الطلب.',optional:'اختياري',noDocs:'لا مستندات إلزامية لهذه المعاملة.',
-    create:'إنشاء الطلب',submit:'إرسال الطلب',creating:'جارٍ الإنشاء…',signIn:'سجّل الدخول لإنشاء الطلب',guestNote:'إنشاء الطلب وإرساله يحتاجان حساباً.',
+    docs:'المستندات المطلوبة',docsNote:'ترفع المستندات وتراجع طلبك في الخطوات التالية.',optional:'اختياري',noDocs:'لا مستندات إلزامية لهذه المعاملة.',
+    next:'متابعة',create:'إنشاء الطلب',submit:'إرسال الطلب',creating:'جارٍ الإنشاء…',signIn:'سجّل الدخول لإنشاء الطلب',guestNote:'إنشاء الطلب وإرساله يحتاجان حساباً.',
     e_name:'أدخل اسمك الكامل.',e_phone:'أدخل رقم جوال إماراتي صحيحاً.',e_service:'اختر الخدمة الرئيسية والفرعية ونوع المعاملة.',
     e_net:'تعذّر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.',e_email:'أضف بريدك الإلكتروني من «حسابي» ثم أعد المحاولة.',e_many:'محاولات كثيرة. حاول لاحقاً.',e_gen:'تعذّر إنشاء الطلب. حاول مرة أخرى.',
     saveLocal:'حفظ كمسودة على هذا الجهاز',
@@ -38,8 +39,8 @@ const copy={
   en:{title:'New Request',sub:'Choose the service and complete your details to create your transaction.',
     chooseGroup:'Choose your service',main:'Main service',pickMain:'Choose the main service',service:'Branch',pickService:'Choose the branch',action:'Transaction type',pickAction:'Choose a transaction type',individuals:'Individual services',companies:'Business services',searchService:'Search for a service',
     applicant:'Applicant details',name:'Full name',namePh:'Name as on your ID',phone:'Mobile number',phonePh:'05XXXXXXXX',notes:'Notes (optional)',notesPh:'Anything that helps us complete your transaction',
-    docs:'Required documents',docsNote:'You upload the documents in the next step, after the request is created.',optional:'optional',noDocs:'No mandatory documents for this transaction.',
-    create:'Create Request',submit:'Submit Request',creating:'Creating…',signIn:'Sign in to create the request',guestNote:'Creating and submitting a request needs an account.',
+    docs:'Required documents',docsNote:'You upload the documents and review your request in the next steps.',optional:'optional',noDocs:'No mandatory documents for this transaction.',
+    next:'Continue',create:'Create Request',submit:'Submit Request',creating:'Creating…',signIn:'Sign in to create the request',guestNote:'Creating and submitting a request needs an account.',
     e_name:'Enter your full name.',e_phone:'Enter a valid UAE mobile number.',e_service:'Choose the main service, the branch and the transaction type.',
     e_net:'Could not reach the server. Check your internet and try again.',e_email:'Add your email in “My account” and try again.',e_many:'Too many attempts. Try again later.',e_gen:'Could not create the request. Try again.',
     saveLocal:'Save as a draft on this device',
@@ -48,8 +49,8 @@ const copy={
   ru:{title:'Новая заявка',sub:'Выберите услугу и заполните данные, чтобы создать заявку.',
     chooseGroup:'Выберите услугу',main:'Основная услуга',pickMain:'Выберите основную услугу',service:'Направление',pickService:'Выберите направление',action:'Тип операции',pickAction:'Выберите тип операции',individuals:'Услуги для частных лиц',companies:'Услуги для компаний',searchService:'Поиск услуги',
     applicant:'Данные заявителя',name:'Полное имя',namePh:'Как в удостоверении личности',phone:'Мобильный номер',phonePh:'05XXXXXXXX',notes:'Комментарий (необязательно)',notesPh:'Всё, что поможет нам выполнить заявку',
-    docs:'Необходимые документы',docsNote:'Документы загружаются на следующем шаге, после создания заявки.',optional:'необязательно',noDocs:'Для этой операции обязательные документы не нужны.',
-    create:'Создать заявку',submit:'Отправить заявку',creating:'Создаём…',signIn:'Войдите, чтобы создать заявку',guestNote:'Для создания и отправки заявки нужна учётная запись.',
+    docs:'Необходимые документы',docsNote:'Документы загружаются и заявка проверяется на следующих шагах.',optional:'необязательно',noDocs:'Для этой операции обязательные документы не нужны.',
+    next:'Продолжить',create:'Создать заявку',submit:'Отправить заявку',creating:'Создаём…',signIn:'Войдите, чтобы создать заявку',guestNote:'Для создания и отправки заявки нужна учётная запись.',
     e_name:'Введите полное имя.',e_phone:'Введите действующий мобильный номер ОАЭ.',e_service:'Выберите основную услугу, направление и тип операции.',
     e_net:'Нет связи с сервером. Проверьте интернет и повторите попытку.',e_email:'Добавьте e-mail в «Мой профиль» и повторите попытку.',e_many:'Слишком много попыток. Повторите позже.',e_gen:'Не удалось создать заявку. Повторите попытку.',
     saveLocal:'Сохранить черновик на этом устройстве',
@@ -58,8 +59,8 @@ const copy={
   zh:{title:'新申请',sub:'选择服务并填写信息以创建您的申请。',
     chooseGroup:'选择服务',main:'主服务',pickMain:'选择主服务',service:'子服务',pickService:'选择子服务',action:'业务类型',pickAction:'选择业务类型',individuals:'个人服务',companies:'企业服务',searchService:'搜索服务',
     applicant:'申请人信息',name:'全名',namePh:'与身份证件一致',phone:'手机号码',phonePh:'05XXXXXXXX',notes:'备注（选填）',notesPh:'任何有助于我们办理的信息',
-    docs:'所需文件',docsNote:'申请创建后，您将在下一步上传文件。',optional:'选填',noDocs:'此业务无需必备文件。',
-    create:'创建申请',submit:'提交申请',creating:'正在创建…',signIn:'登录后创建申请',guestNote:'创建和提交申请需要账户。',
+    docs:'所需文件',docsNote:'您将在后续步骤上传文件并核对申请。',optional:'选填',noDocs:'此业务无需必备文件。',
+    next:'继续',create:'创建申请',submit:'提交申请',creating:'正在创建…',signIn:'登录后创建申请',guestNote:'创建和提交申请需要账户。',
     e_name:'请输入全名。',e_phone:'请输入有效的阿联酋手机号码。',e_service:'请选择主服务、子服务和业务类型。',
     e_net:'无法连接服务器，请检查网络后重试。',e_email:'请在“我的账户”中添加电子邮箱后重试。',e_many:'尝试次数过多，请稍后再试。',e_gen:'无法创建申请，请重试。',
     saveLocal:'在本设备保存为草稿',
@@ -68,8 +69,8 @@ const copy={
   fr:{title:'Nouvelle demande',sub:'Choisissez le service et complétez vos informations pour créer votre demande.',
     chooseGroup:'Choisissez votre service',main:'Service principal',pickMain:'Choisir le service principal',service:'Rubrique',pickService:'Choisir la rubrique',action:'Type de démarche',pickAction:'Choisir un type de démarche',individuals:'Services aux particuliers',companies:'Services aux entreprises',searchService:'Rechercher un service',
     applicant:'Informations du demandeur',name:'Nom complet',namePh:'Comme sur votre pièce d’identité',phone:'Numéro de mobile',phonePh:'05XXXXXXXX',notes:'Remarques (facultatif)',notesPh:'Tout ce qui peut nous aider à traiter votre demande',
-    docs:'Documents requis',docsNote:'Vous téléversez les documents à l’étape suivante, après la création de la demande.',optional:'facultatif',noDocs:'Aucun document obligatoire pour cette démarche.',
-    create:'Créer la demande',submit:'Envoyer la demande',creating:'Création…',signIn:'Connectez-vous pour créer la demande',guestNote:'Un compte est nécessaire pour créer et envoyer une demande.',
+    docs:'Documents requis',docsNote:'Vous téléversez les documents et vérifiez votre demande aux étapes suivantes.',optional:'facultatif',noDocs:'Aucun document obligatoire pour cette démarche.',
+    next:'Continuer',create:'Créer la demande',submit:'Envoyer la demande',creating:'Création…',signIn:'Connectez-vous pour créer la demande',guestNote:'Un compte est nécessaire pour créer et envoyer une demande.',
     e_name:'Saisissez votre nom complet.',e_phone:'Saisissez un numéro de mobile émirien valide.',e_service:'Choisissez le service principal, la rubrique et le type de démarche.',
     e_net:'Serveur injoignable. Vérifiez votre connexion et réessayez.',e_email:'Ajoutez votre e-mail dans « Mon compte » puis réessayez.',e_many:'Trop de tentatives. Réessayez plus tard.',e_gen:'Impossible de créer la demande. Réessayez.',
     saveLocal:'Enregistrer comme brouillon sur cet appareil',
@@ -78,8 +79,8 @@ const copy={
   es:{title:'Nueva solicitud',sub:'Elija el servicio y complete sus datos para crear su trámite.',
     chooseGroup:'Elija su servicio',main:'Servicio principal',pickMain:'Elegir el servicio principal',service:'Subservicio',pickService:'Elegir el subservicio',action:'Tipo de trámite',pickAction:'Elegir un tipo de trámite',individuals:'Servicios para particulares',companies:'Servicios para empresas',searchService:'Buscar un servicio',
     applicant:'Datos del solicitante',name:'Nombre completo',namePh:'Como figura en su documento',phone:'Número de móvil',phonePh:'05XXXXXXXX',notes:'Notas (opcional)',notesPh:'Cualquier dato que nos ayude a completar su trámite',
-    docs:'Documentos necesarios',docsNote:'Subirá los documentos en el siguiente paso, una vez creada la solicitud.',optional:'opcional',noDocs:'Este trámite no requiere documentos obligatorios.',
-    create:'Crear solicitud',submit:'Enviar solicitud',creating:'Creando…',signIn:'Inicie sesión para crear la solicitud',guestNote:'Para crear y enviar una solicitud necesita una cuenta.',
+    docs:'Documentos necesarios',docsNote:'Subirá los documentos y revisará su solicitud en los siguientes pasos.',optional:'opcional',noDocs:'Este trámite no requiere documentos obligatorios.',
+    next:'Continuar',create:'Crear solicitud',submit:'Enviar solicitud',creating:'Creando…',signIn:'Inicie sesión para crear la solicitud',guestNote:'Para crear y enviar una solicitud necesita una cuenta.',
     e_name:'Introduzca su nombre completo.',e_phone:'Introduzca un número de móvil válido de los EAU.',e_service:'Elija el servicio principal, el subservicio y el tipo de trámite.',
     e_net:'No se pudo conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.',e_email:'Añada su correo en «Mi cuenta» e inténtelo de nuevo.',e_many:'Demasiados intentos. Inténtelo más tarde.',e_gen:'No se pudo crear la solicitud. Inténtelo de nuevo.',
     saveLocal:'Guardar como borrador en este dispositivo',
@@ -88,15 +89,20 @@ const copy={
 } as const;
 
 /** Create a clearance request: service + type pickers, applicant details, one primary action; the server stores it (POST /v1/requests) before we confirm. */
-export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,onBack,onSignIn}:Props){
+export function NewRequestScreen({lang,account,initial,onContinue,onBack}:Props){
   const t=pick(copy,lang),ar=lang==='ar';
-  const [service,setService]=useState<Service|null>(null);
-  const [action,setAction]=useState<ServiceAction|null>(null);
-  const [name,setName]=useState(account.name);const [phone,setPhone]=useState(account.phone);const [notes,setNotes]=useState('');
-  const [main,setMain]=useState<{category:Category;business:boolean}|null>(null);
+  // restore what the customer chose/typed before (coming back from the next step loses nothing)
+  const init=useMemo(()=>{
+    if(!initial)return null;
+    const [aud,cid]=initial.mainKey.split(':');const category=CATEGORIES.find(c=>c.id===cid);const svc=SERVICES.find(x=>x.id===initial.serviceId)??null;
+    const act=svc?structureFor(svc.id).actions.find(a=>a.id===initial.actionId)??null:null;
+    return category?{main:{category,business:aud==='c'},service:svc,action:act}:null;
+  },[]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [service,setService]=useState<Service|null>(init?.service??null);
+  const [action,setAction]=useState<ServiceAction|null>(init?.action??null);
+  const [name,setName]=useState(initial?.name??account.name);const [phone,setPhone]=useState(initial?.phone??account.phone);const [notes,setNotes]=useState(initial?.notes??'');
+  const [main,setMain]=useState<{category:Category;business:boolean}|null>(init?.main??null);
   const [sheet,setSheet]=useState<null|'main'|'service'|'action'>(null);
-  const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [canLocal,setCanLocal]=useState(false);
-  const [done,setDone]=useState<CreatedInfo|null>(null);
   const [touched,setTouched]=useState(false);
 
   const structure=service?structureFor(service.id):null;
@@ -124,32 +130,11 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
   const errors={service:!service||!action?t.e_service:'',name:name.trim().length<2?t.e_name:'',phone:!toE164(phone)?t.e_phone:''};
   const valid=!errors.service&&!errors.name&&!errors.phone;
 
-  const build=():ClientRequest=>{
-    const now=new Date().toISOString();
-    return {id:makeId(),serviceId:service!.id,actionId:action!.id,title:{ar:action!.ar,en:action!.en},createdAt:now,updatedAt:now,status:'draft',stage:1,name:name.trim(),phone:toE164(phone)!,
-      fields:notes.trim()?{notes:notes.trim()}:{},files:[],missing:[],events:[],money:{government:0,handling:0,tax:0,extra:0,paid:0,refunded:0,quoted:false}};
+  const submit=()=>{
+    setTouched(true);
+    if(!valid||!service||!action||!main)return;
+    onContinue({service,mainKey:`${main.business?'c':'i'}:${main.category.id}`,serviceId:service.id,actionId:action.id,name:name.trim(),phone:toE164(phone)!,notes:notes.trim()});
   };
-  const submit=async()=>{
-    setTouched(true);setError('');setCanLocal(false);
-    if(!valid)return;
-    if(!signedIn){onSignIn();return;}
-    const record=build();const noRequiredDocs=required.length===0;
-    setBusy(true);
-    try{
-      const created=await createRemoteRequest(record);          // the server stores it and gives its id
-      let status:ClientRequest['status']='draft';
-      if(noRequiredDocs){await submitRemoteRequest(created.id);status='submitted';}
-      const saved:ClientRequest={...record,status,remoteId:created.id,syncedAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-      onSaved(saved);
-      setDone({record:saved,submitted:status==='submitted',onServer:true});
-    }catch(e){
-      const c=e instanceof ApiError?e.code:'';
-      setError(c==='email_required'?t.e_email:c==='too_many_requests'?t.e_many:c==='network'?t.e_net:t.e_gen);
-      setCanLocal(c==='network');
-    }finally{setBusy(false);}
-  };
-
-  if(done)return <Done lang={lang} info={done} onUpload={()=>onOpenDocuments(done.record)} onDashboard={onBack}/>;
 
   return <KeyboardAvoidingView style={s.fill} behavior={Platform.OS==='ios'?'padding':undefined}>
     <GlassBackdrop/>
@@ -188,16 +173,10 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
         </View>
       </Group>:null}
 
-      {error?<View style={s.errorBox} accessibilityLiveRegion="polite"><Txt lang={lang} style={s.errorText}>{error}</Txt>
-        {canLocal?<ScalePressable accessibilityRole="button" onPress={()=>{onSaved(build());onBack();}} style={s.errorLink}><Txt lang={lang} style={s.errorLinkText}>{t.saveLocal}</Txt></ScalePressable>:null}
-      </View>:null}
-      {!signedIn?<Txt lang={lang} style={s.guest}>{t.guestNote}</Txt>:null}
-
-      <ScalePressable accessibilityRole="button" accessibilityLabel={signedIn?(required.length||!action?t.create:t.submit):t.signIn} accessibilityState={{disabled:busy,busy}} disabled={busy} onPress={()=>void submit()}
-        rippleColor="rgba(14,21,38,0.18)" style={[s.primary,(!valid&&signedIn)&&s.primaryDim]}>
+      <ScalePressable accessibilityRole="button" accessibilityLabel={t.next} onPress={submit}
+        rippleColor="rgba(14,21,38,0.18)" style={[s.primary,!valid&&s.primaryDim]}>
         <LinearGradient pointerEvents="none" colors={lux.orange} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
-        <View pointerEvents="none">{busy?<View style={s.busyRow}><ActivityIndicator color={lux.onAction}/><Txt lang={lang} style={s.primaryText}>{t.creating}</Txt></View>
-          :<Txt lang={lang} style={s.primaryText}>{signedIn?(required.length||!action?t.create:t.submit):t.signIn}</Txt>}</View>
+        <View pointerEvents="none"><Txt lang={lang} style={s.primaryText}>{t.next}</Txt></View>
       </ScalePressable>
     </ScrollView>
 
@@ -234,27 +213,6 @@ function Input({lang,ltr,tall,...p}:{lang:Lang;ltr?:boolean;tall?:boolean}&React
     {...p} style={[s.input,tall&&s.inputTall,ar?{fontFamily:'CairoRegular'}:null,{textAlign:ar?'right':'left',writingDirection:ltr?'ltr':ar?'rtl':'ltr'}]}/>;
 }
 function Err({lang,children}:{lang:Lang;children:React.ReactNode}){return <Txt lang={lang} style={s.fieldError}>{children}</Txt>}
-
-function Done({lang,info,onUpload,onDashboard}:{lang:Lang;info:CreatedInfo;onUpload:()=>void;onDashboard:()=>void}){
-  const t=pick(copy,lang);
-  const ref=(info.record.remoteId??info.record.id).slice(0,8).toUpperCase();
-  const reduce=useReduceTransparency();
-  return <View style={s.fill}><GlassBackdrop/><ScrollView contentContainerStyle={s.doneWrap} showsVerticalScrollIndicator={false}>
-    <Entrance index={0} style={s.doneHead}>
-      <GoldBadge icon="check" size={96}/>
-      <GoldText lang={lang} style={s.doneTitle}>{t.doneTitle}</GoldText>
-      <Txt lang={lang} style={s.doneBody}>{info.onServer?(info.submitted?t.doneSubmitted:t.doneDraft):t.localOnly}</Txt>
-    </Entrance>
-    <Entrance index={1}><LuxCard reduce={reduce} contentStyle={s.refBox}><Txt lang={lang} style={s.refLabel}>{t.ref}</Txt><Txt lang="en" style={s.refValue}>{'\u2066#'+ref+'\u2069'}</Txt></LuxCard></Entrance>
-    <Entrance index={2} style={s.doneActions}>
-      {!info.submitted?<ScalePressable accessibilityRole="button" accessibilityLabel={t.uploadDocs} onPress={onUpload} rippleColor="rgba(14,21,38,0.18)" style={s.primary}>
-        <LinearGradient pointerEvents="none" colors={lux.orange} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
-        <View pointerEvents="none"><Txt lang={lang} style={s.primaryText}>{t.uploadDocs}</Txt></View>
-      </ScalePressable>:null}
-      <ScalePressable accessibilityRole="button" accessibilityLabel={t.toDashboard} onPress={onDashboard} style={s.secondary}><Txt lang={lang} style={s.secondaryText}>{t.toDashboard}</Txt></ScalePressable>
-    </Entrance>
-  </ScrollView></View>;
-}
 
 const s=StyleSheet.create({
   fill:{flex:1,backgroundColor:lux.ivory},

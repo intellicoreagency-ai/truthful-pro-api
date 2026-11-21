@@ -23,7 +23,7 @@ const EMAIL=/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 
 const ui={
   ar:{
-    title:'حسابي',guest:'ضيف',individual:'عميل أفراد',business:'عميل شركات',local:'حساب محلي للمعاينة',linked:'حساب مرتبط',
+    title:'حسابي',guest:'ضيف',member:'عميل',individual:'عميل أفراد',business:'عميل شركات',local:'حساب محلي للمعاينة',linked:'حساب مرتبط',
     person:'بياناتي الشخصية',personHint:'عرض وتحديث بياناتك ومعلومات التواصل',
     company:'بيانات الشركة',companyHint:'إدارة معلومات شركتك',
     docs:'المستندات المحفوظة',docsHint:'الملفات المرفقة بمسوداتك في هذه الجلسة',
@@ -43,7 +43,7 @@ const ui={
     selected:'محددة',
   },
   en:{
-    title:'My Account',guest:'Guest',individual:'Individual client',business:'Company client',local:'Local preview profile',linked:'Linked account',
+    title:'My Account',guest:'Guest',member:'Client',individual:'Individual client',business:'Company client',local:'Local preview profile',linked:'Linked account',
     person:'Personal Information',personHint:'View and update your contact details',
     company:'Company Information',companyHint:'Manage your company details',
     docs:'Saved Documents',docsHint:'Files attached to drafts in this session',
@@ -63,7 +63,7 @@ const ui={
     selected:'selected',
   },
   ru:{
-    title:'Мой профиль',guest:'Гость',individual:'Частный клиент',business:'Корпоративный клиент',local:'Локальный профиль',linked:'Аккаунт подключён',
+    title:'Мой профиль',guest:'Гость',member:'Клиент',individual:'Частный клиент',business:'Корпоративный клиент',local:'Локальный профиль',linked:'Аккаунт подключён',
     person:'Личные данные',personHint:'Просмотр и изменение контактов',
     company:'Данные компании',companyHint:'Управление данными компании',
     docs:'Сохранённые документы',docsHint:'Файлы черновиков этой сессии',
@@ -83,7 +83,7 @@ const ui={
     selected:'выбрано',
   },
   zh:{
-    title:'我的账户',guest:'访客',individual:'个人客户',business:'企业客户',local:'本地预览资料',linked:'已关联账户',
+    title:'我的账户',guest:'访客',member:'客户',individual:'个人客户',business:'企业客户',local:'本地预览资料',linked:'已关联账户',
     person:'个人信息',personHint:'查看并更新联系方式',
     company:'公司信息',companyHint:'管理公司信息',
     docs:'已保存文件',docsHint:'本次会话草稿中的文件',
@@ -103,7 +103,7 @@ const ui={
     selected:'已选择',
   },
   fr:{
-    title:'Mon compte',guest:'Invité',individual:'Client particulier',business:'Client entreprise',local:'Profil local',linked:'Compte lié',
+    title:'Mon compte',guest:'Invité',member:'Client',individual:'Client particulier',business:'Client entreprise',local:'Profil local',linked:'Compte lié',
     person:'Informations personnelles',personHint:'Consulter et modifier vos coordonnées',
     company:'Informations de la société',companyHint:'Gérer les informations de votre société',
     docs:'Documents enregistrés',docsHint:'Fichiers joints aux brouillons de cette session',
@@ -123,7 +123,7 @@ const ui={
     selected:'sélectionné',
   },
   es:{
-    title:'Mi cuenta',guest:'Invitado',individual:'Cliente particular',business:'Cliente empresa',local:'Perfil local',linked:'Cuenta vinculada',
+    title:'Mi cuenta',guest:'Invitado',member:'Cliente',individual:'Cliente particular',business:'Cliente empresa',local:'Perfil local',linked:'Cuenta vinculada',
     person:'Datos personales',personHint:'Ver y actualizar sus datos de contacto',
     company:'Datos de la empresa',companyHint:'Gestionar los datos de su empresa',
     docs:'Documentos guardados',docsHint:'Archivos adjuntos a borradores de esta sesión',
@@ -234,7 +234,7 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
             <View style={styles.camera}><Icon name="camera" size={16} color="#FFFFFF"/></View>
           </ScalePressable>
           <View style={[g.flex1,styles.identityText]}>
-            <Txt lang={lang} bold style={styles.name} numberOfLines={2}>{account.name||t.guest}</Txt>
+            <Txt lang={lang} bold style={styles.name} numberOfLines={2}>{account.name||(signedIn?t.member:t.guest)}</Txt>
             <Txt lang={lang} style={g.meta}>{account.company?t.business:t.individual}</Txt>
             <View style={[styles.pill,{flexDirection:row,alignSelf:ar?'flex-end':'flex-start'}]}>
               <Icon name="shield" size={13} color={colors.brand}/>

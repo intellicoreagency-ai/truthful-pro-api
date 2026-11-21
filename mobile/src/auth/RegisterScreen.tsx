@@ -14,7 +14,8 @@ type Props={
   lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text?:AuthText;inputFont?:string;
   /** 'register' = full form incl. phone; 'complete' = a first-time sign-in from the login screen (phone already verified). */
   mode:'register'|'complete';
-  onSignedIn:()=>void;onLogin:()=>void;onLegal:(k:'terms'|'privacy')=>void;
+  /** verifiedPhone: the number just verified on this screen (register mode), so the app can prefill requests with it */
+  onSignedIn:(verifiedPhone?:string)=>void;onLogin:()=>void;onLegal:(k:'terms'|'privacy')=>void;
 };
 
 /**
@@ -37,7 +38,7 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
     }catch(e){setSaving(false);setSaveError(e instanceof ApiError&&e.code==='network'?t.e_net:t.e_save);return;}
     try{if(name.trim())await setServerName(name.trim());}catch{/* shown later in the profile */}
     try{await setServerEmail(email.trim());}catch(e){setSaving(false);setSaveError(e instanceof ApiError&&e.code==='network'?t.e_net:t.e_save);return;} // the email is essential contact data
-    setSaving(false);onSignedIn();
+    setSaving(false);onSignedIn(mode==='register'?toE164(phone)??undefined:undefined);
   };
   const wa=useWaVerification(lang,()=>{setVerified(true);void finish();});
 
