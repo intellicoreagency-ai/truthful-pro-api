@@ -167,7 +167,7 @@ export function StageTracker({lang,stage}:{lang:Lang;stage:number}){
 
 /** Checkbox row (label + tick), for choices such as what to share. */
 export function CheckRow({lang,label,checked,onPress,disabled}:{lang:Lang;label:string;checked:boolean;onPress:()=>void;disabled?:boolean}){
-  return <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked,disabled:!!disabled}} disabled={disabled} onPress={onPress}
+  return <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked,disabled:!!disabled}} aria-checked={checked} disabled={disabled} onPress={onPress}
     style={[g.check,{flexDirection:rowFor(lang)},checked&&g.checkOn,disabled&&g.disabled]}>
     <View style={[g.checkBox,checked&&g.checkBoxOn]}>{checked&&<Icon name="check" size={16} color="#FFFFFF"/>}</View>
     <View style={g.flex1}><Txt lang={lang} bold={checked} style={g.valueText}>{label}</Txt></View>
