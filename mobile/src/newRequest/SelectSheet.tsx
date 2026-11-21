@@ -1,10 +1,13 @@
 import React,{useMemo,useState} from 'react';
 import {Modal,Platform,ScrollView,StyleSheet,TextInput,View} from 'react-native';
 import {Pressable} from '../Touch';
-import {ScalePressable} from '../ui/Premium';
+import {BlurView} from 'expo-blur';
+import {LinearGradient} from 'expo-linear-gradient';
+import {GoldBadge,LuxCard,ScalePressable} from '../ui/Premium';
+import {useReduceTransparency} from '../ui/Glass';
 import {Icon} from '../Icons';
 import {Txt} from '../ui/Txt';
-import {colors,layout,onGlass,radius,space,type} from '../theme';
+import {colors,layout,lux,onGlass,radius,space,type} from '../theme';
 
 export type SheetItem={id:string;title:string;subtitle?:string};
 export type SheetSection={title?:string;items:SheetItem[]};
@@ -16,6 +19,7 @@ type Lang='ar'|'en';
  */
 export function SelectSheet({visible,lang,title,sections,selectedId,searchPlaceholder,onSelect,onClose}:{visible:boolean;lang:Lang;title:string;sections:SheetSection[];selectedId?:string|null;searchPlaceholder?:string;onSelect:(id:string)=>void;onClose:()=>void}){
   const ar=lang==='ar';
+  const reduce=useReduceTransparency();
   const [q,setQ]=useState('');
   const filtered=useMemo(()=>{
     const n=q.trim().toLowerCase();
@@ -25,10 +29,14 @@ export function SelectSheet({visible,lang,title,sections,selectedId,searchPlaceh
     <View style={s.backdrop}>
       <Pressable accessibilityRole="button" accessibilityLabel={ar?'إغلاق':'Close'} onPress={onClose} style={s.dismiss}><View/></Pressable>
       <View style={s.sheet} accessibilityViewIsModal>
+        {/* glass material: blur + ivory sheen; gold hairline along the top edge */}
+        {!reduce&&<BlurView pointerEvents="none" tint="light" intensity={70} experimentalBlurMethod={Platform.OS==='android'?'dimezisBlurView':undefined} style={StyleSheet.absoluteFill}/>}
+        <LinearGradient pointerEvents="none" colors={reduce?[lux.ivory,lux.ivory]:['rgba(251,246,238,0.9)','rgba(251,246,238,0.97)']} style={StyleSheet.absoluteFill}/>
+        <LinearGradient pointerEvents="none" colors={['rgba(226,181,101,0)','rgba(226,181,101,0.85)','rgba(226,181,101,0)']} start={{x:0,y:0}} end={{x:1,y:0}} style={s.topLine}/>
         <View style={s.grabber}/>
         <View style={[s.head,{flexDirection:ar?'row-reverse':'row'}]}>
           <Txt lang={lang} style={s.title}>{title}</Txt>
-          <ScalePressable accessibilityRole="button" accessibilityLabel={ar?'إغلاق':'Close'} onPress={onClose} style={s.close}><Icon name="close" size={18} color={colors.ink}/></ScalePressable>
+          <ScalePressable accessibilityRole="button" accessibilityLabel={ar?'إغلاق':'Close'} onPress={onClose} style={s.close}><View pointerEvents="none"><Icon name="close" size={18} color={colors.ink}/></View></ScalePressable>
         </View>
         {searchPlaceholder?<View style={[s.search,{flexDirection:ar?'row-reverse':'row'}]}>
           <Icon name="search" size={18} color={onGlass.soft}/>
@@ -38,13 +46,13 @@ export function SelectSheet({visible,lang,title,sections,selectedId,searchPlaceh
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.list}>
           {filtered.map((sec,si)=><View key={si} style={s.section}>
             {sec.title?<Txt lang={lang} style={s.sectionTitle}>{sec.title}</Txt>:null}
-            <View style={s.group}>
-              {sec.items.map((it,i)=>{const on=it.id===selectedId;return <ScalePressable key={it.id} accessibilityRole="radio" accessibilityState={{selected:on}} accessibilityLabel={it.title} onPress={()=>{onSelect(it.id);setQ('');}}
-                style={[s.row,{flexDirection:ar?'row-reverse':'row'},i<sec.items.length-1&&s.rowLine]}>
-                <View style={s.rowText}><Txt lang={lang} style={[s.rowTitle,on&&{color:colors.brand}]}>{it.title}</Txt>{it.subtitle?<Txt lang={lang} style={s.rowSub} numberOfLines={2}>{it.subtitle}</Txt>:null}</View>
-                {on?<Icon name="check" size={20} color={colors.brand}/>:null}
+            <LuxCard reduce={reduce} radius={radius.card}>
+              {sec.items.map((it,i)=>{const on=it.id===selectedId;return <ScalePressable key={it.id} accessibilityRole="radio" accessibilityState={{selected:on,checked:on}} aria-checked={on} accessibilityLabel={it.title} onPress={()=>{onSelect(it.id);setQ('');}}
+                style={[s.row,{flexDirection:ar?'row-reverse':'row'},i<sec.items.length-1&&s.rowLine,on&&s.rowOn]}>
+                <View style={s.rowText}><Txt lang={lang} style={{...s.rowTitle,...(on?{color:colors.brand}:null)}}>{it.title}</Txt>{it.subtitle?<Txt lang={lang} style={s.rowSub} numberOfLines={2}>{it.subtitle}</Txt>:null}</View>
+                {on?<GoldBadge icon="check" size={30}/>:null}
               </ScalePressable>;})}
-            </View>
+            </LuxCard>
           </View>)}
           {!filtered.length?<Txt lang={lang} style={s.none}>{ar?'لا نتائج':'No results'}</Txt>:null}
         </ScrollView>
@@ -55,18 +63,19 @@ export function SelectSheet({visible,lang,title,sections,selectedId,searchPlaceh
 const s=StyleSheet.create({
   backdrop:{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(20,12,5,0.38)'},
   dismiss:{flex:1},
-  sheet:{maxHeight:'82%',backgroundColor:colors.background,borderTopLeftRadius:28,borderTopRightRadius:28,paddingTop:space.sm,...Platform.select({web:{boxShadow:'0 -8px 30px rgba(0,0,0,0.2)'} as object,default:{elevation:16}})},
-  grabber:{alignSelf:'center',width:40,height:5,borderRadius:3,backgroundColor:'rgba(118,102,91,0.35)',marginBottom:space.sm},
+  sheet:{maxHeight:'82%',width:'100%',maxWidth:600,alignSelf:'center',overflow:'hidden',backgroundColor:lux.ivory,borderTopLeftRadius:30,borderTopRightRadius:30,paddingTop:space.sm,...Platform.select({web:{boxShadow:'0 -8px 30px rgba(0,0,0,0.2)'} as object,default:{elevation:16}})},
+  topLine:{position:'absolute',top:0,left:0,right:0,height:1.5},
+  grabber:{alignSelf:'center',width:40,height:5,borderRadius:3,backgroundColor:'rgba(192,138,58,0.55)',marginBottom:space.sm},
   head:{alignItems:'center',justifyContent:'space-between',paddingHorizontal:space.lg,paddingBottom:space.sm},
-  title:{fontSize:type.title2,fontWeight:'700'},
-  close:{width:layout.minTouch-8,height:layout.minTouch-8,borderRadius:(layout.minTouch-8)/2,backgroundColor:'rgba(118,102,91,0.14)',alignItems:'center',justifyContent:'center'},
-  search:{marginHorizontal:space.lg,marginBottom:space.sm,minHeight:40,alignItems:'center',gap:space.sm,paddingHorizontal:space.md,borderRadius:radius.control,backgroundColor:'rgba(118,102,91,0.12)'},
+  title:{fontSize:type.title2,fontWeight:'700',color:'#7A4C14'},
+  close:{width:layout.minTouch,height:layout.minTouch,borderRadius:layout.minTouch/2,backgroundColor:'rgba(255,252,246,0.9)',borderWidth:1,borderColor:'rgba(226,181,101,0.55)',alignItems:'center',justifyContent:'center',overflow:'hidden'},
+  search:{marginHorizontal:space.lg,marginBottom:space.sm,minHeight:48,alignItems:'center',gap:space.sm,paddingHorizontal:space.md,borderRadius:16,backgroundColor:'rgba(255,255,255,0.7)',borderWidth:1,borderColor:'rgba(226,181,101,0.55)'},
   searchInput:{flex:1,minWidth:0,minHeight:layout.minTouch-4,fontSize:type.callout,color:colors.ink},
   list:{paddingHorizontal:space.lg,paddingBottom:space.xxl*1.5,gap:space.lg},
-  section:{gap:space.sm},sectionTitle:{fontSize:type.footnote,fontWeight:'700',color:colors.muted,paddingHorizontal:space.xs},
-  group:{backgroundColor:colors.white,borderRadius:radius.card-6,borderWidth:layout.hairline,borderColor:colors.line,overflow:'hidden'},
+  section:{gap:space.sm},sectionTitle:{fontSize:type.subhead,fontWeight:'700',color:colors.brand,paddingHorizontal:space.xs},
   row:{alignItems:'center',gap:space.md,minHeight:layout.minTouch+8,paddingHorizontal:space.lg,paddingVertical:space.sm},
-  rowLine:{borderBottomWidth:layout.hairline,borderColor:colors.line},
+  rowLine:{borderBottomWidth:1,borderColor:'rgba(226,181,101,0.28)'},
+  rowOn:{backgroundColor:'rgba(252,235,198,0.55)'},
   rowText:{flex:1,gap:2},rowTitle:{fontSize:type.body,fontWeight:'600'},rowSub:{fontSize:type.footnote,color:colors.muted},
   none:{textAlign:'center',color:colors.muted,paddingVertical:space.xxl},
 });

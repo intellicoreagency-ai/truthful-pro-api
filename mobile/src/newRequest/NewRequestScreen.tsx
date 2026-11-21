@@ -1,10 +1,12 @@
 import React,{useMemo,useState} from 'react';
 import {ActivityIndicator,KeyboardAvoidingView,Platform,StyleSheet,TextInput,View} from 'react-native';
-import {ScalePressable} from '../ui/Premium';
+import {LinearGradient} from 'expo-linear-gradient';
+import {Entrance,GoldBadge,GoldText,LuxCard,ScalePressable} from '../ui/Premium';
+import {GlassBackdrop,useReduceTransparency} from '../ui/Glass';
 import {Icon} from '../Icons';
 import {Txt} from '../ui/Txt';
 import {ScrollView} from '../navigation/TabBarLayout';
-import {colors,layout,onGlass,radius,space,type} from '../theme';
+import {colors,layout,lux,onGlass,radius,space,type} from '../theme';
 import {SERVICES,serviceDescription,serviceLabel,type Service} from '../services';
 import {structureFor,type ServiceAction} from '../serviceDetails';
 import {makeId,type ClientRequest} from '../clientModel';
@@ -93,17 +95,20 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
   if(done)return <Done lang={lang} info={done} onUpload={()=>onOpenDocuments(done.record)} onDashboard={onBack}/>;
 
   return <KeyboardAvoidingView style={s.fill} behavior={Platform.OS==='ios'?'padding':undefined}>
+    <GlassBackdrop/>
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-      <Txt lang={lang} style={s.largeTitle}>{t.title}</Txt>
-      <Txt lang={lang} style={s.sub}>{t.sub}</Txt>
+      <Entrance index={0} style={s.titleBlock}>
+        <GoldText lang={lang} style={s.largeTitle}>{t.title}</GoldText>
+        <Txt lang={lang} style={s.sub}>{t.sub}</Txt>
+      </Entrance>
 
-      <Group lang={lang} title={t.chooseGroup}>
+      <Group lang={lang} title={t.chooseGroup} index={1}>
         <PickerRow lang={lang} label={t.service} value={service?serviceLabel(service,lang):''} placeholder={t.pickService} onPress={()=>setSheet('service')} last={!service}/>
         {service?<PickerRow lang={lang} label={t.action} value={action?action[lang]:''} placeholder={t.pickAction} onPress={()=>setSheet('action')} last/>:null}
       </Group>
       {touched&&errors.service?<Err lang={lang}>{errors.service}</Err>:null}
 
-      <Group lang={lang} title={t.applicant}>
+      <Group lang={lang} title={t.applicant} index={2}>
         <Field lang={lang} label={t.name} last={false} error={touched?errors.name:''}>
           <Input lang={lang} value={name} onChangeText={setName} placeholder={t.namePh} autoComplete="name" textContentType="name" maxLength={80}/>
         </Field>
@@ -115,11 +120,11 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
         </Field>
       </Group>
 
-      {action?<Group lang={lang} title={t.docs}>
+      {action?<Group lang={lang} title={t.docs} index={3}>
         <View style={s.docs}>
           {action.documents.length===0?<Txt lang={lang} style={s.docLine}>{t.noDocs}</Txt>:action.documents.map(d=><View key={d.id} style={[s.docRow,{flexDirection:ar?'row-reverse':'row'}]}>
-            <Icon name={d.optional?'info':'file'} size={18} color={d.optional?colors.muted:colors.brand}/>
-            <Txt lang={lang} style={s.docLine}>{d[lang]}{d.optional?` (${t.optional})`:''}</Txt>
+            {d.optional?<View style={s.optionalDot}><Icon name="info" size={16} color={colors.muted}/></View>:<GoldBadge icon="file" size={30}/>}
+            <Txt lang={lang} style={s.docLine}>{d[lang]}{d.optional&&!/if applicable|حسب الحالة|إن وجد/i.test(d[lang])?` (${t.optional})`:''}</Txt>
           </View>)}
           <Txt lang={lang} style={s.docNote}>{t.docsNote}</Txt>
         </View>
@@ -132,8 +137,9 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
 
       <ScalePressable accessibilityRole="button" accessibilityLabel={signedIn?(required.length||!action?t.create:t.submit):t.signIn} accessibilityState={{disabled:busy,busy}} disabled={busy} onPress={()=>void submit()}
         rippleColor="rgba(48,37,31,0.18)" style={[s.primary,(!valid&&signedIn)&&s.primaryDim]}>
-        {busy?<View style={s.busyRow}><ActivityIndicator color={colors.ink}/><Txt lang={lang} style={s.primaryText}>{t.creating}</Txt></View>
-          :<Txt lang={lang} style={s.primaryText}>{signedIn?(required.length||!action?t.create:t.submit):t.signIn}</Txt>}
+        <LinearGradient pointerEvents="none" colors={lux.orange} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
+        <View pointerEvents="none">{busy?<View style={s.busyRow}><ActivityIndicator color={lux.espresso}/><Txt lang={lang} style={s.primaryText}>{t.creating}</Txt></View>
+          :<Txt lang={lang} style={s.primaryText}>{signedIn?(required.length||!action?t.create:t.submit):t.signIn}</Txt>}</View>
       </ScalePressable>
     </ScrollView>
 
@@ -145,14 +151,18 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
   </KeyboardAvoidingView>;
 }
 
-function Group({lang,title,children}:{lang:Lang;title:string;children:React.ReactNode}){
-  return <View style={s.groupWrap}><Txt lang={lang} style={s.groupTitle}>{title}</Txt><View style={s.group}>{children}</View></View>;
+function Group({lang,title,children,index=0}:{lang:Lang;title:string;children:React.ReactNode;index?:number}){
+  const reduce=useReduceTransparency();
+  return <Entrance index={index} style={s.groupWrap}>
+    <View accessibilityRole="header"><Txt lang={lang} bold style={s.groupTitle}>{title}</Txt></View>
+    <LuxCard reduce={reduce} radius={radius.card}>{children}</LuxCard>
+  </Entrance>;
 }
 function PickerRow({lang,label,value,placeholder,onPress,last}:{lang:Lang;label:string;value:string;placeholder:string;onPress:()=>void;last?:boolean}){
   const ar=lang==='ar';
   return <ScalePressable accessibilityRole="button" accessibilityLabel={`${label}: ${value||placeholder}`} onPress={onPress} style={[s.pickRow,{flexDirection:ar?'row-reverse':'row'},!last&&s.rowLine]}>
     <View style={s.pickText}><Txt lang={lang} style={s.label}>{label}</Txt><Txt lang={lang} style={[s.pickValue,!value&&{color:onGlass.placeholder}]} numberOfLines={2}>{value||placeholder}</Txt></View>
-    <Icon name={ar?'back':'next'} size={18} color={colors.muted}/>
+    <View pointerEvents="none"><GoldBadge icon={ar?'back':'next'} size={30}/></View>
   </ScalePressable>;
 }
 function Field({lang,label,error,last,children}:{lang:Lang;label:string;error?:string;last?:boolean;children:React.ReactNode}){
@@ -168,46 +178,56 @@ function Err({lang,children}:{lang:Lang;children:React.ReactNode}){return <Txt l
 function Done({lang,info,onUpload,onDashboard}:{lang:Lang;info:CreatedInfo;onUpload:()=>void;onDashboard:()=>void}){
   const t=copy[lang];
   const ref=(info.record.remoteId??info.record.id).slice(0,8).toUpperCase();
-  return <ScrollView contentContainerStyle={s.doneWrap} showsVerticalScrollIndicator={false}>
-    <View style={s.doneIcon}><Icon name="check" size={40} color="#2D681F"/></View>
-    <Txt lang={lang} style={s.doneTitle}>{t.doneTitle}</Txt>
-    <Txt lang={lang} style={s.doneBody}>{info.onServer?(info.submitted?t.doneSubmitted:t.doneDraft):t.localOnly}</Txt>
-    <View style={s.refBox}><Txt lang={lang} style={s.refLabel}>{t.ref}</Txt><Txt lang="en" style={s.refValue}>{'⁦#'+ref+'⁩'}</Txt></View>
-    {!info.submitted?<ScalePressable accessibilityRole="button" accessibilityLabel={t.uploadDocs} onPress={onUpload} rippleColor="rgba(48,37,31,0.18)" style={s.primary}><Txt lang={lang} style={s.primaryText}>{t.uploadDocs}</Txt></ScalePressable>:null}
-    <ScalePressable accessibilityRole="button" accessibilityLabel={t.toDashboard} onPress={onDashboard} style={s.secondary}><Txt lang={lang} style={s.secondaryText}>{t.toDashboard}</Txt></ScalePressable>
-  </ScrollView>;
+  const reduce=useReduceTransparency();
+  return <View style={s.fill}><GlassBackdrop/><ScrollView contentContainerStyle={s.doneWrap} showsVerticalScrollIndicator={false}>
+    <Entrance index={0} style={s.doneHead}>
+      <GoldBadge icon="check" size={96}/>
+      <GoldText lang={lang} style={s.doneTitle}>{t.doneTitle}</GoldText>
+      <Txt lang={lang} style={s.doneBody}>{info.onServer?(info.submitted?t.doneSubmitted:t.doneDraft):t.localOnly}</Txt>
+    </Entrance>
+    <Entrance index={1}><LuxCard reduce={reduce} contentStyle={s.refBox}><Txt lang={lang} style={s.refLabel}>{t.ref}</Txt><Txt lang="en" style={s.refValue}>{'\u2066#'+ref+'\u2069'}</Txt></LuxCard></Entrance>
+    <Entrance index={2} style={s.doneActions}>
+      {!info.submitted?<ScalePressable accessibilityRole="button" accessibilityLabel={t.uploadDocs} onPress={onUpload} rippleColor="rgba(48,37,31,0.18)" style={s.primary}>
+        <LinearGradient pointerEvents="none" colors={lux.orange} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
+        <View pointerEvents="none"><Txt lang={lang} style={s.primaryText}>{t.uploadDocs}</Txt></View>
+      </ScalePressable>:null}
+      <ScalePressable accessibilityRole="button" accessibilityLabel={t.toDashboard} onPress={onDashboard} style={s.secondary}><Txt lang={lang} style={s.secondaryText}>{t.toDashboard}</Txt></ScalePressable>
+    </Entrance>
+  </ScrollView></View>;
 }
 
 const s=StyleSheet.create({
-  fill:{flex:1,backgroundColor:colors.background},
-  scroll:{paddingHorizontal:space.lg,paddingTop:space.lg,paddingBottom:space.xxl,gap:space.lg},
-  largeTitle:{fontSize:type.largeTitle,lineHeight:type.largeTitle*1.25,fontWeight:'800'},
-  sub:{fontSize:type.body,lineHeight:type.body*1.5,color:colors.muted,marginTop:-space.sm},
-  groupWrap:{gap:space.sm},groupTitle:{fontSize:type.footnote,fontWeight:'700',color:colors.muted,paddingHorizontal:space.xs},
-  group:{backgroundColor:colors.white,borderRadius:radius.card-6,borderWidth:layout.hairline,borderColor:colors.line,overflow:'hidden'},
-  rowLine:{borderBottomWidth:layout.hairline,borderColor:colors.line},
+  fill:{flex:1,backgroundColor:lux.ivory},
+  scroll:{paddingHorizontal:space.lg,paddingTop:space.lg,paddingBottom:space.xxl,gap:space.lg,width:'100%',maxWidth:600,alignSelf:'center'},
+  titleBlock:{gap:space.xs},
+  largeTitle:{fontSize:type.largeTitle,lineHeight:type.largeTitle*1.25},
+  sub:{fontSize:type.body,lineHeight:type.body*1.5,color:colors.muted},
+  groupWrap:{gap:space.sm},groupTitle:{fontSize:type.subhead,color:colors.brand,paddingHorizontal:space.xs},
+  rowLine:{borderBottomWidth:1,borderColor:'rgba(226,181,101,0.3)'},
+  optionalDot:{width:30,height:30,borderRadius:15,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(118,102,91,0.1)'},
   pickRow:{alignItems:'center',gap:space.md,minHeight:layout.minTouch+14,paddingHorizontal:space.lg,paddingVertical:space.md},
   pickText:{flex:1,gap:2},pickValue:{fontSize:type.body,fontWeight:'600'},
   label:{fontSize:type.footnote,color:colors.muted,fontWeight:'600'},
-  field:{paddingHorizontal:space.lg,paddingTop:space.md,paddingBottom:space.xs,gap:2},
-  input:{minHeight:layout.minTouch,fontSize:type.body,color:colors.ink,paddingVertical:space.xs,...Platform.select({web:{outlineStyle:'none'} as object,default:{}})},
+  field:{paddingHorizontal:space.lg,paddingTop:space.md,paddingBottom:space.md,gap:2},
+  input:{minHeight:layout.minTouch,fontSize:type.body,color:colors.ink,paddingVertical:space.xs,paddingHorizontal:space.md,marginTop:space.xs,borderRadius:radius.control,borderWidth:1,borderColor:'rgba(226,181,101,0.45)',backgroundColor:'rgba(255,255,255,0.6)',...Platform.select({web:{outlineStyle:'none'} as object,default:{}})},
   inputTall:{minHeight:88,textAlignVertical:'top'},
   fieldError:{fontSize:type.footnote,color:onGlass.error,fontWeight:'600',paddingBottom:space.sm,paddingHorizontal:space.xs},
   docs:{padding:space.lg,gap:space.sm},docRow:{alignItems:'center',gap:space.md},docLine:{flex:1,fontSize:type.callout,lineHeight:type.callout*1.45},
   docNote:{fontSize:type.footnote,color:colors.muted,marginTop:space.xs},
-  errorBox:{backgroundColor:'#FBE6E3',borderRadius:14,padding:space.md,gap:space.xs},errorText:{fontSize:type.subhead,color:onGlass.error,fontWeight:'600'},
+  errorBox:{backgroundColor:'#FBE6E3',borderRadius:16,padding:space.md,gap:space.xs,borderWidth:1,borderColor:'rgba(163,38,26,0.25)'},errorText:{fontSize:type.subhead,color:onGlass.error,fontWeight:'600'},
   errorLink:{minHeight:layout.minTouch-8,justifyContent:'center'},errorLinkText:{fontSize:type.subhead,color:colors.brand,fontWeight:'700',textDecorationLine:'underline'},
   guest:{fontSize:type.footnote,color:colors.muted,textAlign:'center'},
-  primary:{minHeight:54,borderRadius:16,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl,marginTop:space.sm,
-    ...Platform.select({ios:{shadowColor:'#FF8A00',shadowOffset:{width:0,height:6},shadowOpacity:0.3,shadowRadius:12},android:{elevation:4},default:{boxShadow:'0 6px 14px rgba(255,138,0,0.3)'} as object})},
+  primary:{minHeight:56,borderRadius:18,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl,marginTop:space.sm,overflow:'hidden',
+    ...Platform.select({ios:{shadowColor:'#E06F00',shadowOffset:{width:0,height:8},shadowOpacity:0.3,shadowRadius:14},android:{elevation:4},default:{boxShadow:'0 8px 16px rgba(224,111,0,0.28)'} as object})},
   primaryDim:{opacity:0.6},
-  primaryText:{fontSize:type.headline,fontWeight:'700',color:colors.ink,textAlign:'center'},
+  primaryText:{fontSize:type.headline,fontWeight:'700',color:lux.espresso,textAlign:'center'},
   busyRow:{flexDirection:'row',alignItems:'center',gap:space.md},
-  secondary:{minHeight:52,borderRadius:16,backgroundColor:colors.brandTint,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl},
+  secondary:{minHeight:54,borderRadius:18,backgroundColor:'rgba(255,252,246,0.9)',borderWidth:1,borderColor:'rgba(226,181,101,0.6)',alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl},
   secondaryText:{fontSize:type.headline,fontWeight:'600',color:colors.brand,textAlign:'center'},
-  doneWrap:{flexGrow:1,justifyContent:'center',alignItems:'stretch',padding:space.xl,gap:space.lg},
-  doneIcon:{alignSelf:'center',width:88,height:88,borderRadius:44,backgroundColor:'#E5F2D9',alignItems:'center',justifyContent:'center'},
-  doneTitle:{fontSize:type.title,fontWeight:'800',textAlign:'center'},doneBody:{fontSize:type.body,lineHeight:type.body*1.5,color:colors.muted,textAlign:'center'},
-  refBox:{alignItems:'center',gap:2,paddingVertical:space.md,borderRadius:16,backgroundColor:colors.white,borderWidth:layout.hairline,borderColor:colors.line},
+  doneWrap:{flexGrow:1,justifyContent:'center',alignItems:'stretch',padding:space.xl,gap:space.lg,width:'100%',maxWidth:600,alignSelf:'center'},
+  doneHead:{alignItems:'center',gap:space.md},
+  doneActions:{gap:space.md},
+  doneTitle:{fontSize:type.title,lineHeight:type.title*1.3,textAlign:'center'},doneBody:{fontSize:type.body,lineHeight:type.body*1.5,color:colors.muted,textAlign:'center'},
+  refBox:{alignItems:'center',gap:2,paddingVertical:space.lg},
   refLabel:{fontSize:type.footnote,color:colors.muted},refValue:{fontSize:type.title2,fontWeight:'700',letterSpacing:1},
 });

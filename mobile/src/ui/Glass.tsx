@@ -61,11 +61,11 @@ export function GlassButton({lang,label,onPress,icon,primary,disabled,busy,acces
   lang:Lang;label:string;onPress:()=>void;icon?:IconName;primary?:boolean;disabled?:boolean;busy?:boolean;accessibilityLabel?:string;compact?:boolean;
   /** Share a row equally with its siblings (same width and height). */fill?:boolean;
 }){
-  const off=!!disabled||!!busy,fg=primary?'#FFFFFF':colors.brand;
+  const off=!!disabled||!!busy,fg=primary?lux.espresso:colors.brand;
   return <ScalePressable accessibilityRole="button" accessibilityLabel={accessibilityLabel??label} accessibilityState={{disabled:off,busy:!!busy}}
-    disabled={off} onPress={onPress} rippleColor={primary?'rgba(255,255,255,0.3)':undefined}
+    disabled={off} onPress={onPress} rippleColor={primary?'rgba(48,37,31,0.18)':undefined}
     style={[g.button,compact&&g.buttonCompact,fill&&g.fill,primary?g.primary:g.secondary,off&&g.disabled]}>
-    {primary&&<LinearGradient pointerEvents="none" colors={['#FFA43A',colors.orange,'#E06F00']} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>}
+    {primary&&<LinearGradient pointerEvents="none" colors={lux.orange} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>}
     <View pointerEvents="none" style={[g.buttonInner,{flexDirection:rowFor(lang)}]}>
       {busy?<ActivityIndicator color={fg}/>:icon?<Icon name={icon} size={19} color={fg}/>:null}
       {!!label&&<Txt lang={lang} bold style={{...g.buttonText,color:fg}}>{label}</Txt>}

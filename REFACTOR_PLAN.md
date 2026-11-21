@@ -82,6 +82,21 @@ Unchanged on purpose: approved banner artwork (`CompanyBanner`, approved banners
 - Legal: Android back closed the screen underneath instead of the Terms/Privacy overlay.
 - Web preview: `isReduceTransparencyEnabled` crashed react-native-web; checkbox/tab state now also exposed on web.
 
+## Premium phase (concierge design) — done
+
+Every screen, including Sign-in and New Request, uses one premium system:
+- `mobile/src/ui/Premium.tsx`: `ScalePressable` (spring + haptic, layout styles moved to its wrapper), `Entrance`
+  (staggered spring fade-up), `GoldText`, `GoldBadge`, `LuxCard` (blur + ivory sheen + gold gradient hairline + warm shadow).
+- `mobile/src/ui/Glass.tsx` builds on it: gold-glass cards, gradient buttons, gold screen titles, sections that rise in
+  (keyed by React's stable keys so nothing remounts).
+- `theme.ts` → `lux` tokens. Accessible action colour: espresso text on bright orange (`lux.orange`, ≈ 7:1);
+  white icons only on the deeper orange (`lux.orangeDeep`). White text on bright orange (≈ 2.4:1) is not used.
+- Floating glass tab bar with a raised gold-ringed "+", springy gold selection pill, mirrored order in Arabic.
+- New packages (SDK 58 / Expo Go versions): react-native-reanimated 4.7.1, react-native-worklets 0.13.0,
+  expo-linear-gradient, expo-haptics, @react-native-masked-view/masked-view 0.3.2.
+- Motion off under Reduce motion; glass opaque under Reduce transparency.
+- Still to do on devices: blur, gold gradient text (web shows a flat-gold fallback), haptics, springs, large text, VoiceOver/TalkBack.
+
 ## Per-screen checklist
 
 - [ ] Record current functionality and capture the current screen.

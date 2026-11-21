@@ -42,7 +42,7 @@ const copy={
     offline:'Could not refresh. Showing the last saved data.',retry:'Try again',pull:'Pull down to refresh',demoOn:'Show my requests',demoOff:'View sample screens',sample:'Sample',stage:(n:number)=>`Stage ${n} of 5`},
 } as const;
 
-const ORANGE=['#FFA43A',colors.orange,'#E06F00'] as const;
+const ORANGE=lux.orange; // espresso text on it (AA)
 const enter=(i:number)=>FadeInDown.delay(60+Math.min(i,6)*60).springify().damping(18).mass(0.8).reduceMotion(ReduceMotion.System);
 const flow=LinearTransition.springify().damping(20).reduceMotion(ReduceMotion.System);
 
@@ -91,9 +91,9 @@ function RequestCard({lang,r,onOpen,onMissing,reduce}:{lang:Lang;r:ClientRequest
     </ScalePressable>
     <View style={[s.footer,{flexDirection:row}]}>
       {r.status==='needs_documents'
-        ?<ScalePressable accessibilityRole="button" accessibilityLabel={`${t.sendDocs}: ${r.title[lang]}`} onPress={onMissing} rippleColor="rgba(255,255,255,0.3)" style={s.actionPill}>
+        ?<ScalePressable accessibilityRole="button" accessibilityLabel={`${t.sendDocs}: ${r.title[lang]}`} onPress={onMissing} rippleColor="rgba(48,37,31,0.18)" style={s.actionPill}>
           <LinearGradient colors={ORANGE} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
-          <View pointerEvents="none" style={[s.actionInner,{flexDirection:row}]}><Icon name="upload" size={16} color="#FFFFFF"/><Txt lang={lang} bold style={s.actionText}>{t.sendDocs}</Txt></View>
+          <View pointerEvents="none" style={[s.actionInner,{flexDirection:row}]}><Icon name="upload" size={16} color={lux.espresso}/><Txt lang={lang} bold style={s.actionText}>{t.sendDocs}</Txt></View>
         </ScalePressable>
         :<View/>}
       <ScalePressable accessibilityRole="button" accessibilityLabel={`${t.details}: ${r.title[lang]}`} onPress={onOpen} style={[s.detailsLink,{flexDirection:row}]}>
@@ -154,9 +154,9 @@ export function DashboardScreen({lang,records,drafts,syncStatus,loadedOnce,demo,
         <GoldBadge icon="folder" size={84}/>
         <GoldText lang={lang} style={s.emptyTitle}>{t.emptyTitle}</GoldText>
         <Txt lang={lang} style={s.emptyBody}>{t.emptyBody}</Txt>
-        <ScalePressable accessibilityRole="button" accessibilityLabel={t.start} onPress={onStart} rippleColor="rgba(255,255,255,0.3)" style={s.startBtn}>
+        <ScalePressable accessibilityRole="button" accessibilityLabel={t.start} onPress={onStart} rippleColor="rgba(48,37,31,0.18)" style={s.startBtn}>
           <LinearGradient colors={ORANGE} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
-          <View pointerEvents="none" style={[s.actionInner,{flexDirection:row}]}><Icon name="plus" size={20} color="#FFFFFF"/><Txt lang={lang} bold style={s.startText}>{t.start}</Txt></View>
+          <View pointerEvents="none" style={[s.actionInner,{flexDirection:row}]}><Icon name="plus" size={20} color={lux.espresso}/><Txt lang={lang} bold style={s.startText}>{t.start}</Txt></View>
         </ScalePressable>
         <Txt lang={lang} style={s.pullHint}>{t.pull}</Txt>
       </Animated.View>:null}
@@ -260,7 +260,7 @@ const s=StyleSheet.create({
   footer:{alignItems:'center',justifyContent:'space-between',borderTopWidth:1,borderColor:'rgba(226,181,101,0.28)',paddingHorizontal:space.lg,minHeight:layout.minTouch+12},
   actionPill:{minHeight:40,borderRadius:radius.pill,overflow:'hidden',justifyContent:'center'},
   actionInner:{alignItems:'center',justifyContent:'center',gap:6,paddingHorizontal:space.md+2},
-  actionText:{fontSize:type.footnote+1,color:'#FFFFFF'},
+  actionText:{fontSize:type.footnote+1,color:lux.espresso},
   detailsLink:{alignItems:'center',gap:space.sm,minHeight:layout.minTouch,paddingHorizontal:space.xs},
   detailsText:{fontSize:type.subhead,color:colors.brand},
 
@@ -273,7 +273,7 @@ const s=StyleSheet.create({
   noMatchTitle:{fontSize:type.title2,lineHeight:30,textAlign:'center'},
   emptyBody:{fontSize:type.callout,lineHeight:26,color:colors.muted,textAlign:'center'},
   startBtn:{minHeight:54,borderRadius:18,overflow:'hidden',justifyContent:'center',paddingHorizontal:space.xl,marginTop:space.sm},
-  startText:{fontSize:type.headline,color:'#FFFFFF'},
+  startText:{fontSize:type.headline,color:lux.espresso},
   pullHint:{fontSize:type.caption,color:colors.muted,marginTop:space.sm,textAlign:'center'},
 
   section:{gap:space.sm},sectionTitle:{fontSize:type.subhead,color:colors.muted},

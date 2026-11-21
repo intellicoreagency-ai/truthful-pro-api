@@ -75,7 +75,7 @@ export function TabBar({active,labels,onSelect,blurTarget,accessory,labelFont,rt
                   rippleColor="rgba(255,255,255,0.3)" style={s.fabHit}>
                   <View pointerEvents="none" style={s.fabShadow}>
                     <LinearGradient colors={lux.goldBright} start={{x:0,y:0}} end={{x:1,y:1}} style={s.fabRing}>
-                      <LinearGradient colors={['#FFA43A',colors.orange,'#E06F00']} start={{x:0,y:0}} end={{x:1,y:1}} style={s.fab}>
+                      <LinearGradient colors={lux.orangeDeep} start={{x:0,y:0}} end={{x:1,y:1}} style={s.fab}>
                         <Icon name="plus" size={28} color="#FFFFFF"/>
                       </LinearGradient>
                     </LinearGradient>

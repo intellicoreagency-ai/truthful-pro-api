@@ -44,6 +44,10 @@ export const lux={
   goldBorder:['rgba(255,255,255,0.95)','rgba(232,196,128,0.9)','rgba(255,255,255,0.6)'] as const,
   sheen:['rgba(255,255,255,0.78)','rgba(255,252,246,0.46)'] as const, // card surface over the blur
   shadow:'#5A3A12',
+  /** Action fill with ESPRESSO text/icons (≈ 7:1). White text on bright orange is only ≈ 2.4:1, below AA. */
+  orange:['#FFB04D','#FF8A00','#F57F00'] as const,
+  /** Deeper fill for WHITE icons on icon-only buttons (≥ 3:1 for graphics). */
+  orangeDeep:['#E87400','#D16000','#B85400'] as const,
   onDark:'#FFF6E8',
   onDarkSoft:'rgba(255,246,232,0.78)',
 } as const;

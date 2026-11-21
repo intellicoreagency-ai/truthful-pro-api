@@ -2,9 +2,10 @@ import React,{createContext,useContext,useEffect,useRef,useState} from 'react';
 import {AccessibilityInfo,ActivityIndicator,Animated,Image,KeyboardAvoidingView,Platform,ScrollView,StyleSheet,Text,TextInput,useWindowDimensions,View,type TextInputProps} from 'react-native';
 import {BlurTargetView,BlurView} from 'expo-blur';
 import Svg,{Defs,LinearGradient,Rect,Stop} from 'react-native-svg';
-import {ScalePressable} from '../ui/Premium';
+import {LinearGradient as Gradient} from 'expo-linear-gradient';
+import {GoldText,ScalePressable} from '../ui/Premium';
 import {Icon,type IconName} from '../Icons';
-import {colors,glass,layout,onGlass,radius,space,type} from '../theme';
+import {colors,glass,layout,lux,onGlass,radius,space,type} from '../theme';
 import type {Lang} from './copy';
 
 const cover=require('../../assets/brand/cover-dubai.jpg'); // the approved Dubai cover, full screen behind the glass
@@ -42,13 +43,17 @@ export function StepTransition({stepKey,children}:{stepKey:string;children:React
   return <Animated.View style={{opacity:v,transform:[{translateY:v.interpolate({inputRange:[0,1],outputRange:[12,0]})}]}}>{children}</Animated.View>;
 }
 
-/** Frosted-glass surface: real blur of what is behind (expo-blur) + a 20 % white tint + a light edge. */
+/** Premium glass over the photo: gold gradient hairline, warm shadow, real blur (expo-blur) and an ivory sheen. */
 export function GlassCard({children,style}:{children:React.ReactNode;style?:object}){
   const target=useContext(BlurCtx);
-  return <View style={[s.card,style]}>
-    <BlurView style={StyleSheet.absoluteFill} tint="light" intensity={50} blurTarget={Platform.OS==='android'?target:undefined} blurMethod="dimezisBlurViewSdk31Plus"/>
-    <View style={[StyleSheet.absoluteFill,{backgroundColor:glass.fill}]} pointerEvents="none"/>
-    <View style={s.cardInner}>{children}</View>
+  return <View style={[s.cardShadow,style]}>
+    <Gradient colors={lux.goldBorder} start={{x:0,y:0}} end={{x:1,y:1}} style={s.cardBorder}>
+      <View style={s.card}>
+        <BlurView style={StyleSheet.absoluteFill} tint="light" intensity={60} blurTarget={Platform.OS==='android'?target:undefined} blurMethod="dimezisBlurViewSdk31Plus"/>
+        <Gradient pointerEvents="none" colors={['rgba(255,252,246,0.82)','rgba(251,244,232,0.64)']} style={StyleSheet.absoluteFill}/>
+        <View style={s.cardInner}>{children}</View>
+      </View>
+    </Gradient>
   </View>;
 }
 
@@ -72,8 +77,8 @@ export function AuthScaffold({lang,onLanguage,logo,title,subtitle,children,foote
         <Image source={cover} resizeMode="cover" style={{position:'absolute',top:0,left:0,width,height}} accessible={false}/>
         <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} accessible={false}>
           <Defs><LinearGradient id="authShade" x1="0%" y1="0%" x2="0%" y2="100%">
-            <Stop offset="0%" stopColor={glass.scrim} stopOpacity={0.4}/><Stop offset="28%" stopColor={glass.scrim} stopOpacity={0}/>
-            <Stop offset="70%" stopColor={glass.scrim} stopOpacity={0.08}/><Stop offset="100%" stopColor={glass.scrim} stopOpacity={0.5}/>
+            <Stop offset="0%" stopColor={lux.espresso} stopOpacity={0.62}/><Stop offset="42%" stopColor={lux.espresso} stopOpacity={0.32}/>
+            <Stop offset="72%" stopColor={lux.espresso} stopOpacity={0.12}/><Stop offset="100%" stopColor={lux.espresso} stopOpacity={0.55}/>
           </LinearGradient></Defs>
           <Rect width="100%" height="100%" fill="url(#authShade)"/>
         </Svg>
@@ -81,15 +86,16 @@ export function AuthScaffold({lang,onLanguage,logo,title,subtitle,children,foote
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS==='ios'?'padding':undefined}>
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} bounces={false}>
           <View style={[s.top,{flexDirection:ar?'row-reverse':'row'}]}>
-            <Image source={logo} style={s.logo} accessible={false}/>
+            <Gradient colors={lux.goldBright} start={{x:0,y:0}} end={{x:1,y:1}} style={s.logoRing}><Image source={logo} style={s.logo} accessible={false}/></Gradient>
             <View style={s.langSwitch} accessibilityRole="tablist">
-              {(['ar','en'] as const).map(l=><ScalePressable key={l} accessibilityRole="tab" accessibilityState={{selected:lang===l}} accessibilityLabel={l==='ar'?'العربية':'English'} onPress={()=>onLanguage(l)} style={[s.langItem,lang===l&&s.langOn]} rippleColor="rgba(255,255,255,0.3)">
-                <T lang={l} style={[s.langText,lang===l&&s.langTextOn]}>{l==='ar'?'عربي':'EN'}</T>
-              </ScalePressable>)}
+              {(['ar','en'] as const).map(l=>{const on=lang===l;return <ScalePressable key={l} accessibilityRole="tab" accessibilityState={{selected:on}} aria-selected={on} accessibilityLabel={l==='ar'?'العربية':'English'} onPress={()=>onLanguage(l)} style={s.langItem} rippleColor="rgba(255,255,255,0.3)">
+                {on&&<Gradient pointerEvents="none" colors={lux.goldBadge} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>}
+                <View pointerEvents="none"><T lang={l} style={[s.langText,on&&s.langTextOn]}>{l==='ar'?'عربي':'EN'}</T></View>
+              </ScalePressable>;})}
             </View>
           </View>
           <View style={s.content}>
-            <T lang={lang} style={[s.title,{textAlign:ar?'right':'left'}]}>{title}</T>
+            <GoldText lang={lang} colors={lux.goldBright} style={{...s.title,textAlign:ar?'right':'left'}}>{title}</GoldText>
             {subtitle?<T lang={lang} style={[s.subtitle,{textAlign:ar?'right':'left'}]}>{subtitle}</T>:null}
             <GlassCard>{children}</GlassCard>
             {footer?<View style={s.footer}>{footer}</View>:null}
@@ -123,7 +129,8 @@ export function PrimaryButton({lang,label,onPress,busy=false,disabled=false}:{la
   const T=AText;
   return <ScalePressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:disabled||busy,busy}} disabled={disabled||busy} onPress={onPress}
     rippleColor="rgba(48,37,31,0.18)" style={[s.primary,(disabled||busy)&&s.primaryOff]}>
-    {busy?<ActivityIndicator color={colors.ink}/>:<T lang={lang} style={s.primaryText}>{label}</T>}
+    <Gradient pointerEvents="none" colors={lux.orange} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
+    <View pointerEvents="none">{busy?<ActivityIndicator color={lux.espresso}/>:<T lang={lang} style={s.primaryText}>{label}</T>}</View>
   </ScalePressable>;
 }
 export function SecondaryButton({lang,label,onPress}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void}){
@@ -142,7 +149,7 @@ export function TextLink({lang,label,onPress,tone='glass'}:{lang:Lang;Text?:Auth
 export function ConsentRow({lang,checked,onToggle,children,label}:{lang:Lang;Text?:AuthText;checked:boolean;onToggle:()=>void;children:React.ReactNode;label:string}){
   const ar=lang==='ar';
   return <ScalePressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked}} onPress={onToggle} style={[s.consent,{flexDirection:ar?'row-reverse':'row'}]} rippleColor="rgba(48,37,31,0.1)">
-    <View style={[s.box,checked&&s.boxOn]}>{checked?<Icon name="check" size={14} color={colors.ink}/>:null}</View>
+    <View pointerEvents="none" style={[s.box,checked&&s.boxOn]}>{checked?<Icon name="check" size={14} color={lux.espresso}/>:null}</View>
     <View style={s.consentText}>{children}</View>
   </ScalePressable>;
 }
@@ -154,34 +161,41 @@ const s=StyleSheet.create({
   flex:{flex:1},
   scroll:{flexGrow:1,justifyContent:'space-between',paddingHorizontal:space.xl,paddingTop:space.lg,paddingBottom:space.xxl},
   top:{alignItems:'center',justifyContent:'space-between'},
-  logo:{width:52,height:52,borderRadius:26,borderWidth:1,borderColor:'rgba(255,255,255,0.6)'},
-  langSwitch:{flexDirection:'row',backgroundColor:'rgba(255,255,255,0.2)',borderRadius:radius.pill,borderWidth:layout.hairline*2,borderColor:glass.border,padding:3},
-  langItem:{minHeight:layout.minTouch-8,minWidth:52,alignItems:'center',justifyContent:'center',borderRadius:radius.pill,paddingHorizontal:space.md},
-  langOn:{backgroundColor:'rgba(255,255,255,0.92)'},
-  langText:{fontSize:type.subhead,color:glass.text},langTextOn:{color:colors.ink,fontWeight:'700'},
+  logoRing:{width:58,height:58,borderRadius:29,alignItems:'center',justifyContent:'center'},
+  logo:{width:52,height:52,borderRadius:26},
+  langSwitch:{flexDirection:'row',backgroundColor:'rgba(30,18,8,0.38)',borderRadius:radius.pill,borderWidth:1,borderColor:'rgba(247,223,166,0.55)',padding:3,gap:2},
+  langItem:{minHeight:layout.minTouch-4,minWidth:56,alignItems:'center',justifyContent:'center',borderRadius:radius.pill,paddingHorizontal:space.md,overflow:'hidden'},
+  langText:{fontSize:type.subhead,color:lux.onDark},langTextOn:{color:lux.espresso,fontWeight:'700'},
   content:{marginTop:space.xxl,gap:space.md},
-  title:{fontSize:type.largeTitle,lineHeight:type.largeTitle*1.3,fontWeight:'800',color:glass.text,textShadowColor:'rgba(0,0,0,0.45)',textShadowOffset:{width:0,height:1},textShadowRadius:8},
+  title:{fontSize:type.largeTitle,lineHeight:type.largeTitle*1.3},
   subtitle:{fontSize:type.body,lineHeight:type.body*1.5,color:glass.textSoft,textShadowColor:'rgba(0,0,0,0.4)',textShadowOffset:{width:0,height:1},textShadowRadius:6},
-  card:{marginTop:space.sm,borderRadius:28,overflow:'hidden',borderWidth:1,borderColor:glass.border},
+  cardShadow:{marginTop:space.sm,borderRadius:28,...Platform.select({
+    ios:{shadowColor:'#000',shadowOffset:{width:0,height:16},shadowOpacity:0.28,shadowRadius:30},
+    android:{elevation:10},
+    default:{shadowColor:'#000',shadowOffset:{width:0,height:16},shadowOpacity:0.28,shadowRadius:30},
+  }) as object},
+  cardBorder:{borderRadius:28,padding:1},
+  card:{borderRadius:27,overflow:'hidden'},
   cardInner:{padding:space.xl,gap:space.lg},
   footer:{marginTop:space.sm,alignItems:'center',gap:space.xs},
   fieldWrap:{gap:space.sm-2},
   label:{fontSize:type.footnote,fontWeight:'600',color:onGlass.soft},
-  field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control+2,backgroundColor:onGlass.field,borderWidth:1,borderColor:onGlass.border},
-  fieldFocus:{borderColor:colors.brand,borderWidth:2,paddingHorizontal:space.lg-1},
+  field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control+4,backgroundColor:'rgba(255,255,255,0.62)',borderWidth:1,borderColor:'rgba(226,181,101,0.55)'},
+  fieldFocus:{borderColor:'#C08A3A',borderWidth:2,paddingHorizontal:space.lg-1,backgroundColor:'rgba(255,255,255,0.8)'},
   fieldError:{borderColor:onGlass.error,borderWidth:2,paddingHorizontal:space.lg-1},
   input:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.body,color:onGlass.text},
   error:{fontSize:type.footnote,color:onGlass.error,fontWeight:'600'},
   hint:{fontSize:type.footnote,color:onGlass.soft},
-  primary:{minHeight:52,borderRadius:14,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl},
+  primary:{minHeight:54,borderRadius:18,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl,overflow:'hidden',...Platform.select({
+    ios:{shadowColor:'#E06F00',shadowOffset:{width:0,height:8},shadowOpacity:0.3,shadowRadius:14},android:{elevation:4},default:{}}) as object},
   primaryOff:{opacity:0.55},
-  primaryText:{fontSize:type.headline,fontWeight:'700',color:colors.ink},
-  secondary:{flex:1,minHeight:48,borderRadius:14,backgroundColor:onGlass.field,borderWidth:1,borderColor:onGlass.border,alignItems:'center',justifyContent:'center',paddingHorizontal:space.sm},
-  secondaryText:{fontSize:type.subhead,fontWeight:'600',color:onGlass.text,textAlign:'center'},
+  primaryText:{fontSize:type.headline,fontWeight:'700',color:lux.espresso},
+  secondary:{flex:1,minHeight:50,borderRadius:16,backgroundColor:'rgba(255,252,246,0.72)',borderWidth:1,borderColor:'rgba(226,181,101,0.6)',alignItems:'center',justifyContent:'center',paddingHorizontal:space.sm},
+  secondaryText:{fontSize:type.subhead,fontWeight:'700',color:colors.brand,textAlign:'center'},
   link:{minHeight:layout.minTouch,justifyContent:'center',paddingHorizontal:space.sm},
   linkText:{fontSize:type.callout,fontWeight:'700',color:glass.link},
   consent:{alignItems:'flex-start',gap:space.md,minHeight:layout.minTouch,paddingVertical:space.xs},
   box:{width:24,height:24,borderRadius:7,borderWidth:1.5,borderColor:onGlass.box,alignItems:'center',justifyContent:'center',marginTop:1},
-  boxOn:{backgroundColor:colors.orange,borderColor:colors.orange},
+  boxOn:{backgroundColor:'#E2B565',borderColor:'#C08A3A'},
   consentText:{flex:1},
 });

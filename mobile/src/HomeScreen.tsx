@@ -114,7 +114,7 @@ export function HomeScreen({lang,onLanguage,onServices,onSearch,onNotifications,
               style={[styles.searchInput,{textAlign:ar?'right':'left',writingDirection:ar?'rtl':'ltr',fontFamily:ar?'CairoRegular':undefined}]}/>
             <ScalePressable accessibilityRole="button" accessibilityLabel={t.searchGo} accessibilityState={{disabled:!query.trim()}} disabled={!query.trim()} onPress={search}
               style={[styles.searchGo,!query.trim()&&styles.dim]} rippleColor="rgba(255,255,255,0.3)">
-              <LinearGradient colors={['#FFA43A',colors.orange,'#E06F00']} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
+              <LinearGradient colors={lux.orangeDeep} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
               <View pointerEvents="none"><Icon name={ar?'back':'next'} size={20} color="#FFFFFF"/></View>
             </ScalePressable>
           </LuxCard>
