@@ -13,6 +13,8 @@ import {ScrollView} from '../navigation/TabBarLayout';
 import {colors,layout,radius,space,type} from '../theme';
 import {serviceDescription,serviceLabel,type Service} from '../services';
 import {structureFor,tradeLicenceSectionTitles,wording,type ServiceAction} from '../serviceDetails';
+import {LanguageButton} from '../ui/LanguageButton';
+import {pick} from '../i18n';
 
 export type DetailTab='about'|'documents'|'fees';
 type DraftFile={name:string};
@@ -52,7 +54,7 @@ type Props={
 
 export function ServiceDetailsScreen(p:Props){
   const {lang,service,tab,actionId}=p;
-  const t=COPY[lang],ar=lang==='ar',row=rowFor(lang);
+  const t=pick(COPY,lang),ar=lang==='ar',row=rowFor(lang);
   const reduce=useReduceTransparency();
   const detail=structureFor(service.id);
   const action=detail.actions.find(a=>a.id===actionId);
@@ -83,9 +85,7 @@ export function ServiceDetailsScreen(p:Props){
 
   return <GlassScreen scrollRef={p.scrollRef}>
     <ScreenHeader lang={lang} title={serviceLabel(service,lang)} subtitle={serviceDescription(service,lang)} backLabel={t.back} onBack={p.onBack}
-      trailing={<ScalePressable accessibilityRole="button" accessibilityLabel={t.languageA11y} onPress={p.onLanguage} style={styles.round}>
-        <Txt lang={ar?'en':'ar'} bold style={styles.languageText}>{ar?'EN':'ع'}</Txt>
-      </ScalePressable>}/>
+      trailing={<LanguageButton lang={lang} onPress={p.onLanguage}/>}/>
 
     <View style={styles.banner}>{p.banner}</View>
 
@@ -156,7 +156,7 @@ export function ServiceDetailsScreen(p:Props){
 /** Start-request button shown above the tab bar on Service details. */
 export function StartRequestBar({lang,onPress}:{lang:Lang;onPress:()=>void}){
   return <View style={styles.cta}>
-    <GlassButton lang={lang} primary label={COPY[lang].start} onPress={onPress}/>
+    <GlassButton lang={lang} primary label={pick(COPY,lang).start} onPress={onPress}/>
   </View>;
 }
 

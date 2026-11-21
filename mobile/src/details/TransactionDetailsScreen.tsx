@@ -17,6 +17,7 @@ import {GlassButton,GlassCard,GlassField,GlassScreen,IconButton,Note,ScreenHeade
 import {colors,layout,onGlass,radius,space,type} from '../theme';
 import {dateText,remaining,total,type ClientFile,type ClientRequest} from '../clientModel';
 import {ApiError,apiEnabled,fetchRequest,hasSession,needsSync} from '../api';
+import {pick,tr} from '../i18n';
 
 const SUPPORT_WHATSAPP='https://wa.me/971585144005';
 const SUPPORT_PHONE='tel:+971525949522';
@@ -86,7 +87,7 @@ type Props={
 type Sync={kind:'idle'}|{kind:'loading'}|{kind:'error';notFound:boolean};
 
 export function TransactionDetailsScreen({lang,request,onBack,actions,busy=false,message,financePanel,onRefresh,onUpdated}:Props){
-  const t=COPY[lang],row=rowFor(lang);
+  const t=pick(COPY,lang),row=rowFor(lang);
   const reduce=useReduceTransparency();
   const [sync,setSync]=useState<Sync>({kind:'idle'});
   const [refreshing,setRefreshing]=useState(false);
@@ -170,7 +171,7 @@ export function TransactionDetailsScreen({lang,request,onBack,actions,busy=false
           <View style={[styles.summaryTop,{flexDirection:row}]}>
             <View style={styles.documentIcon}><Icon name="file" size={26} color={colors.orange}/></View>
             <View style={[g.flex1,styles.summaryText]}>
-              <Txt lang={lang} bold style={styles.transactionTitle}>{r.title[lang]}</Txt>
+              <Txt lang={lang} bold style={styles.transactionTitle}>{tr(r.title,lang)}</Txt>
               <Txt lang={lang} style={styles.reference}>{t.reference} {ltr('#'+r.id.replace('DEMO-',''))}</Txt>
             </View>
           </View>
@@ -190,7 +191,7 @@ export function TransactionDetailsScreen({lang,request,onBack,actions,busy=false
         {r.whatNow&&<GlassCard reduce={reduce} tone={r.whatNow.actionRequired?'warning':'success'}>
           <View accessibilityRole="summary" style={styles.whatNow}>
             <Txt lang={lang} bold style={g.sectionTitle}>{r.whatNow.actionRequired?t.actionNeeded:t.whereAmI}</Txt>
-            <Txt lang={lang} style={styles.body}>{r.whatNow[lang]}</Txt>
+            <Txt lang={lang} style={styles.body}>{tr(r.whatNow,lang)}</Txt>
           </View>
           {r.status==='needs_documents'&&<GlassButton lang={lang} primary icon="upload" label={t.completeDocs} disabled={busy} onPress={actions.onMissing}/>}
         </GlassCard>}
@@ -220,11 +221,11 @@ export function TransactionDetailsScreen({lang,request,onBack,actions,busy=false
             {deliverables.map((f,i)=><View key={f.id} style={[styles.fileRow,{flexDirection:row},i===deliverables.length-1&&g.noBorder]}>
               <Icon name={f.kind==='invoice'?'card':'file'} size={20} color={colors.orange}/>
               <View style={g.flex1}>
-                <Txt lang={lang} bold style={styles.fileName} numberOfLines={2}>{f.label[lang]}</Txt>
+                <Txt lang={lang} bold style={styles.fileName} numberOfLines={2}>{tr(f.label,lang)}</Txt>
                 <Txt lang={lang} style={styles.meta} numberOfLines={1}>{f.name}</Txt>
               </View>
-              <IconButton icon="eye" label={`${t.view} ${f.label[lang]}`} disabled={busy} onPress={()=>actions.onViewFile(f)}/>
-              <IconButton icon="download" label={`${t.save} ${f.label[lang]}`} disabled={busy} onPress={()=>actions.onSaveFile(f)}/>
+              <IconButton icon="eye" label={`${t.view} ${tr(f.label,lang)}`} disabled={busy} onPress={()=>actions.onViewFile(f)}/>
+              <IconButton icon="download" label={`${t.save} ${tr(f.label,lang)}`} disabled={busy} onPress={()=>actions.onSaveFile(f)}/>
             </View>)}
           </View>}
           {!hasFinal&&<Txt lang={lang} style={styles.body}>{t.noFinal}</Txt>}
@@ -254,7 +255,7 @@ export function TransactionDetailsScreen({lang,request,onBack,actions,busy=false
                 {!last&&<View style={styles.eventLine}/>}
               </View>
               <View style={[g.flex1,!last&&styles.eventGap]}>
-                <Txt lang={lang} style={styles.body}>{ev.text[lang]}</Txt>
+                <Txt lang={lang} style={styles.body}>{tr(ev.text,lang)}</Txt>
                 <Txt lang={lang} style={styles.meta}>{dateText(ev.at,lang)}</Txt>
               </View>
             </View>})}

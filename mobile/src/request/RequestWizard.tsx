@@ -14,6 +14,7 @@ import {pickClientFile,previewFile} from '../clientStorage';
 import {apiEnabled,hasSession} from '../api';
 import {LEGAL_VERSION} from '../legal';
 import type {ServiceAction} from '../serviceDetails';
+import {tr} from '../i18n';
 
 const digit=(n:number,lang:Lang)=>lang==='ar'?String(n).replace(/[0-9]/g,d=>'٠١٢٣٤٥٦٧٨٩'[+d]):String(n);
 
@@ -50,7 +51,7 @@ export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaul
   const labels=[tx('البيانات','Details'),tx('المستندات','Documents'),tx('المراجعة','Review'),tx('الدفع','Payment'),tx('التأكيد','Confirm')];
 
   return <GlassScreen>
-    <ScreenHeader lang={lang} title={tx('بدء معاملة','Start request')} subtitle={action[lang]} backLabel={tx('رجوع','Back')} onBack={()=>step>1?setStep(step-1):onBack()}/>
+    <ScreenHeader lang={lang} title={tx('بدء معاملة','Start request')} subtitle={tr(action,lang)} backLabel={tx('رجوع','Back')} onBack={()=>step>1?setStep(step-1):onBack()}/>
     <Note lang={lang}>{live?tx('يُحفظ طلبك ومستنداتك مشفّرة في حسابك. لا تُحصَّل أي مبالغ داخل التطبيق.','Your request and documents are stored encrypted in your account. No payments are collected in the app.'):tx('تجربة محلية. لا يتم تقديم المعاملة للجهة أو تحصيل مبالغ.','Local demonstration. No authority submission or payment is made.')}</Note>
 
     {/* Stepper */}
@@ -79,21 +80,21 @@ export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaul
       {applicableDocs.map(d=>{const f=files[d.id];return <GlassCard key={d.id} reduce={reduce}>
         <View style={[styles.docHead,{flexDirection:row}]}>
           <Icon name={f||d.field&&fields[d.id]?.trim()?'check':'file'} size={20} color={f?colors.brand:colors.orange}/>
-          <View style={g.flex1}><Txt lang={lang} bold style={styles.docTitle}>{d[lang]}{d.optional?(/if applicable|حسب الحالة|إن وجد/i.test(d[lang])?'':tx(' (حسب الحالة)',' (if applicable)')):' *'}</Txt></View>
+          <View style={g.flex1}><Txt lang={lang} bold style={styles.docTitle}>{tr(d,lang)}{d.optional?(/if applicable|حسب الحالة|إن وجد/i.test(tr(d,lang))?'':tx(' (حسب الحالة)',' (if applicable)')):' *'}</Txt></View>
         </View>
         {d.id==='trade-name-1'&&<Txt lang={lang} style={g.meta}>{tx('أدخل ثلاثة أسماء مختلفة حسب الأولوية. الحجز مشروط بتوافر الاسم وموافقة الجهة المختصة.','Enter three different names in order of preference. Reservation depends on availability and approval by the competent authority.')}</Txt>}
         {d.id==='trade-name-3'&&!namesDistinct&&<Note lang={lang} tone="danger">{tx('يجب أن تكون الأسماء الثلاثة مختلفة.','The three names must be different.')}</Note>}
         {d.field
-          ?<GlassField lang={lang} label={d[lang]} value={fields[d.id]??''} onChangeText={value=>setFields(a=>({...a,[d.id]:value}))}/>
+          ?<GlassField lang={lang} label={tr(d,lang)} value={fields[d.id]??''} onChangeText={value=>setFields(a=>({...a,[d.id]:value}))}/>
           :<>
             {f?<View style={[styles.fileChip,{flexDirection:row}]}>
                 <Icon name="file" size={20} color={colors.brand}/>
                 <View style={g.flex1}><Txt lang="en" bold style={styles.fileName} numberOfLines={1}>{f.name}</Txt></View>
-                <IconButton icon="eye" label={tx('معاينة ','Preview ')+d[lang]} onPress={()=>void previewFile(f).catch(()=>setMessage(tx('تعذرت المعاينة','Preview failed')))}/>
-                <IconButton icon="close" label={tx('إزالة المرفق ','Remove attachment ')+d[lang]} onPress={()=>setFiles(a=>{const n={...a};delete n[d.id];return n})}/>
+                <IconButton icon="eye" label={tx('معاينة ','Preview ')+tr(d,lang)} onPress={()=>void previewFile(f).catch(()=>setMessage(tx('تعذرت المعاينة','Preview failed')))}/>
+                <IconButton icon="close" label={tx('إزالة المرفق ','Remove attachment ')+tr(d,lang)} onPress={()=>setFiles(a=>{const n={...a};delete n[d.id];return n})}/>
               </View>
               :<Txt lang={lang} style={g.meta}>{tx('PDF أو JPG أو PNG • حتى ٥ ميغابايت','PDF, JPG or PNG • up to 5 MB')}</Txt>}
-            <GlassButton lang={lang} icon="upload" busy={busy} label={f?tx('استبدال الملف','Replace file'):tx('رفع الملف','Upload file')} accessibilityLabel={(f?tx('استبدال ','Replace '):tx('رفع ','Upload '))+d[lang]} onPress={()=>upload(d)}/>
+            <GlassButton lang={lang} icon="upload" busy={busy} label={f?tx('استبدال الملف','Replace file'):tx('رفع الملف','Upload file')} accessibilityLabel={(f?tx('استبدال ','Replace '):tx('رفع ','Upload '))+tr(d,lang)} onPress={()=>upload(d)}/>
           </>}
       </GlassCard>})}
       {!action.documents.length&&<Note lang={lang}>{tx('لا مستندات مطلوبة في هذه الخطوة.','No documents required at this step.')}</Note>}
@@ -104,7 +105,7 @@ export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaul
       <View>
         <View style={styles.reviewRow}><Txt lang={lang} style={g.meta}>{tx('الاسم','Name')}</Txt><Txt lang={lang} bold style={g.valueText}>{name}</Txt></View>
         <View style={styles.reviewRow}><Txt lang={lang} style={g.meta}>{tx('الهاتف','Phone')}</Txt><Txt lang="en" bold style={{...g.valueText,textAlign:ar?'right':'left'}}>{phone}</Txt></View>
-        {applicableDocs.filter(d=>files[d.id]).map(d=><View key={d.id} style={styles.reviewRow}><Txt lang={lang} style={g.meta}>{d[lang]}</Txt><Txt lang="en" bold style={{...g.valueText,textAlign:ar?'right':'left'}}>{files[d.id].name}</Txt></View>)}
+        {applicableDocs.filter(d=>files[d.id]).map(d=><View key={d.id} style={styles.reviewRow}><Txt lang={lang} style={g.meta}>{tr(d,lang)}</Txt><Txt lang="en" bold style={{...g.valueText,textAlign:ar?'right':'left'}}>{files[d.id].name}</Txt></View>)}
         {Object.entries(fields).filter(([,value])=>value.trim()).map(([id,value])=><View key={id} style={styles.reviewRow}>
           <Txt lang={lang} style={g.meta}>{id==='applicant-dob'?tx('تاريخ ميلاد المكفول','Sponsored person date of birth'):action.documents.find(d=>d.id===id)?.[lang]??id}</Txt>
           <Txt lang={lang} bold style={g.valueText}>{value}</Txt></View>)}

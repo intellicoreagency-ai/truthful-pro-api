@@ -14,8 +14,9 @@ import {GlassButton,GlassCard,GlassField,GlassScreen,Note,ScreenHeader,g,rowFor,
 import {ScrollView} from './navigation/TabBarLayout';
 import {colors,layout,radius,space,type} from './theme';
 import {chooseAccountPhoto,type AccountData} from './accountStorage';
+import {LANGS,LANG_INFO,pick} from './i18n';
 
-type Language='ar'|'en';
+type Language=import('./i18n').Lang;
 type Section='personal'|'company'|'documents'|'notifications'|'security'|'language'|'favorites';
 type Field='name'|'email'|'phone'|'company'|'license';
 const EMAIL=/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
@@ -75,7 +76,7 @@ type Props={
 
 export function AccountScreen({lang,account,update,requests,documents,favorites,alerts,onFavorite,onRequests,onBrowse,onLanguage,onLeave,signedIn,onLegal,onExport,onDelete,onSignOut,onEmail}:Props){
   const ar=lang==='ar',row=rowFor(lang),forward:IconName=ar?'back':'next';
-  const t=ui[lang];
+  const t=pick(ui,lang);
   const reduce=useReduceTransparency();
   const [section,setSection]=useState<Section|null>(null);
   const [edits,setEdits]=useState<Partial<Record<Field,string>>>({});
@@ -236,10 +237,10 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
       </>}
 
       {section==='language'&&<View accessibilityRole="radiogroup" style={styles.languages}>
-        {(['ar','en'] as const).map(code=>{const on=lang===code;return <ScalePressable key={code} accessibilityRole="radio" accessibilityState={{checked:on}} aria-checked={on}
-          accessibilityLabel={code==='ar'?'العربية':'English'} onPress={()=>onLanguage(code)} style={[styles.radio,{flexDirection:row},on&&styles.radioOn]}>
+        {LANGS.map(code=>{const on=lang===code;return <ScalePressable key={code} accessibilityRole="radio" accessibilityState={{checked:on}} aria-checked={on}
+          accessibilityLabel={LANG_INFO[code].native} onPress={()=>onLanguage(code)} style={[styles.radio,{flexDirection:row},on&&styles.radioOn]}>
           <View style={[styles.radioDot,on&&styles.radioDotOn]}>{on&&<View style={styles.radioInner}/>}</View>
-          <View style={g.flex1}><Txt lang={code} bold style={g.valueText}>{code==='ar'?'العربية':'English'}</Txt></View>
+          <View style={g.flex1}><Txt lang={code} bold style={g.valueText}>{LANG_INFO[code].native}</Txt></View>
         </ScalePressable>})}
       </View>}
     </GlassCard>}

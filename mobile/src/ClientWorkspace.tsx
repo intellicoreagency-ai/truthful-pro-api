@@ -15,7 +15,7 @@ import {event,confirmReceipt,canSendMissing,demoRequests,type ClientRequest,type
 import {pickClientFile,downloadFile,previewFile,shareRequest,exportSummary,seedDemoFiles} from './clientStorage';
 import {reportDeliveryProblem} from './api';
 
-type Lang='ar'|'en';
+type Lang=import('./i18n').Lang;
 type Layer='detail'|'missing'|'files';
 type Props={lang:Lang;onLanguage:()=>void;onFocusChange:(focused:boolean)=>void;records:ClientRequest[];save:(records:ClientRequest[])=>boolean;onStart:()=>void;onResume:(serviceId:string,actionId:string,draftId?:string,renewalOf?:string)=>void;drafts:{key:string;title:string;resume:()=>void}[];onRefresh?:()=>Promise<void>|void;syncStatus?:SyncStatus;loadedOnce?:boolean;};
 

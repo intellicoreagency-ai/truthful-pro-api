@@ -1,4 +1,4 @@
-export type Lang='ar'|'en';
+export type Lang=import('../i18n').Lang;
 export const authCopy={
   ar:{
     brand:'تروثفل برو',

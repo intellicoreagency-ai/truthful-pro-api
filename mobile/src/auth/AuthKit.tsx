@@ -6,6 +6,7 @@ import {LinearGradient as Gradient} from 'expo-linear-gradient';
 import {GoldText,ScalePressable} from '../ui/Premium';
 import {Icon,type IconName} from '../Icons';
 import {colors,glass,layout,lux,onGlass,radius,space,type} from '../theme';
+import {LanguageButton} from '../ui/LanguageButton';
 import type {Lang} from './copy';
 
 const cover=require('../../assets/brand/cover-dubai.jpg'); // the approved Dubai cover, full screen behind the glass
@@ -87,12 +88,7 @@ export function AuthScaffold({lang,onLanguage,logo,title,subtitle,children,foote
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} bounces={false}>
           <View style={[s.top,{flexDirection:ar?'row-reverse':'row'}]}>
             <Gradient colors={lux.goldBright} start={{x:0,y:0}} end={{x:1,y:1}} style={s.logoRing}><Image source={logo} style={s.logo} accessible={false}/></Gradient>
-            <View style={s.langSwitch} accessibilityRole="tablist">
-              {(['ar','en'] as const).map(l=>{const on=lang===l;return <ScalePressable key={l} accessibilityRole="tab" accessibilityState={{selected:on}} aria-selected={on} accessibilityLabel={l==='ar'?'العربية':'English'} onPress={()=>onLanguage(l)} style={s.langItem} rippleColor="rgba(255,255,255,0.3)">
-                {on&&<Gradient pointerEvents="none" colors={lux.goldBadge} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>}
-                <View pointerEvents="none"><T lang={l} style={[s.langText,on&&s.langTextOn]}>{l==='ar'?'عربي':'EN'}</T></View>
-              </ScalePressable>;})}
-            </View>
+            <LanguageButton lang={lang} onPress={()=>onLanguage(lang)} tone="dark"/>
           </View>
           <View style={s.content}>
             <GoldText lang={lang} colors={lux.goldBright} style={{...s.title,textAlign:ar?'right':'left'}}>{title}</GoldText>

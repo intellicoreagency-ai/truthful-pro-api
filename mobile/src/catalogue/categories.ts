@@ -7,7 +7,8 @@
  */
 import {catalogueServiceId,catalogueServices,type Service} from '../services';
 
-export type Bi={ar:string;en:string};
+export type {Bi} from '../i18n';
+import type {Bi} from '../i18n';
 export type CategoryId='residency'|'emirates-id'|'business'|'labour'|'ejari'|'notary'|'courts'|'translation'|'attestation'|'rta'|'tax'|'bank'|'customs';
 export type Branch={serviceId:string;title:Bi;desc:Bi};
 export type Category={id:CategoryId;title:Bi;desc:Bi;individuals:Branch[];companies:Branch[]};

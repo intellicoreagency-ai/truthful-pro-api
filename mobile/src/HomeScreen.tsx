@@ -1,6 +1,6 @@
 /**
  * Home — premium concierge design.
- * Full-bleed Dubai hero with parallax (moves at ~40% of scroll, stretches on pull-down), glass controls over the photo,
+ * Full-bleed "Sapphire night over Dubai" vector hero (src/ui/HeroArt.tsx) with parallax (moves at ~40% of scroll, stretches on pull-down), glass controls over the photo,
  * a floating glass search, a gold display headline, staggered service cards and a dark espresso concierge card.
  * Approved artwork kept (Dubai photo, illustrations cropped from the approved home reference). Every word is real text.
  * Motion respects Reduce motion; glass falls back to opaque under Reduce transparency.
@@ -17,10 +17,12 @@ import {rowFor,useReduceTransparency} from './ui/Glass';
 import {Entrance,GoldBadge,GoldText,LuxCard,ScalePressable} from './ui/Premium';
 import {useTabBarHeight} from './navigation/TabBarLayout';
 import {colors,layout,lux,radius,space,type} from './theme';
+import {LanguageButton} from './ui/LanguageButton';
+import {HeroArt} from './ui/HeroArt';
+import {pick} from './i18n';
 
 type Props={lang:Lang;onLanguage:()=>void;onServices:(business:boolean)=>void;onSearch:(query:string)=>void;onNotifications:()=>void;alerts?:boolean};
 const home=require('../assets/design-references/home.png');
-const hero=require('../assets/brand/dubai_hero.webp');
 const SUPPORT_WHATSAPP='https://wa.me/971585144005';
 const SUPPORT_PHONE='tel:+971525949522';
 const HERO=340;
@@ -28,7 +30,7 @@ const HERO=340;
 const COPY={
   ar:{brand:'تروثفل برو',tagline:'خدمات تخليص المعاملات',languageA11y:'التبديل إلى الإنجليزية',
     notifications:'الإشعارات',notificationsAlert:'الإشعارات، توجد معاملة تحتاج إجراءً منك',
-    welcome:'مرحباً بك في تروثفل',heroTitle:'نقرّب لك الإجراءات',heroBody:'خدمات تخليص المعاملات للأفراد والشركات في دبي، بعناية واهتمام.',heroA11y:'متحف المستقبل وأفق دبي',
+    welcome:'مرحباً بك في تروثفل',heroTitle:'نقرّب لك الإجراءات',heroBody:'خدمات تخليص المعاملات للأفراد والشركات في دبي، بعناية واهتمام.',heroA11y:'أفق دبي ليلاً بالكحلي والذهبي',
     search:'ابحث عن خدمة أو معاملة',searchGo:'بحث',services:'خدماتنا',
     individuals:'خدمات الأفراد',individualsBody:'الإقامات، الهوية، الأسرة، والمزيد لك ولعائلتك',
     business:'خدمات الشركات',businessBody:'الرخص، التأسيس، العمالة، وخدمات منشأتك',
@@ -36,7 +38,7 @@ const COPY={
     contactError:'تعذّر فتح التطبيق. اتصل بنا على ‎+971 52 594 9522'},
   en:{brand:'TRUTHFUL PRO',tagline:'Document clearance services',languageA11y:'Switch to Arabic',
     notifications:'Notifications',notificationsAlert:'Notifications, a request needs your action',
-    welcome:'Welcome to TRUTHFUL',heroTitle:'Making procedures simpler',heroBody:'Document clearance for individuals and businesses in Dubai, handled with care.',heroA11y:'Museum of the Future and Dubai skyline',
+    welcome:'Welcome to TRUTHFUL',heroTitle:'Making procedures simpler',heroBody:'Document clearance for individuals and businesses in Dubai, handled with care.',heroA11y:'Dubai skyline at night in navy and gold',
     search:'Search for a service',searchGo:'Search',services:'Our services',
     individuals:'Individual Services',individualsBody:'Residency, Emirates ID, family and more for you and yours',
     business:'Business Services',businessBody:'Licences, company setup, labour and services for your business',
@@ -59,7 +61,7 @@ function PhotoButton({label,onPress,children,reduce}:{label:string;onPress:()=>v
 }
 
 export function HomeScreen({lang,onLanguage,onServices,onSearch,onNotifications,alerts=false}:Props){
-  const t=COPY[lang],ar=lang==='ar',row=rowFor(lang);
+  const t=pick(COPY,lang),ar=lang==='ar',row=rowFor(lang);
   const reduce=useReduceTransparency();
   const reduceMotion=useReducedMotion();
   const tabBar=useTabBarHeight();
@@ -83,9 +85,7 @@ export function HomeScreen({lang,onLanguage,onServices,onSearch,onNotifications,
 
       {/* Hero */}
       <View style={styles.hero} accessible accessibilityRole="image" accessibilityLabel={t.heroA11y}>
-        <Animated.Image source={hero} resizeMode="cover" style={[StyleSheet.absoluteFill,styles.heroImage,heroImage]}/>
-        {/* Navy wash: the top of Home reads as deep sapphire night, the photo stays visible underneath. */}
-        <LinearGradient pointerEvents="none" colors={['rgba(10,20,48,0.72)','rgba(10,20,48,0.38)','rgba(10,20,48,0.15)']} locations={[0,0.55,1]} style={StyleSheet.absoluteFill}/>
+        <Animated.View style={[StyleSheet.absoluteFill,styles.heroImage,heroImage]}><HeroArt/></Animated.View>
         <LinearGradient pointerEvents="none" colors={['rgba(10,20,48,0.62)','rgba(10,20,48,0)']} style={styles.topScrim}/>
         <LinearGradient pointerEvents="none" colors={['rgba(243,245,248,0)','rgba(243,245,248,0.85)',lux.ivory]} locations={[0,0.7,1]} style={styles.bottomFade}/>
       </View>
@@ -94,12 +94,10 @@ export function HomeScreen({lang,onLanguage,onServices,onSearch,onNotifications,
       <Animated.View style={[styles.brandBar,{flexDirection:row},heroChrome]}>
         <View style={styles.logoRing}><LinearGradient colors={lux.goldBright} style={styles.logoRingFill}><Image source={officialLogo} style={styles.logo} accessible={false}/></LinearGradient></View>
         <View style={styles.flex1} accessibilityRole="header">
-          <Txt lang={lang} bold style={styles.brand}>{t.brand}</Txt>
-          <Txt lang={lang} style={styles.tagline}>{t.tagline}</Txt>
+          <Txt lang={lang} bold numberOfLines={1} style={styles.brand}>{t.brand}</Txt>
+          <Txt lang={lang} numberOfLines={1} style={styles.tagline}>{t.tagline}</Txt>
         </View>
-        <PhotoButton label={t.languageA11y} onPress={onLanguage} reduce={reduce}>
-          <Txt lang={ar?'en':'ar'} bold style={styles.photoButtonText}>{ar?'EN':'ع'}</Txt>
-        </PhotoButton>
+        <LanguageButton lang={lang} onPress={onLanguage} tone="dark"/>
         <PhotoButton label={alerts?t.notificationsAlert:t.notifications} onPress={onNotifications} reduce={reduce}>
           <Icon name="bell" size={21} color={lux.onDark}/>
           {alerts&&<View style={styles.alertDot}/>}
@@ -191,13 +189,13 @@ const styles=StyleSheet.create({
   hero:{height:HERO,overflow:'hidden',backgroundColor:lux.espresso},
   heroImage:{width:'100%',height:HERO},
   topScrim:{position:'absolute',top:0,left:0,right:0,height:150},
-  bottomFade:{position:'absolute',bottom:0,left:0,right:0,height:170},
+  bottomFade:{position:'absolute',bottom:0,left:0,right:0,height:64},
 
   brandBar:{position:'absolute',top:space.md,left:space.lg,right:space.lg,alignItems:'center',gap:space.md},
   logoRing:{borderRadius:30,...Platform.select({ios:{shadowColor:'#000',shadowOpacity:0.3,shadowRadius:10,shadowOffset:{width:0,height:4}},android:{elevation:6},default:{}}) as object},
   logoRingFill:{width:54,height:54,borderRadius:27,alignItems:'center',justifyContent:'center'},
   logo:{width:48,height:48,borderRadius:24},
-  brand:{fontSize:type.title2,lineHeight:30,color:lux.onDark},
+  brand:{fontSize:type.title2-2,lineHeight:28,color:lux.onDark},
   tagline:{fontSize:type.footnote,lineHeight:18,color:lux.onDarkSoft},
   photoButton:{width:layout.minTouch+2,height:layout.minTouch+2,borderRadius:radius.pill,alignItems:'center',justifyContent:'center',overflow:'hidden',
     borderWidth:1,borderColor:'rgba(232,211,162,0.45)'},

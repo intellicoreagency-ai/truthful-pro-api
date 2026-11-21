@@ -3,10 +3,11 @@ import {ActivityIndicator,StyleSheet,View} from 'react-native';
 import {onGlass,space,type} from '../theme';
 import {PrimaryButton,SecondaryButton,type AuthText} from './AuthKit';
 import {authCopy,type Lang} from './copy';
+import {pick} from '../i18n';
 
 /** Step 2 of both flows: waiting for the WhatsApp message to arrive. */
 export function WaitingStep({lang,Text:T,error,onOpen,onCancel,onRetry}:{lang:Lang;Text:AuthText;error:string;onOpen:()=>void;onCancel:()=>void;onRetry?:()=>void}){
-  const t=authCopy[lang];
+  const t=pick(authCopy,lang);
   return <View style={s.wrap}>
     <View style={s.status} accessibilityLiveRegion="polite"><ActivityIndicator color={onGlass.link}/><T lang={lang} style={s.statusText}>{t.waiting}</T></View>
     {error?<T lang={lang} style={s.error}>{error}</T>:null}

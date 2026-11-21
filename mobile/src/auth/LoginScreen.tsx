@@ -6,6 +6,7 @@ import {AuthScaffold,PrimaryButton,RoundedField,SecondaryButton,StepTransition,T
 import {WaitingStep} from './WaitingStep';
 import {useWaVerification} from './useWaVerification';
 import {glass,onGlass,space,type} from '../theme';
+import {pick} from '../i18n';
 
 type Props={
   lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text?:AuthText;inputFont?:string;
@@ -14,7 +15,7 @@ type Props={
 
 /** Sign in: mobile number → WhatsApp confirmation → session. No password exists in this product. */
 export function LoginScreen({lang,onLanguage,logo,inputFont,onVerified,onRegister,onGuest,onLegal}:Props){
-  const t=authCopy[lang];
+  const t=pick(authCopy,lang);
   const T=AText;
   const [phone,setPhone]=useState('');
   const [fieldError,setFieldError]=useState<string|null>(null);

@@ -11,7 +11,7 @@ import {colors,layout,lux,onGlass,radius,space,type} from '../theme';
 
 export type SheetItem={id:string;title:string;subtitle?:string};
 export type SheetSection={title?:string;items:SheetItem[]};
-type Lang='ar'|'en';
+type Lang=import('../i18n').Lang;
 
 /**
  * Apple-style bottom sheet picker: grabber, title, optional search, grouped rows with a check on the selected one.

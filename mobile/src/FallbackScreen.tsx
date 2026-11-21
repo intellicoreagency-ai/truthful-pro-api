@@ -8,6 +8,7 @@ import {Icon} from './Icons';
 import {Txt,type Lang} from './ui/Txt';
 import {GlassButton,GlassCard,GlassScreen,ScreenHeader,g,useReduceTransparency} from './ui/Glass';
 import {colors,space} from './theme';
+import {pick} from './i18n';
 
 const COPY={
   ar:{title:'بدء معاملة',body:'اختر الخدمة ثم المعاملة المطلوبة لبدء طلبك.',action:'تصفح الخدمات'},
@@ -15,7 +16,7 @@ const COPY={
 } as const;
 
 export function FallbackScreen({lang,onServices}:{lang:Lang;onServices:()=>void}){
-  const t=COPY[lang];
+  const t=pick(COPY,lang);
   const reduce=useReduceTransparency();
   return <GlassScreen>
     <ScreenHeader lang={lang} title={t.title}/>

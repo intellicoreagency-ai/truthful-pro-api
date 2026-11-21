@@ -34,8 +34,10 @@ import {readAccount,saveAccount,emptyAccount,type AccountData} from './src/accou
 import {LegalScreen} from './src/LegalScreen';
 import {TERMS,PRIVACY} from './src/legal';
 import {apiEnabled,hasSession,loadTokens,logout,me,pullRequests,pushRequest,needsSync,exportMyData,deleteAccount,setServerEmail,setSessionExpiredHandler} from './src/api';
+import {LANGS,LANG_INFO,LANG_MENU_TITLE,LANG_NAMES,isLang,pick as pickCopy,tr} from './src/i18n';
+import {SelectSheet} from './src/newRequest/SelectSheet';
 
-type Language='ar'|'en';
+type Language=import('./src/i18n').Lang;
 type Page='welcome'|'home'|'services'|'detail'|'requests'|'profile'|'request'|'newrequest';
 type DetailTab=import('./src/services/ServiceDetailsScreen').DetailTab;
 type LocalFile={name:string;size?:number;uri:string;clientFile?:ClientFile};
@@ -146,6 +148,7 @@ export default function App() {
  const [signedIn,setSignedIn]=useState(false);
  const [needsEmail,setNeedsEmail]=useState(false); // an account without an email must add one before using the app
  const [legal,setLegal]=useState<'terms'|'privacy'|null>(null);
+ const [langMenu,setLangMenu]=useState(false);
  const writeLocal=(records:ClientRequest[])=>{try{writeRequests(records);recordsRef.current=records;setClientRecords(records);return true}catch{return false}};
  const syncing=React.useRef(false);
  const syncAgain=React.useRef(false);
@@ -220,7 +223,7 @@ export default function App() {
  const pilotService=chosen.id==='immigration-visas';
  const [detailOrigin,setDetailOrigin]=useState<'home'|'services'>('services');
  const allowRealSubmission=false; // release gate; never send customer data in a prototype
- const ar=lang==='ar';const t=copy[lang];
+ const ar=lang==='ar';const t=pickCopy(copy,lang);
  const allServices=useMemo(()=>{
    const search=query.trim().toLowerCase();
    return catalogueServices.filter(service=>{
@@ -230,7 +233,10 @@ export default function App() {
         .some(value=>value.toLowerCase().includes(search));
    });
  },[business,query,lang]);
- const switchLang=()=>setLang(lang==='ar'?'en':'ar');
+ const switchLang=()=>setLangMenu(true);
+ const languageMenu=<SelectSheet visible={langMenu} lang={lang} title={LANG_MENU_TITLE[lang]} selectedId={lang}
+   sections={[{items:LANGS.map(code=>({id:code,title:LANG_INFO[code].native,subtitle:code===lang?undefined:LANG_NAMES[lang][code]}))}]}
+   onSelect={id=>{if(isLang(id))setLang(id);setLangMenu(false)}} onClose={()=>setLangMenu(false)}/>;
  const go=(next:Page)=>{Keyboard.dismiss();setQuery('');setPage(next);};
  const open=(service:Service,nextAction:string|null=null)=>{
    setDetailOrigin(page==='home'?'home':'services');
@@ -289,7 +295,7 @@ export default function App() {
  const bannerFor=(service:Service)=>{
    const at=locate(service.id);
    if(!at) return <CategoryBanner lang={lang} id="business" title={title(service)} subtitle={serviceDescription(service,lang)}/>;
-   return <CategoryBanner lang={lang} id={at.category.id} eyebrow={at.category.title[lang]} title={at.branch.title[lang]} subtitle={at.branch.desc[lang]}
+   return <CategoryBanner lang={lang} id={at.category.id} eyebrow={tr(at.category.title,lang)} title={tr(at.branch.title,lang)} subtitle={tr(at.branch.desc,lang)}
      photoId={at.branch.serviceId} count={structureFor(service.id)?.actions.length} tall/>;
  };
 
@@ -316,14 +322,15 @@ export default function App() {
  };
  React.useEffect(()=>{const sub=BackHandler.addEventListener('hardwareBackPress',()=>backRef.current());return ()=>sub.remove();},[]);
  if(!fontsLoaded&&!fontError) return <View style={styles.safe}/>;
- if(signedIn&&needsEmail) return <SafeAreaProvider><SafeAreaView edges={['top','bottom','left','right']} style={styles.safe}><StatusBar barStyle="dark-content"/>
-   <ContactScreen lang={lang} onLanguage={setLang} logo={officialLogo} onDone={()=>setNeedsEmail(false)} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);setNeedsEmail(false);go('welcome')}}/>
+ if(signedIn&&needsEmail) return <SafeAreaProvider><SafeAreaView edges={['top','bottom','left','right']} style={styles.safe}><StatusBar barStyle="dark-content"/>{languageMenu}
+   <ContactScreen lang={lang} onLanguage={switchLang} logo={officialLogo} onDone={()=>setNeedsEmail(false)} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);setNeedsEmail(false);go('welcome')}}/>
  </SafeAreaView></SafeAreaProvider>;
  const barVisible=showsTabBar(page)&&!legal&&!(page==='requests'&&clientFocused);
  return <SafeAreaProvider><TabBarLayoutProvider><SafeAreaView edges={barVisible?['top','left','right']:['top','bottom','left','right']} style={[styles.safe,webViewportHeight!==undefined&&{height:webViewportHeight,flexGrow:0,flexShrink:0,flexBasis:'auto'}]}>
    <StatusBar barStyle="dark-content"/>
+   {languageMenu}
    <BlurTargetView ref={blurTarget} key={page==='detail'?'detail:'+chosen.id:page} style={styles.screen}>
-     {page==='welcome'?<AuthFlow lang={lang} onLanguage={setLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal} logo={officialLogo}/>
+     {page==='welcome'?<AuthFlow lang={lang} onLanguage={switchLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal} logo={officialLogo}/>
      :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents'||!!r.whatNow?.actionRequired)}/>:page==='services'?<ServicesScreen lang={lang} business={business} onAudience={setBusiness} query={query} onQuery={setQuery} services={allServices}
          choosing={choosingService} onOpen={service=>open(service)} onLanguage={switchLang} onProfile={()=>go('profile')}/>
      :page==='detail'?<ServiceDetailsScreen lang={lang} service={chosen} banner={bannerFor(chosen)} onBack={()=>go(detailOrigin)} onLanguage={switchLang} scrollRef={detailScroll}
@@ -338,7 +345,7 @@ export default function App() {
          onFavorite={id=>{const item=catalogueServices.find(service=>service.id===id);if(item) open(item);}}
          onRequests={()=>go('requests')} onBrowse={()=>openCatalogue()} onLanguage={setLang}
          onLeave={()=>go('welcome')}
-         alerts={clientRecords.filter(r=>r.status==='needs_documents'||!!r.whatNow?.actionRequired).map(r=>({id:r.id,title:r.title[lang],note:r.whatNow?.[lang]??statusLabels[r.status][lang]}))}/>
+         alerts={clientRecords.filter(r=>r.status==='needs_documents'||!!r.whatNow?.actionRequired).map(r=>({id:r.id,title:tr(r.title,lang),note:tr(r.whatNow,lang)??tr(statusLabels[r.status],lang)}))}/>
        :page==='newrequest'?<NewRequestScreen lang={lang} account={{name:account.name,phone:account.phone}} signedIn={signedIn} onSaved={r=>{saveClientRecords([...clientRecords.filter(v=>v.id!==r.id),r])}} onOpenDocuments={r=>resumeClient(r.serviceId,r.actionId,r.id)} onBack={()=>go('requests')} onSignIn={()=>go('welcome')}/>
        :page==='requests'?<ClientWorkspace onRefresh={syncNow} syncStatus={syncStatus} loadedOnce={loadedOnce} lang={lang} onLanguage={switchLang} onFocusChange={setClientFocused} records={clientRecords} save={saveClientRecords} onStart={()=>{setClientDraft(null);go('newrequest');}} onResume={resumeClient} drafts={savedDrafts.map(item=>({key:item.key,title:wording(item.action,lang),resume:()=>open(item.service,item.action.id)}))}/>:page==='request'&&action?<RequestWizard onLegal={setLegal} key={chosen.id+'/'+action.id+'/'+(clientDraft??clientSeed?.id??'new')} lang={lang} serviceId={chosen.id} action={action} create={createClientRequest} onDone={()=>{setClientSeed(null);go('requests');}} onKeep={kept=>setClientSeed(kept)} onBack={()=>{go('detail');setTab('about');}} defaults={{name:account.name,phone:account.phone}} initial={clientRecords.find(r=>r.id===clientDraft)??(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id?clientSeed:undefined)}/>:<FallbackScreen lang={lang} onServices={()=>openCatalogue()}/>}
    </BlurTargetView>

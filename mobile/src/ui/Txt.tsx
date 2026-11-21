@@ -2,7 +2,8 @@ import React from 'react';
 import {StyleSheet,Text} from 'react-native';
 import {colors,layout} from '../theme';
 
-export type Lang='ar'|'en';
+import type {Lang} from '../i18n';
+export type {Lang};
 /**
  * Text for redesigned screens (dark ink on light surfaces). Arabic: Cairo. English: the platform system font (SF Pro on iOS).
  * Weight comes from `fontWeight` in the style or the `bold` shortcut.

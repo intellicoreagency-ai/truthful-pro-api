@@ -9,6 +9,7 @@ import {GlassButton,GlassCard,GlassField,Note,SectionTitle,ValueRow,g,ltr,rowFor
 import {makeId,type ClientFile,type ClientFinance,type ClientRequest} from '../clientModel';
 import {getBytes,openHtmlDocument,pickClientFile} from '../clientStorage';
 import {fetchDocumentHtml,reportAuthorityPayment,submitPayment} from '../api';
+import {tr} from '../i18n';
 
 type Act=(fn:()=>Promise<void>|void)=>void;
 
@@ -66,7 +67,7 @@ export function FinancePanel({lang,r,act,onChanged,setMessage}:{lang:Lang;r:Clie
     <SectionTitle lang={lang}>{tx('الفاتورة والدفع','Invoice & payment')}</SectionTitle>
     <Note lang={lang} tone="danger">{tx('نسخة تجريبية — لا قيمة مالية لهذه المستندات','TEST COPY — these documents have no financial value')}</Note>
     {f.quote?<View>
-      {f.quote.items.filter(i=>i.kind==='service_fee').map((i,k)=><ValueRow key={k} lang={lang} label={`${kind[i.kind]?.[ar?0:1]}: ${i[lang]}`} value={money(i.amount)}/>)}
+      {f.quote.items.filter(i=>i.kind==='service_fee').map((i,k)=><ValueRow key={k} lang={lang} label={`${kind[i.kind]?.[ar?0:1]}: ${tr(i,lang)}`} value={money(i.amount)}/>)}
       <ValueRow lang={lang} strong last label={`${tx('إجمالي أتعاب الشركة','Company fee total')}${f.invoice?.number?' ('+ltr(f.invoice.number)+')':''}`} value={money(f.quote.total)}/>
       <Txt lang={lang} style={g.noteText}>{tx('الضريبة غير مهيأة ولم تُحتسب. هذه المستندات ليست فواتير ضريبية.','Tax is not configured and was not calculated. These are not tax invoices.')}</Txt>
     </View>:<Note lang={lang}>{tx('بانتظار إصدار الفاتورة من الفريق','Waiting for the team to issue your invoice')}</Note>}

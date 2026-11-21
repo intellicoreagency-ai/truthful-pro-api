@@ -8,6 +8,7 @@ import {AuthScaffold,ConsentRow,PrimaryButton,RoundedField,StepTransition,TextLi
 import {WaitingStep} from './WaitingStep';
 import {useWaVerification} from './useWaVerification';
 import {glass,onGlass,space,type} from '../theme';
+import {pick} from '../i18n';
 
 type Props={
   lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text?:AuthText;inputFont?:string;
@@ -21,7 +22,7 @@ type Props={
  * The three consents are recorded with the legal version after the session exists; if saving fails the user can retry.
  */
 export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,onLogin,onLegal}:Props){
-  const t=authCopy[lang];
+  const t=pick(authCopy,lang);
   const T=AText;
   const [name,setName]=useState('');const [phone,setPhone]=useState('');const [email,setEmail]=useState('');
   const [terms,setTerms]=useState(false);const [privacy,setPrivacy]=useState(false);const [docs,setDocs]=useState(false);

@@ -16,6 +16,8 @@ import {structureFor} from '../serviceDetails';
 import {branchesFor,categoriesFor,serviceForBranch,type Branch,type Category} from '../catalogue/categories';
 import {CategoryBanner,countLabel} from '../catalogue/CategoryBanner';
 import {Entrance} from '../ui/Premium';
+import {LanguageButton} from '../ui/LanguageButton';
+import {pick,tr} from '../i18n';
 
 const COPY={
   ar:{brand:'تروثفل برو',tagline:'خدمات تخليص المعاملات',languageA11y:'التبديل إلى الإنجليزية',profile:'حسابي',
@@ -37,7 +39,7 @@ type Props={
 const actionsIn=(br:Branch)=>structureFor(br.serviceId)?.actions.length??0;
 
 export function ServicesScreen({lang,business,onAudience,query,onQuery,services,choosing,onOpen,onLanguage,onProfile}:Props){
-  const t=COPY[lang],ar=lang==='ar',row=rowFor(lang);
+  const t=pick(COPY,lang),ar=lang==='ar',row=rowFor(lang);
   const other=business?t.individual:t.company;
   // Main services whose branches survive the audience + search filter the app already applied to `services`.
   const visible=useMemo(()=>{const ids=new Set(services.map(x=>x.id));
@@ -60,15 +62,15 @@ export function ServicesScreen({lang,business,onAudience,query,onQuery,services,
     <ScalePressable accessibilityRole="button" accessibilityLabel={t.allServices} onPress={()=>setOpenId(null)} style={[styles.backRow,{flexDirection:row,alignSelf:ar?'flex-end':'flex-start'}]}>
       <Icon name={ar?'next':'back'} size={18} color={colors.brand}/><Txt lang={lang} bold style={styles.backText}>{t.allServices}</Txt>
     </ScalePressable>
-    <CategoryBanner lang={lang} id={open.c.id} photoId={open.branches[0]!.serviceId} title={open.c.title[lang]} subtitle={open.c.desc[lang]} count={open.branches.reduce((n,br)=>n+actionsIn(br),0)} tall/>
+    <CategoryBanner lang={lang} id={open.c.id} photoId={open.branches[0]!.serviceId} title={tr(open.c.title,lang)} subtitle={tr(open.c.desc,lang)} count={open.branches.reduce((n,br)=>n+actionsIn(br),0)} tall/>
     <SectionTitle lang={lang}>{t.chooseBranch}</SectionTitle>
     {open.branches.map((br,i)=>{const svc=serviceForBranch(br);if(!svc)return null;
       return <Entrance key={br.serviceId} index={i}>
-        <ScalePressable accessibilityRole="button" accessibilityLabel={`${br.title[lang]}. ${br.desc[lang]}`} onPress={()=>onOpen(svc)} style={[styles.branch,{flexDirection:row}]}>
+        <ScalePressable accessibilityRole="button" accessibilityLabel={`${tr(br.title,lang)}. ${tr(br.desc,lang)}`} onPress={()=>onOpen(svc)} style={[styles.branch,{flexDirection:row}]}>
           <View style={styles.branchDot}><Txt lang="en" bold style={styles.branchNum}>{String(i+1)}</Txt></View>
           <View style={g.flex1}>
-            <Txt lang={lang} bold style={{...styles.branchTitle,textAlign:ar?'right':'left'}}>{br.title[lang]}</Txt>
-            <Txt lang={lang} style={{...g.meta,textAlign:ar?'right':'left'}}>{br.desc[lang]}</Txt>
+            <Txt lang={lang} bold style={{...styles.branchTitle,textAlign:ar?'right':'left'}}>{tr(br.title,lang)}</Txt>
+            <Txt lang={lang} style={{...g.meta,textAlign:ar?'right':'left'}}>{tr(br.desc,lang)}</Txt>
             <Txt lang={lang} bold style={{...styles.branchCount,textAlign:ar?'right':'left'}}>{countLabel(actionsIn(br),lang)}</Txt>
           </View>
           <Icon name={ar?'back':'next'} size={20} color={colors.gold}/>
@@ -83,9 +85,7 @@ export function ServicesScreen({lang,business,onAudience,query,onQuery,services,
         <Txt lang={lang} bold style={styles.brand}>{t.brand}</Txt>
         <Txt lang={lang} style={g.meta}>{t.tagline}</Txt>
       </View>
-      <ScalePressable accessibilityRole="button" accessibilityLabel={t.languageA11y} onPress={onLanguage} style={styles.round}>
-        <Txt lang={ar?'en':'ar'} bold style={styles.languageText}>{ar?'EN':'ع'}</Txt>
-      </ScalePressable>
+      <LanguageButton lang={lang} onPress={onLanguage}/>
       <ScalePressable accessibilityRole="button" accessibilityLabel={t.profile} onPress={onProfile} style={styles.round}>
         <Icon name="user" size={22} color={colors.ink}/>
       </ScalePressable>
@@ -116,9 +116,9 @@ export function ServicesScreen({lang,business,onAudience,query,onQuery,services,
     </View>
 
     {visible.map(({c,branches},i)=><Entrance key={c.id} index={i}>
-      <ScalePressable accessibilityRole="button" accessibilityLabel={`${c.title[lang]}. ${c.desc[lang]}`} onPress={()=>choose(c,branches)} style={styles.tile}>
-        <CategoryBanner lang={lang} id={c.id} photoId={branches[0]!.serviceId} title={c.title[lang]}
-          subtitle={branches.length>1?branches.map(br=>br.title[lang]).join(ar?' · ':' · '):c.desc[lang]}
+      <ScalePressable accessibilityRole="button" accessibilityLabel={`${tr(c.title,lang)}. ${tr(c.desc,lang)}`} onPress={()=>choose(c,branches)} style={styles.tile}>
+        <CategoryBanner lang={lang} id={c.id} photoId={branches[0]!.serviceId} title={tr(c.title,lang)}
+          subtitle={branches.length>1?branches.map(br=>tr(br.title,lang)).join(ar?' · ':' · '):tr(c.desc,lang)}
           count={branches.reduce((n,br)=>n+actionsIn(br),0)}/>
       </ScalePressable>
     </Entrance>)}

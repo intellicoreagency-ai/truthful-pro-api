@@ -67,7 +67,7 @@ const ICON:Record<CategoryId,React.ReactNode>={
 };
 
 /** Category glyph inside a gold-ringed medallion. */
-export function CategoryMedallion({id,size=64,lang}:{id:CategoryId;size?:number;lang:'ar'|'en'}){
+export function CategoryMedallion({id,size=64,lang}:{id:CategoryId;size?:number;lang:import('../i18n').Lang}){
   return <Svg width={size} height={size} viewBox="0 0 64 64" accessible={false}>
     <Defs>
       <SvgGradient id="ring" x1="0" y1="0" x2="1" y2="1">

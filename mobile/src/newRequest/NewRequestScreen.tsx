@@ -14,8 +14,9 @@ import {makeId,type ClientRequest} from '../clientModel';
 import {ApiError,createRemoteRequest,submitRemoteRequest} from '../api';
 import {toE164} from '../auth/phone';
 import {SelectSheet,type SheetSection} from './SelectSheet';
+import {pick,tr} from '../i18n';
 
-type Lang='ar'|'en';
+type Lang=import('../i18n').Lang;
 export type CreatedInfo={record:ClientRequest;submitted:boolean;onServer:boolean};
 type Props={
   lang:Lang;account:{name:string;phone:string};signedIn:boolean;
@@ -48,7 +49,7 @@ const copy={
 
 /** Create a clearance request: service + type pickers, applicant details, one primary action; the server stores it (POST /v1/requests) before we confirm. */
 export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,onBack,onSignIn}:Props){
-  const t=copy[lang],ar=lang==='ar';
+  const t=pick(copy,lang),ar=lang==='ar';
   const [service,setService]=useState<Service|null>(null);
   const [action,setAction]=useState<ServiceAction|null>(null);
   const [name,setName]=useState(account.name);const [phone,setPhone]=useState(account.phone);const [notes,setNotes]=useState('');
@@ -62,10 +63,10 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
   const required=action?action.documents.filter(d=>!d.optional):[];
   // Step 1: the unified main services, once per audience; step 2: its branches; step 3: the transaction type.
   const mainSections=useMemo<SheetSection[]>(()=>([false,true] as const).map(business=>({title:business?t.companies:t.individuals,
-    items:CATEGORIES.filter(c=>branchesFor(c,business).length).map(c=>({id:`${business?'c':'i'}:${c.id}`,title:c.title[lang],
-      subtitle:branchesFor(c,business).length>1?branchesFor(c,business).map(b=>b.title[lang]).join(' · '):c.desc[lang]}))})),[lang,t]);
+    items:CATEGORIES.filter(c=>branchesFor(c,business).length).map(c=>({id:`${business?'c':'i'}:${c.id}`,title:tr(c.title,lang),
+      subtitle:branchesFor(c,business).length>1?branchesFor(c,business).map(b=>tr(b.title,lang)).join(' · '):tr(c.desc,lang)}))})),[lang,t]);
   const branches=main?branchesFor(main.category,main.business):[];
-  const sections=useMemo<SheetSection[]>(()=>[{items:branches.map(b=>({id:b.serviceId,title:b.title[lang],subtitle:b.desc[lang]}))}],[branches,lang]);
+  const sections=useMemo<SheetSection[]>(()=>[{items:branches.map(b=>({id:b.serviceId,title:tr(b.title,lang),subtitle:tr(b.desc,lang)}))}],[branches,lang]);
   const pickService=(next:Service)=>{
     if(next.id!==service?.id){setService(next);setAction(null);}
     const actions=structureFor(next.id).actions;
@@ -77,8 +78,8 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
     const list=branchesFor(category,business);
     if(list.length===1){const svc=serviceForBranch(list[0]!);if(svc)pickService(svc);else setSheet(null);}else setSheet('service');
   };
-  const branchTitle=service?branches.find(b=>b.serviceId===service.id)?.title[lang]??'':'';
-  const actionSections=useMemo<SheetSection[]>(()=>[{items:(structure?.actions??[]).map(a=>({id:a.id,title:a[lang]}))}],[structure,lang]);
+  const branchTitle=service?tr(branches.find(b=>b.serviceId===service.id)?.title,lang):'';
+  const actionSections=useMemo<SheetSection[]>(()=>[{items:(structure?.actions??[]).map(a=>({id:a.id,title:tr(a,lang)}))}],[structure,lang]);
 
   const errors={service:!service||!action?t.e_service:'',name:name.trim().length<2?t.e_name:'',phone:!toE164(phone)?t.e_phone:''};
   const valid=!errors.service&&!errors.name&&!errors.phone;
@@ -119,9 +120,9 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
       </Entrance>
 
       <Group lang={lang} title={t.chooseGroup} index={1}>
-        <PickerRow lang={lang} label={t.main} value={main?main.category.title[lang]+' — '+(main.business?t.companies:t.individuals):''} placeholder={t.pickMain} onPress={()=>setSheet('main')} last={!main}/>
+        <PickerRow lang={lang} label={t.main} value={main?tr(main.category.title,lang)+' — '+(main.business?t.companies:t.individuals):''} placeholder={t.pickMain} onPress={()=>setSheet('main')} last={!main}/>
         {main&&branches.length>1?<PickerRow lang={lang} label={t.service} value={branchTitle} placeholder={t.pickService} onPress={()=>setSheet('service')} last={!service}/>:null}
-        {service?<PickerRow lang={lang} label={t.action} value={action?action[lang]:''} placeholder={t.pickAction} onPress={()=>setSheet('action')} last/>:null}
+        {service?<PickerRow lang={lang} label={t.action} value={action?tr(action,lang):''} placeholder={t.pickAction} onPress={()=>setSheet('action')} last/>:null}
       </Group>
       {touched&&errors.service?<Err lang={lang}>{errors.service}</Err>:null}
 
@@ -141,7 +142,7 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
         <View style={s.docs}>
           {action.documents.length===0?<Txt lang={lang} style={s.docLine}>{t.noDocs}</Txt>:action.documents.map(d=><View key={d.id} style={[s.docRow,{flexDirection:ar?'row-reverse':'row'}]}>
             {d.optional?<View style={s.optionalDot}><Icon name="info" size={16} color={colors.muted}/></View>:<GoldBadge icon="file" size={30}/>}
-            <Txt lang={lang} style={s.docLine}>{d[lang]}{d.optional&&!/if applicable|حسب الحالة|إن وجد/i.test(d[lang])?` (${t.optional})`:''}</Txt>
+            <Txt lang={lang} style={s.docLine}>{tr(d,lang)}{d.optional&&!/if applicable|حسب الحالة|إن وجد/i.test(tr(d,lang))?` (${t.optional})`:''}</Txt>
           </View>)}
           <Txt lang={lang} style={s.docNote}>{t.docsNote}</Txt>
         </View>
@@ -195,7 +196,7 @@ function Input({lang,ltr,tall,...p}:{lang:Lang;ltr?:boolean;tall?:boolean}&React
 function Err({lang,children}:{lang:Lang;children:React.ReactNode}){return <Txt lang={lang} style={s.fieldError}>{children}</Txt>}
 
 function Done({lang,info,onUpload,onDashboard}:{lang:Lang;info:CreatedInfo;onUpload:()=>void;onDashboard:()=>void}){
-  const t=copy[lang];
+  const t=pick(copy,lang);
   const ref=(info.record.remoteId??info.record.id).slice(0,8).toUpperCase();
   const reduce=useReduceTransparency();
   return <View style={s.fill}><GlassBackdrop/><ScrollView contentContainerStyle={s.doneWrap} showsVerticalScrollIndicator={false}>

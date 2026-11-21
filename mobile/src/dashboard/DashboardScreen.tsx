@@ -18,8 +18,9 @@ import {colors,layout,lux,radius,space,type} from '../theme';
 import {dateText,steps,type ClientRequest} from '../clientModel';
 import {inBucket,type Bucket} from './statusStyle';
 import {useTabBarHeight} from '../navigation/TabBarLayout';
+import {pick,tr} from '../i18n';
 
-type Lang='ar'|'en';
+type Lang=import('../i18n').Lang;
 export type SyncStatus='idle'|'syncing'|'error';
 type Draft={key:string;title:string;resume:()=>void};
 type Props={
@@ -62,7 +63,7 @@ function Skeleton({reduce}:{reduce:boolean}){
 /** Five-segment progress; filled segments in gold. Spoken as "Stage n of 5: name". */
 function StageBar({lang,stage}:{lang:Lang;stage:number}){
   return <View style={[s.bar,{flexDirection:rowFor(lang)}]} accessible accessibilityRole="progressbar"
-    accessibilityLabel={`${copy[lang].stage(stage)}: ${steps[Math.max(0,stage-1)][lang]}`} accessibilityValue={{min:1,max:5,now:stage}}>
+    accessibilityLabel={`${pick(copy,lang).stage(stage)}: ${tr(steps[Math.max(0,stage-1)],lang)}`} accessibilityValue={{min:1,max:5,now:stage}}>
     {[1,2,3,4,5].map(i=>i<=stage
       ?<LinearGradient key={i} colors={lux.goldBright} start={{x:0,y:0}} end={{x:1,y:0}} style={s.seg}/>
       :<View key={i} style={[s.seg,s.segOff]}/>)}
@@ -70,33 +71,33 @@ function StageBar({lang,stage}:{lang:Lang;stage:number}){
 }
 
 function RequestCard({lang,r,onOpen,onMissing,reduce}:{lang:Lang;r:ClientRequest;onOpen:()=>void;onMissing:()=>void;reduce:boolean}){
-  const t=copy[lang],ar=lang==='ar',row=rowFor(lang);
+  const t=pick(copy,lang),ar=lang==='ar',row=rowFor(lang);
   const closed=r.status==='cancelled'||r.status==='rejected';
   const need=r.status==='needs_documents'||!!r.whatNow?.actionRequired;
   return <LuxCard reduce={reduce} style={need&&s.needGlow}>
-    <ScalePressable accessibilityRole="button" accessibilityLabel={`${r.title[lang]}. ${t.details}`} onPress={onOpen} scaleTo={0.985} style={s.cardMain}>
+    <ScalePressable accessibilityRole="button" accessibilityLabel={`${tr(r.title,lang)}. ${t.details}`} onPress={onOpen} scaleTo={0.985} style={s.cardMain}>
       <View style={[s.cardTop,{flexDirection:row}]}>
         <View style={[s.flex1,s.cardTitleBox]}>
-          <Txt lang={lang} bold style={s.cardTitle} numberOfLines={2}>{r.title[lang]}</Txt>
+          <Txt lang={lang} bold style={s.cardTitle} numberOfLines={2}>{tr(r.title,lang)}</Txt>
           <Txt lang={lang} style={s.meta}>{'⁦#'+r.id.replace('DEMO-','').slice(0,8)+'⁩'} · {t.updated} {dateText(r.updatedAt,lang)}</Txt>
         </View>
         {r.sample&&<Tag lang={lang}>{t.sample}</Tag>}
       </View>
       <StatusBadge lang={lang} status={r.status}/>
       {!closed&&r.status!=='draft'&&<StageBar lang={lang} stage={r.stage}/>}
-      {r.whatNow?.[lang]&&r.status!=='draft'?<View style={[s.what,need&&s.whatNeed,{flexDirection:row}]}>
+      {tr(r.whatNow,lang)&&r.status!=='draft'?<View style={[s.what,need&&s.whatNeed,{flexDirection:row}]}>
         {need&&<Icon name="info" size={18} color="#76592A"/>}
-        <View style={s.flex1}><Txt lang={lang} bold={need} style={{...s.whatText,...(need?{color:'#76592A'}:null)}}>{r.whatNow[lang]}</Txt></View>
+        <View style={s.flex1}><Txt lang={lang} bold={need} style={{...s.whatText,...(need?{color:'#76592A'}:null)}}>{tr(r.whatNow,lang)}</Txt></View>
       </View>:null}
     </ScalePressable>
     <View style={[s.footer,{flexDirection:row}]}>
       {r.status==='needs_documents'
-        ?<ScalePressable accessibilityRole="button" accessibilityLabel={`${t.sendDocs}: ${r.title[lang]}`} onPress={onMissing} rippleColor="rgba(14,21,38,0.18)" style={s.actionPill}>
+        ?<ScalePressable accessibilityRole="button" accessibilityLabel={`${t.sendDocs}: ${tr(r.title,lang)}`} onPress={onMissing} rippleColor="rgba(14,21,38,0.18)" style={s.actionPill}>
           <LinearGradient colors={ORANGE} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
           <View pointerEvents="none" style={[s.actionInner,{flexDirection:row}]}><Icon name="upload" size={16} color={lux.onAction}/><Txt lang={lang} bold style={s.actionText}>{t.sendDocs}</Txt></View>
         </ScalePressable>
         :<View/>}
-      <ScalePressable accessibilityRole="button" accessibilityLabel={`${t.details}: ${r.title[lang]}`} onPress={onOpen} style={[s.detailsLink,{flexDirection:row}]}>
+      <ScalePressable accessibilityRole="button" accessibilityLabel={`${t.details}: ${tr(r.title,lang)}`} onPress={onOpen} style={[s.detailsLink,{flexDirection:row}]}>
         <Txt lang={lang} bold style={s.detailsText}>{t.details}</Txt>
         <GoldBadge icon={ar?'back':'next'} size={28}/>
       </ScalePressable>
@@ -105,7 +106,7 @@ function RequestCard({lang,r,onOpen,onMissing,reduce}:{lang:Lang;r:ClientRequest
 }
 
 export function DashboardScreen({lang,records,drafts,syncStatus,loadedOnce,demo,onRefresh,onOpen,onMissing,onStart,onDemo}:Props){
-  const t=copy[lang],ar=lang==='ar',row=rowFor(lang);
+  const t=pick(copy,lang),ar=lang==='ar',row=rowFor(lang);
   const reduce=useReduceTransparency();
   const [bucket,setBucket]=useState<Bucket>('all');
   const [query,setQuery]=useState('');

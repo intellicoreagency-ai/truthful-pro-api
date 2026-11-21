@@ -15,6 +15,7 @@ import {Txt,type Lang} from '../ui/Txt';
 import {CheckRow,GlassButton,GlassField,Note,g,ltr,rowFor,useReduceTransparency} from '../ui/Glass';
 import {colors,layout,radius,space,type} from '../theme';
 import {shareSummary,type ClientRequest} from '../clientModel';
+import {pick,tr} from '../i18n';
 
 type Channel='email'|'whatsapp'|'system';
 const COPY={
@@ -36,7 +37,7 @@ type Props={
 };
 
 export function ShareSheet({lang,r,visible,onClose,summary,financial,selected,invoiceSelected,toggleSummary,toggleFinancial,toggleFile,onInvoice,onShare,email,setEmail,busy,message}:Props){
-  const t=COPY[lang],row=rowFor(lang);
+  const t=pick(COPY,lang),row=rowFor(lang);
   const reduce=useReduceTransparency();
   const insets=useSafeAreaInsets();
   const nothing=!summary&&!selected.length;
@@ -62,7 +63,7 @@ export function ShareSheet({lang,r,visible,onClose,summary,financial,selected,in
               <Icon name="close" size={20} color={colors.ink}/>
             </ScalePressable>
           </View>
-          <View style={styles.requestChip}><Txt lang={lang} bold style={{...g.valueText,textAlign:'center'}}>{r.title[lang]} • {ltr('#'+r.id.replace('DEMO-',''))}</Txt></View>
+          <View style={styles.requestChip}><Txt lang={lang} bold style={{...g.valueText,textAlign:'center'}}>{tr(r.title,lang)} • {ltr('#'+r.id.replace('DEMO-',''))}</Txt></View>
 
           {!!message&&<View accessibilityLiveRegion="polite"><Note lang={lang} tone="warning">{message}</Note></View>}
 
@@ -72,7 +73,7 @@ export function ShareSheet({lang,r,visible,onClose,summary,financial,selected,in
             {!summary&&<Txt lang={lang} style={g.meta}>{t.amountsHint}</Txt>}
             <CheckRow lang={lang} label={t.invoice} checked={invoiceSelected} onPress={onInvoice}/>
             {files.length>0&&<Txt lang={lang} bold style={styles.groupLabel}>{t.files}</Txt>}
-            {files.map(f=><CheckRow key={f.id} lang={lang} label={f.label[lang]} checked={selected.includes(f.id)} onPress={()=>toggleFile(f.id)}/>)}
+            {files.map(f=><CheckRow key={f.id} lang={lang} label={tr(f.label,lang)} checked={selected.includes(f.id)} onPress={()=>toggleFile(f.id)}/>)}
           </View>
 
           <View style={styles.preview}>

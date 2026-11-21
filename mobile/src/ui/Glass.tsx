@@ -12,6 +12,7 @@ import {colors,layout,lux,onGlass,radius,space,type} from '../theme';
 import {ScrollView} from '../navigation/TabBarLayout';
 import {statusLabels,steps,type Status} from '../clientModel';
 import {statusTone} from '../dashboard/statusStyle';
+import {tr} from '../i18n';
 
 /** Keeps references, amounts and phone numbers left-to-right inside Arabic text. */
 export const ltr=(s:string)=>'⁦'+s+'⁩';
@@ -142,7 +143,7 @@ export function GlassScreen({children,refreshControl,scrollRef}:{children:React.
 const STATUS_ICON:Partial<Record<Status,IconName>>={completed:'check',needs_documents:'info',rejected:'close',cancelled:'close'};
 /** Status as icon + text on its tint (never colour alone). */
 export function StatusBadge({lang,status}:{lang:Lang;status:Status}){
-  const tone=statusTone(status),label=statusLabels[status][lang];
+  const tone=statusTone(status),label=tr(statusLabels[status],lang);
   return <View accessible accessibilityLabel={`${lang==='ar'?'الحالة':'Status'}: ${label}`}
     style={[g.badge,{backgroundColor:tone.bg,flexDirection:rowFor(lang)}]}>
     <Icon name={STATUS_ICON[status]??'clock'} size={15} color={tone.fg}/>
@@ -158,7 +159,7 @@ export function Tag({lang,children,tone='warning'}:{lang:Lang;children:React.Rea
 const digits=(n:number,lang:Lang)=>lang==='ar'?String(n).replace(/[0-9]/g,d=>'٠١٢٣٤٥٦٧٨٩'[+d]):String(n);
 /** Five-stage tracker; done stages are filled, the current one is ringed. Spoken as "Stage n of 5: name". */
 export function StageTracker({lang,stage}:{lang:Lang;stage:number}){
-  const ar=lang==='ar',row=rowFor(lang),current=steps[stage-1]?.[lang]??'';
+  const ar=lang==='ar',row=rowFor(lang),current=tr(steps[stage-1],lang)??'';
   const count=ar?`المرحلة ${digits(stage,lang)} من ${digits(5,lang)}`:`Stage ${stage} of 5`;
   return <View style={g.stages}>
     <View style={[g.between,{flexDirection:row}]}>
@@ -171,7 +172,7 @@ export function StageTracker({lang,stage}:{lang:Lang;stage:number}){
         return <View key={step.en} style={g.step}>
           {i<steps.length-1&&<View style={[g.connector,ar?{right:'50%'}:{left:'50%'},i<stage-1&&g.connectorDone]}/>}
           <View style={[g.dot,done&&g.dotDone,now&&g.dotNow]}>{done&&<Icon name="check" size={15} color="#FFFFFF"/>}</View>
-          <Txt lang={lang} bold={now} style={{...g.stepText,...(now?{color:colors.brand}:null)}}>{step[lang]}</Txt>
+          <Txt lang={lang} bold={now} style={{...g.stepText,...(now?{color:colors.brand}:null)}}>{tr(step,lang)}</Txt>
         </View>;})}
     </View>
   </View>;

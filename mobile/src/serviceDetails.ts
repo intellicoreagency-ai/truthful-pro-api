@@ -5,7 +5,7 @@ import {SERVICES, Service} from './services';
  * Missing or case-specific documents must be checked with competent authorities
  * before activating a transaction for real customers.
  */
-export type Bilingual = {ar:string; en:string};
+export type Bilingual = import('./i18n').Bi;
 export type DocumentRequirement = Bilingual & {id:string; optional?:boolean; field?:'text'; minimumAge?:number};
 export type ServiceAction = Bilingual & {id:string; icon:string; documents:DocumentRequirement[]};
 export type ServiceStructure = {
@@ -435,7 +435,7 @@ export const SERVICE_STRUCTURES:Record<string,ServiceStructure>=Object.fromEntri
   } satisfies ServiceStructure];
  }));
 export const structureFor=(id:string)=>SERVICE_STRUCTURES[id];
-export const wording=(item:Bilingual,language:'ar'|'en')=>item[language];
+export const wording=(item:Bilingual,language:import('./i18n').Lang)=>item[language]??item.en;
 
 export const tradeLicenceSectionTitles: Readonly<Record<string, Bilingual>> = {
   'renew-licence': bi('تجديد الرخصة', 'Licence Renewal'),

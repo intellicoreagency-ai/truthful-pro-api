@@ -1,3 +1,4 @@
+import {isLang} from './i18n';
 import {Platform} from 'react-native';
 import {File, Paths} from 'expo-file-system';
 import {getDocumentAsync} from 'expo-document-picker';
@@ -11,7 +12,7 @@ export type AccountData = {
   license:string;
   photo:string;
   favorites:string[];
-  language?:'ar'|'en';
+  language?:import('./i18n').Lang;
 };
 
 export const emptyAccount:AccountData = {
@@ -36,7 +37,7 @@ export function readAccount():AccountData {
       ...Object.fromEntries(['name','email','phone','company','license'].map(key=>[key,typeof parsed[key]==='string'?parsed[key]:''])),
       photo:typeof parsed.photo==='string'&&/^data:image\/(jpeg|png|webp);base64,/.test(parsed.photo)?parsed.photo:'',
       favorites,
-      ...(parsed.language==='ar'||parsed.language==='en'?{language:parsed.language}:{}),
+      ...(isLang(parsed.language)?{language:parsed.language}:{}),
     };
   } catch {
     return emptyAccount;

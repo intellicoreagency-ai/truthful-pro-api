@@ -2,13 +2,14 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import {Linking} from 'react-native';
 import {ApiError,waPoll,waStart,type WaChallenge} from './../api';
 import {authCopy,type Lang} from './copy';
+import {apiLang,pick} from '../i18n';
 
 /**
  * Passwordless sign-in: the user sends a ready-made WhatsApp message (free for them); the server verifies the signed webhook and
  * we poll until it says "verified". The session tokens are saved by the API client in expo-secure-store (Keychain / Keystore).
  */
 export function useWaVerification(lang:Lang,onVerified:(info:{isNewUser:boolean;phone:string})=>void){
-  const t=authCopy[lang];
+  const t=pick(authCopy,lang);
   const [challenge,setChallenge]=useState<(WaChallenge&{phone:string})|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -23,7 +24,7 @@ export function useWaVerification(lang:Lang,onVerified:(info:{isNewUser:boolean;
 
   const start=useCallback(async(phone:string)=>{
     setError('');setBusy(true);
-    try{const c=await waStart(phone,lang);setChallenge({...c,phone});void Linking.openURL(c.link).catch(()=>{});}
+    try{const c=await waStart(phone,apiLang(lang));setChallenge({...c,phone});void Linking.openURL(c.link).catch(()=>{});}
     catch(e){setError(message(e));}
     finally{if(alive.current)setBusy(false);}
   },[lang,message]);

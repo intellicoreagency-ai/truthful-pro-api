@@ -11,6 +11,7 @@ import {Txt,type Lang} from '../ui/Txt';
 import {GlassButton,GlassCard,GlassScreen,Note,ScreenHeader,SectionTitle,StageTracker,Tag,g,ltr,rowFor,useReduceTransparency} from '../ui/Glass';
 import {colors,layout,radius,space,type} from '../theme';
 import {canSendMissing,type ClientRequest} from '../clientModel';
+import {pick,tr} from '../i18n';
 
 const COPY={
   ar:{title:'استكمال المستندات',back:'رجوع إلى تفاصيل المعاملة',reference:'رقم الطلب',sample:'طلب تجريبي',
@@ -34,14 +35,14 @@ const COPY={
 type Props={lang:Lang;r:ClientRequest;onBack:()=>void;onPick:(id:string)=>void;onSend:()=>void;busy:boolean;message?:string};
 
 export function MissingDocumentsScreen({lang,r,onBack,onPick,onSend,busy,message}:Props){
-  const t=COPY[lang],row=rowFor(lang);
+  const t=pick(COPY,lang),row=rowFor(lang);
   const reduce=useReduceTransparency();
   const open=r.status==='needs_documents';
   const attached=r.missing.filter(d=>d.replacement&&r.files.some(f=>f.id===d.replacement)).length;
   const ready=canSendMissing(r);
 
   return <GlassScreen>
-    <ScreenHeader lang={lang} title={t.title} subtitle={r.title[lang]} backLabel={t.back} onBack={onBack}/>
+    <ScreenHeader lang={lang} title={t.title} subtitle={tr(r.title,lang)} backLabel={t.back} onBack={onBack}/>
     {!!message&&<View accessibilityLiveRegion="polite"><Note lang={lang} tone="warning">{message}</Note></View>}
 
     <GlassCard reduce={reduce}>
@@ -67,16 +68,16 @@ export function MissingDocumentsScreen({lang,r,onBack,onPick,onSend,busy,message
     {r.missing.map((d,i)=>{
       const replacement=r.files.find(f=>f.id===d.replacement),previous=r.files.find(f=>f.id===d.previous);
       const isReplace=!!d.previous||!!r.sample&&i===0;
-      const label=d.label[lang];
+      const label=tr(d.label,lang);
       return <GlassCard key={d.id} reduce={reduce}>
         <View style={[styles.docHead,{flexDirection:row}]}>
           <Icon name={replacement?'check':'file'} size={22} color={replacement?colors.brand:colors.orange}/>
           <View style={g.flex1}><Txt lang={lang} bold style={styles.docTitle}>{label}</Txt></View>
           <Tag lang={lang} tone={replacement?'brand':'warning'}>{replacement?t.attachedTag:isReplace?t.replaceTag:t.missingTag}</Tag>
         </View>
-        {!!d.note[lang]&&<View style={styles.staffNote}>
+        {!!tr(d.note,lang)&&<View style={styles.staffNote}>
           <Txt lang={lang} bold style={styles.staffNoteLabel}>{t.staffNote}</Txt>
-          <Txt lang={lang} style={g.body}>{d.note[lang]}</Txt>
+          <Txt lang={lang} style={g.body}>{tr(d.note,lang)}</Txt>
         </View>}
         {replacement||isReplace
           ?<View style={styles.slot}>
