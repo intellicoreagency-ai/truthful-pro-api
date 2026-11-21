@@ -40,73 +40,69 @@ redesigned screens working and unchanged:
 - [x] Glass cards: translucent white surface, subtle white border, shadow on an outer View.
 - [x] Readable translucent fallback when blur is unavailable (Android uses `dimezisBlurView`, denser fill elsewhere).
 - [x] Shared buttons, inputs, value rows and notes in `mobile/src/ui/Glass.tsx`.
-- [ ] Move the status badge and screen header (local to Request details) into `mobile/src/ui/` when the next screen needs them.
+- [x] Status badge, screen header, stage tracker, tags, checkboxes and the screen frame live in `mobile/src/ui/Glass.tsx`.
 - [x] StyleSheet only; no HTML, CSS or NativeWind.
-- [ ] RTL/LTR, screen readers and enlarged text checked on each screen (`maxFontSizeMultiplier` via `Txt`).
+- [x] RTL/LTR and accessibility labels/roles/states checked on each screen (web preview).
+- [ ] Enlarged text (`maxFontSizeMultiplier` 1.35 via `Txt`) checked on devices.
 - [ ] Text contrast readable over every glass background.
 - [x] Reduced-transparency preference respected with an opaque fallback (Step 5 pattern).
 - [x] Font decision: Cairo (Arabic) + system font (English); design rules updated.
 
-## Legacy screens (real names in the repo)
+## Legacy screens — all refactored ✅
 
-Refactor only these. Preserve page names and the Android back order in App.tsx (`backRef`).
+| # | Screen | Now | Was |
+|---|--------|-----|-----|
+| 5 | Request details ✅ | `src/details/TransactionDetailsScreen.tsx` (+ `FinancePanel.tsx`) | `DetailDesign` in `ClientDesign.tsx` |
+| 6 | Missing documents ✅ | `src/details/MissingDocumentsScreen.tsx` | `MissingDesign` |
+| 7 | Request files ✅ | `src/details/RequestFilesScreen.tsx` | files tab in `ClientWorkspace` |
+| 8 | Share sheet ✅ | `src/details/ShareSheet.tsx` | `ShareDesign` + `Modal` |
+| 9 | Home ✅ | `src/HomeScreen.tsx` | sprite-based reference screen |
+| 10 | Services catalogue ✅ | `src/services/ServicesScreen.tsx` | `cataloguePage()` in `App.tsx` |
+| 11 | Service details ✅ | `src/services/ServiceDetailsScreen.tsx` (+ `StartRequestBar`) | `detailPage()` / `detailCTA()` |
+| 12 | Request wizard ✅ | `src/request/RequestWizard.tsx` | `RequestWizard` in `ClientWorkspace.tsx` |
+| 13 | Account ✅ | `src/AccountScreen.tsx` | same file, legacy UI |
+| 14 | Legal ✅ | `src/LegalScreen.tsx` | same file, legacy UI |
+| 15 | Fallback page ✅ | `src/FallbackScreen.tsx` | `simplePage()` (request form was unreachable) |
 
-| # | Screen | Where | What it contains |
-|---|--------|-------|------------------|
-| 5 | **Request details** ✅ | `DetailDesign` in `src/ClientDesign.tsx`, shown by `ClientWorkspace` (page `requests`, `selected` set) | status, progress, dates, files, receipt confirmation, share, export, delivery-problem report, `FinancePanel` + `GovSection` (in `ClientWorkspace.tsx`) |
-| 6 | Missing documents | `MissingDesign` in `src/ClientDesign.tsx` (`tab==='missing'`) | requested documents, pick replacement, send to team |
-| 7 | Request files | files tab inside `ClientWorkspace` (`tab==='files'`, `RefHeader` + `fileRow`) | view / save each file |
-| 8 | Share sheet | `ShareDesign` in `src/ClientDesign.tsx`, in a `Modal` in `ClientWorkspace` | summary, financial toggle, files, invoice, email / WhatsApp / system share |
-| 9 | Home | `src/HomeScreen.tsx` (page `home`, uses `ReferenceUI` sprites) | header, individuals/companies shortcuts, search, WhatsApp/phone support, notifications bell |
-| 10 | Services catalogue | `cataloguePage()` in `App.tsx` (page `services`) | audience segment, search, approved service banners, empty state |
-| 11 | Service details | `detailPage()` + `detailCTA()` in `App.tsx` (page `detail`) | banner, favorite, About / Documents / Fees tabs, transaction picker, start-request CTA in tab bar |
-| 12 | Request wizard | `RequestWizard` in `src/ClientWorkspace.tsx` (page `request`) | 5 steps: details, documents (upload/preview/replace), review + consent, payment (disabled), confirm |
-| 13 | Account | `src/AccountScreen.tsx` (page `profile`) | personal details, email, language, favorites, data export, delete account, sign-out, legal links |
-| 14 | Legal | `src/LegalScreen.tsx` (overlay from `legal` state) | Terms / Privacy text |
-| 15 | Fallback page | `simplePage()` in `App.tsx` | saved drafts list / preview notice |
+`ClientWorkspace.tsx` is now only the My Requests coordinator (list + request layers + share sheet + back order).
+Removed: `ClientDesign.tsx`, the legacy `RefText/RefButton/RefHeader/ReferenceProgress` kit (ReferenceUI keeps only
+`officialLogo`, `RefSprite`, `ContactGlyph`), and dead code in `App.tsx`. The release gate `allowRealSubmission=false` stays.
+Unchanged on purpose: approved banner artwork (`CompanyBanner`, approved banners) and the Step 1 tab bar fonts.
 
-Not present as separate screens (don't invent them): Notifications (the bell opens My Requests),
-Payments (lives in `FinancePanel` inside Request details), Settings (inside Account),
-Support (WhatsApp/phone buttons on Home; Step 5 adds a WhatsApp button on Request details).
+## Bugs fixed during the refactor
 
-## Step 5 — Request details (done)
-
-- [x] `mobile/src/details/TransactionDetailsScreen.tsx` replaces `DetailDesign` (removed from `ClientDesign.tsx`).
-- [x] All actions kept: progress stages, "where am I / action needed", dates, financial details, final files
-      (view / save), all request files, share sheet, export summary, receipt confirmation, problem report,
-      complete missing documents, and the invoice & payment panel.
-- [x] Payments panel moved to `mobile/src/details/FinancePanel.tsx` with its logic unchanged (glass presentation only).
-- [x] Fixed on the way: "Complete documents" and the problem-report form only appeared for completed requests;
-      the "All request files" action was never shown.
-- [x] Added: fresh server copy on open (`fetchRequest`, skipped while local changes wait to upload),
-      pull-to-refresh (full sync), WhatsApp support button.
-- [x] Android back: unchanged, owned by `ClientWorkspace` (share sheet → files/missing → details → list).
-- [x] Checked in the web preview (390 pt wide, Arabic and English): renders without errors; receipt, files,
-      back and share work on the sample requests.
-- [ ] Check on physical iOS and Android devices (blur, ripple, font scale, VoiceOver/TalkBack).
-
-Next screen: **6 — Missing documents** (`MissingDesign`), then 7 — Request files, 8 — Share sheet.
+- Request details: "Complete documents" and the problem report only rendered for completed requests; "All request files" never shown.
+- Missing documents: back went to the list (system back went to details); Send enabled with nothing requested; no hint why Send was off.
+- Share: "Invoice and receipts" looked selected without an invoice; "Include financial amounts" could be ticked without a summary.
+- Home: Arabic banner and service cards were images of text (now real text); language switch and search were wired but never shown.
+- Wizard: Continue never said what was missing; documents that stopped applying (age rule) were still submitted;
+  "if applicable (if applicable)"; consent box showed "+".
+- Account: notifications always 0 (now requests needing action; Home's bell uses the same rule); Saved documents
+  unreachable; invalid email saved silently; destructive delete looked neutral.
+- Legal: Android back closed the screen underneath instead of the Terms/Privacy overlay.
+- Web preview: `isReduceTransparencyEnabled` crashed react-native-web; checkbox/tab state now also exposed on web.
 
 ## Per-screen checklist
 
 - [ ] Record current functionality and capture the current screen.
-- [ ] Replace legacy presentation with shared glass components.
-- [ ] Preserve business logic and authorization checks.
-- [ ] Preserve all labels, actions, and supported languages.
-- [ ] Add loading, error, retry, and empty states where missing.
-- [ ] Avoid nested scrolling and excessive full-screen blur layers.
+- [x] Replace legacy presentation with shared glass components.
+- [x] Preserve business logic and authorization checks (logic copied unchanged; fixes listed above).
+- [x] Preserve all labels, actions, and supported languages.
+- [x] Add loading, error, retry, and empty states where missing.
+- [x] Avoid nested scrolling and excessive full-screen blur layers (one ScrollView per screen; blur only on cards/sheet).
 - [ ] Verify keyboard behavior and small-screen layouts.
-- [ ] Verify Android back order (modal → tab → screen → home).
-- [ ] Verify accessibility labels and non-color status descriptions.
-- [ ] Compare before/after behavior and approve visual changes.
+- [x] Verify Android back order (modal → tab → screen → home) in code; confirm on a device.
+- [x] Verify accessibility labels and non-color status descriptions.
+- [ ] Compare before/after behavior and approve visual changes (owner review).
 
 ## Verification and rollout
 
 - [x] `npm run typecheck` (mobile) and `npm test` (4 groups) pass on this branch.
+- [x] Web preview walk-through (390 pt, Arabic and English): every refactored screen and its main actions, no page errors.
 - [ ] Test on physical Android and iOS devices.
 - [ ] Check blur rendering and fallback behavior on both platforms.
 - [ ] Check Arabic shaping, RTL order, and maximum text size.
 - [ ] Check reduced transparency and screen-reader navigation.
 - [x] Refactor incrementally on a separate branch.
-- [ ] Remove legacy components only after checking every reference.
-- [ ] Keep production deployment separate from UI refactoring.
+- [x] Remove legacy components only after checking every reference.
+- [x] Keep production deployment separate from UI refactoring (nothing deployed).
