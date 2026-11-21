@@ -1,12 +1,22 @@
-import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {Animated,Platform,RefreshControl,ScrollView,StyleSheet,TextInput,View} from 'react-native';
+/**
+ * My Requests — premium concierge design.
+ * Frosted header (gold large title, glass search, four spring filter tiles with counts), an "action needed" banner,
+ * gradient-bordered glass cards that animate in, re-flow smoothly when filters change, and press with a spring.
+ * Logic unchanged: same filters/buckets, search, counts, pull-to-refresh, skeleton, empty / no-match / offline states,
+ * drafts and the sample-data toggle. Motion respects Reduce motion; glass is opaque under Reduce transparency.
+ */
+import React,{useCallback,useEffect,useMemo,useState} from 'react';
+import {Platform,RefreshControl,ScrollView,StyleSheet,TextInput,View} from 'react-native';
+import Animated,{FadeIn,FadeInDown,FadeOut,LinearTransition,ReduceMotion,useAnimatedStyle,useReducedMotion,useSharedValue,withRepeat,withTiming} from 'react-native-reanimated';
+import {LinearGradient} from 'expo-linear-gradient';
 import {BlurView} from 'expo-blur';
-import {Pressable} from '../Touch';
 import {Icon} from '../Icons';
 import {Txt} from '../ui/Txt';
-import {colors,layout,onGlass,radius,space,type} from '../theme';
-import {dateText,statusLabels,steps,type ClientRequest} from '../clientModel';
-import {inBucket,statusTone,type Bucket} from './statusStyle';
+import {StatusBadge,Tag,rowFor,useReduceTransparency} from '../ui/Glass';
+import {GoldBadge,GoldText,LuxCard,ScalePressable} from '../ui/Premium';
+import {colors,layout,lux,radius,space,type} from '../theme';
+import {dateText,steps,type ClientRequest} from '../clientModel';
+import {inBucket,type Bucket} from './statusStyle';
 import {useTabBarHeight} from '../navigation/TabBarLayout';
 
 type Lang='ar'|'en';
@@ -18,72 +28,89 @@ type Props={
 };
 
 const copy={
-  ar:{title:'طلباتي',subtitle:(n:number)=>n?`${n} معاملة`:'لا معاملات بعد',search:'ابحث بالخدمة أو رقم الطلب',all:'الكل',active:'الجارية',action:'تحتاج إجراءً',done:'المنجزة',
-    details:'تفاصيل الطلب',sendDocs:'إرسال المستندات',updated:'آخر تحديث',drafts:'مسودات',
+  ar:{title:'طلباتي',subtitle:(n:number)=>n?`${n} معاملة`:'لا معاملات بعد',search:'ابحث بالخدمة أو رقم الطلب',clear:'مسح البحث',filters:'تصفية الطلبات',all:'الكل',active:'الجارية',action:'تحتاج إجراءً',done:'المنجزة',
+    details:'تفاصيل الطلب',sendDocs:'إرسال المستندات',updated:'آخر تحديث',drafts:'مسودات',resume:'متابعة',
+    needBanner:(n:number)=>n===1?'معاملة واحدة تحتاج إجراءً منك':`${n} معاملات تحتاج إجراءً منك`,needShow:'عرضها',
     loading:'جارٍ تحميل معاملاتك…',emptyTitle:'ستجد معاملاتك هنا',emptyBody:'ابدأ معاملة لمتابعة مراحلها والرجوع لملفاتها في أي وقت.',start:'ابدأ معاملة',
     noMatchTitle:'لا نتائج مطابقة',noMatchBody:'جرّب فلتراً آخر أو غيّر كلمة البحث.',
-    offline:'تعذّر التحديث. تُعرض آخر بيانات محفوظة.',retry:'إعادة المحاولة',pull:'اسحب للأسفل للتحديث',demoOn:'عرض معاملاتي',demoOff:'عرض نماذج توضيحية',sample:'توضيحي'},
-  en:{title:'My Requests',subtitle:(n:number)=>n?`${n} transaction${n===1?'':'s'}`:'No transactions yet',search:'Search by service or request number',all:'All',active:'Active',action:'Needs action',done:'Completed',
-    details:'Request details',sendDocs:'Send documents',updated:'Updated',drafts:'Drafts',
+    offline:'تعذّر التحديث. تُعرض آخر بيانات محفوظة.',retry:'إعادة المحاولة',pull:'اسحب للأسفل للتحديث',demoOn:'عرض معاملاتي',demoOff:'عرض نماذج توضيحية',sample:'توضيحي',stage:(n:number)=>`المرحلة ${n} من ٥`},
+  en:{title:'My Requests',subtitle:(n:number)=>n?`${n} transaction${n===1?'':'s'}`:'No transactions yet',search:'Search by service or request number',clear:'Clear search',filters:'Filter requests',all:'All',active:'Active',action:'Needs action',done:'Completed',
+    details:'Request details',sendDocs:'Send documents',updated:'Updated',drafts:'Drafts',resume:'Resume',
+    needBanner:(n:number)=>n===1?'1 request needs your action':`${n} requests need your action`,needShow:'Show',
     loading:'Loading your transactions…',emptyTitle:'Your transactions will appear here',emptyBody:'Start a transaction to follow its stages and open its files any time.',start:'Start a transaction',
     noMatchTitle:'No matching results',noMatchBody:'Try another filter or change the search.',
-    offline:'Could not refresh. Showing the last saved data.',retry:'Try again',pull:'Pull down to refresh',demoOn:'Show my requests',demoOff:'View sample screens',sample:'Sample'},
+    offline:'Could not refresh. Showing the last saved data.',retry:'Try again',pull:'Pull down to refresh',demoOn:'Show my requests',demoOff:'View sample screens',sample:'Sample',stage:(n:number)=>`Stage ${n} of 5`},
 } as const;
 
-const shadow=Platform.select({
-  ios:{shadowColor:'#3C281B',shadowOffset:{width:0,height:6},shadowOpacity:0.1,shadowRadius:14},
-  android:{elevation:3},
-  default:{boxShadow:'0 6px 16px rgba(60,40,27,0.10)'},
-}) as object;
+const ORANGE=['#FFA43A',colors.orange,'#E06F00'] as const;
+const enter=(i:number)=>FadeInDown.delay(60+Math.min(i,6)*60).springify().damping(18).mass(0.8).reduceMotion(ReduceMotion.System);
+const flow=LinearTransition.springify().damping(20).reduceMotion(ReduceMotion.System);
 
-/** Pulsing placeholder while the first load is in flight. */
-function Skeleton(){
-  const v=useRef(new Animated.Value(0.45)).current;
-  useEffect(()=>{const a=Animated.loop(Animated.sequence([Animated.timing(v,{toValue:1,duration:700,useNativeDriver:true}),Animated.timing(v,{toValue:0.45,duration:700,useNativeDriver:true})]));a.start();return()=>a.stop();},[v]);
-  return <Animated.View style={[s.card,{opacity:v,gap:space.md}]} accessibilityLabel="loading" accessibilityRole="progressbar">
-    <View style={s.skelLine1}/><View style={s.skelLine2}/><View style={s.skelDots}/>
+/** Soft breathing placeholder while the first load is in flight. */
+function Skeleton({reduce}:{reduce:boolean}){
+  const reduceMotion=useReducedMotion();
+  const o=useSharedValue(0.55);
+  useEffect(()=>{if(!reduceMotion)o.value=withRepeat(withTiming(1,{duration:800}),-1,true)},[o,reduceMotion]);
+  const a=useAnimatedStyle(()=>({opacity:o.value}));
+  return <Animated.View style={a} accessibilityLabel="loading" accessibilityRole="progressbar">
+    <LuxCard reduce={reduce} contentStyle={s.skel}>
+      <View style={s.skelLine1}/><View style={s.skelLine2}/><View style={s.skelBar}/>
+    </LuxCard>
   </Animated.View>;
 }
 
-function StageDots({lang,stage,tone}:{lang:Lang;stage:number;tone:string}){
-  return <View style={[s.dots,{flexDirection:lang==='ar'?'row-reverse':'row'}]} accessibilityLabel={`${steps[Math.max(0,stage-1)][lang]} ${stage}/5`}>
-    {[1,2,3,4,5].map(i=><View key={i} style={[s.dot,i<=stage&&{backgroundColor:tone}]}/>)}
+/** Five-segment progress; filled segments in gold. Spoken as "Stage n of 5: name". */
+function StageBar({lang,stage}:{lang:Lang;stage:number}){
+  return <View style={[s.bar,{flexDirection:rowFor(lang)}]} accessible accessibilityRole="progressbar"
+    accessibilityLabel={`${copy[lang].stage(stage)}: ${steps[Math.max(0,stage-1)][lang]}`} accessibilityValue={{min:1,max:5,now:stage}}>
+    {[1,2,3,4,5].map(i=>i<=stage
+      ?<LinearGradient key={i} colors={lux.goldBright} start={{x:0,y:0}} end={{x:1,y:0}} style={s.seg}/>
+      :<View key={i} style={[s.seg,s.segOff]}/>)}
   </View>;
 }
 
-function RequestCard({lang,r,onOpen,onMissing}:{lang:Lang;r:ClientRequest;onOpen:()=>void;onMissing:()=>void}){
-  const t=copy[lang],ar=lang==='ar',tone=statusTone(r.status);
+function RequestCard({lang,r,onOpen,onMissing,reduce}:{lang:Lang;r:ClientRequest;onOpen:()=>void;onMissing:()=>void;reduce:boolean}){
+  const t=copy[lang],ar=lang==='ar',row=rowFor(lang);
   const closed=r.status==='cancelled'||r.status==='rejected';
-  const need=r.status==='needs_documents'?true:!!r.whatNow?.actionRequired;
-  return <View style={s.card}>
-    <Pressable accessibilityRole="button" accessibilityLabel={`${r.title[lang]}. ${statusLabels[r.status][lang]}`} onPress={onOpen} style={s.cardMain}>
-      <View style={[s.row,{flexDirection:ar?'row-reverse':'row'}]}>
-        <Txt lang={lang} style={s.cardTitle} numberOfLines={2}>{r.title[lang]}</Txt>
-        <View style={[s.badge,{backgroundColor:tone.bg}]}><Txt lang={lang} style={[s.badgeText,{color:tone.fg}]}>{statusLabels[r.status][lang]}</Txt></View>
+  const need=r.status==='needs_documents'||!!r.whatNow?.actionRequired;
+  return <LuxCard reduce={reduce} style={need&&s.needGlow}>
+    <ScalePressable accessibilityRole="button" accessibilityLabel={`${r.title[lang]}. ${t.details}`} onPress={onOpen} scaleTo={0.985} style={s.cardMain}>
+      <View style={[s.cardTop,{flexDirection:row}]}>
+        <View style={[s.flex1,s.cardTitleBox]}>
+          <Txt lang={lang} bold style={s.cardTitle} numberOfLines={2}>{r.title[lang]}</Txt>
+          <Txt lang={lang} style={s.meta}>{'⁦#'+r.id.replace('DEMO-','').slice(0,8)+'⁩'} · {t.updated} {dateText(r.updatedAt,lang)}</Txt>
+        </View>
+        {r.sample&&<Tag lang={lang}>{t.sample}</Tag>}
       </View>
-      <Txt lang={lang} style={s.meta}>{'⁦#'+r.id.replace('DEMO-','').slice(0,8)+'⁩'} · {t.updated} {dateText(r.updatedAt,lang)}</Txt>
-      {!closed&&r.status!=='draft'?<StageDots lang={lang} stage={r.stage} tone={tone.fg}/>:null}
-      {r.whatNow?.[lang]&&r.status!=='draft'?<Txt lang={lang} style={[s.what,need&&s.whatNeed]}>{r.whatNow[lang]}</Txt>:null}
-    </Pressable>
-    <View style={[s.footer,{flexDirection:ar?'row-reverse':'row'}]}>
-      {r.status==='needs_documents'?<Pressable accessibilityRole="button" accessibilityLabel={t.sendDocs} onPress={onMissing} style={s.actionPill}><Txt lang={lang} style={s.actionText}>{t.sendDocs}</Txt></Pressable>:<View/>}
-      <Pressable accessibilityRole="button" accessibilityLabel={t.details} onPress={onOpen} style={[s.detailsLink,{flexDirection:ar?'row-reverse':'row'}]}>
-        <Txt lang={lang} style={s.detailsText}>{t.details}</Txt><Icon name={ar?'back':'next'} size={16} color={colors.brand}/>
-      </Pressable>
+      <StatusBadge lang={lang} status={r.status}/>
+      {!closed&&r.status!=='draft'&&<StageBar lang={lang} stage={r.stage}/>}
+      {r.whatNow?.[lang]&&r.status!=='draft'?<View style={[s.what,need&&s.whatNeed,{flexDirection:row}]}>
+        {need&&<Icon name="info" size={18} color="#8A4F0B"/>}
+        <View style={s.flex1}><Txt lang={lang} bold={need} style={{...s.whatText,...(need?{color:'#7A440A'}:null)}}>{r.whatNow[lang]}</Txt></View>
+      </View>:null}
+    </ScalePressable>
+    <View style={[s.footer,{flexDirection:row}]}>
+      {r.status==='needs_documents'
+        ?<ScalePressable accessibilityRole="button" accessibilityLabel={`${t.sendDocs}: ${r.title[lang]}`} onPress={onMissing} rippleColor="rgba(255,255,255,0.3)" style={s.actionPill}>
+          <LinearGradient colors={ORANGE} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
+          <View pointerEvents="none" style={[s.actionInner,{flexDirection:row}]}><Icon name="upload" size={16} color="#FFFFFF"/><Txt lang={lang} bold style={s.actionText}>{t.sendDocs}</Txt></View>
+        </ScalePressable>
+        :<View/>}
+      <ScalePressable accessibilityRole="button" accessibilityLabel={`${t.details}: ${r.title[lang]}`} onPress={onOpen} style={[s.detailsLink,{flexDirection:row}]}>
+        <Txt lang={lang} bold style={s.detailsText}>{t.details}</Txt>
+        <GoldBadge icon={ar?'back':'next'} size={28}/>
+      </ScalePressable>
     </View>
-  </View>;
+  </LuxCard>;
 }
 
-/**
- * Dashboard: large title and filters in a translucent (blurred) header, Apple-style cards with soft shadows and generous spacing,
- * pull-to-refresh, skeleton loading, elegant empty / no-match / offline states. Data comes from the API sync (server is the reference).
- */
 export function DashboardScreen({lang,records,drafts,syncStatus,loadedOnce,demo,onRefresh,onOpen,onMissing,onStart,onDemo}:Props){
-  const t=copy[lang],ar=lang==='ar';
+  const t=copy[lang],ar=lang==='ar',row=rowFor(lang);
+  const reduce=useReduceTransparency();
   const [bucket,setBucket]=useState<Bucket>('all');
   const [query,setQuery]=useState('');
   const [refreshing,setRefreshing]=useState(false);
-  const [headerH,setHeaderH]=useState(150);
+  const [headerH,setHeaderH]=useState(190);
   const barH=useTabBarHeight();
   const list=useMemo(()=>records.filter(r=>r.status!=='draft'),[records]);
   const q=query.trim().toLowerCase();
@@ -99,101 +126,165 @@ export function DashboardScreen({lang,records,drafts,syncStatus,loadedOnce,demo,
   const empty=!loading&&list.length===0;
   const filters:Bucket[]=['all','active','action','done'];
   return <View style={s.fill}>
+    <View pointerEvents="none" style={s.backdrop} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={[s.orb,s.orbGold]}/><View style={[s.orb,s.orbSand]}/>
+    </View>
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
       contentContainerStyle={[s.scroll,{paddingTop:headerH+space.md,paddingBottom:barH+space.xxl}]} scrollIndicatorInsets={{top:headerH,bottom:barH}}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void doRefresh()} tintColor={colors.brand} colors={[colors.brand]} progressBackgroundColor="#FFFFFF" progressViewOffset={headerH}/>}>
-      {syncStatus==='error'&&!loading?<View style={[s.notice,{flexDirection:ar?'row-reverse':'row'}]} accessibilityLiveRegion="polite">
-        <Icon name="info" size={18} color="#8A4F0B"/><Txt lang={lang} style={s.noticeText}>{t.offline}</Txt>
-        <Pressable accessibilityRole="button" onPress={()=>void doRefresh()} style={s.retry}><Txt lang={lang} style={s.retryText}>{t.retry}</Txt></Pressable>
-      </View>:null}
-      {loading?<><Skeleton/><Skeleton/><Skeleton/></>:null}
-      {empty?<View style={s.empty}>
-        <View style={s.emptyIcon}><Icon name="folder" size={34} color={colors.brand}/></View>
-        <Txt lang={lang} style={s.emptyTitle}>{t.emptyTitle}</Txt>
+
+      {syncStatus==='error'&&!loading?<Animated.View entering={FadeIn} style={[s.notice,{flexDirection:row}]} accessibilityLiveRegion="polite">
+        <Icon name="info" size={18} color="#8A4F0B"/><View style={s.flex1}><Txt lang={lang} style={s.noticeText}>{t.offline}</Txt></View>
+        <ScalePressable accessibilityRole="button" onPress={()=>void doRefresh()} style={s.retry}><Txt lang={lang} bold style={s.retryText}>{t.retry}</Txt></ScalePressable>
+      </Animated.View>:null}
+
+      {counts.action>0&&bucket!=='action'&&!q?<Animated.View entering={enter(0)} layout={flow}>
+        <ScalePressable accessibilityRole="button" accessibilityLabel={`${t.needBanner(counts.action)}. ${t.needShow}`} onPress={()=>setBucket('action')} style={s.needBannerPress}>
+          <LinearGradient colors={['#FFF1CF','#FBE0A6']} start={{x:0,y:0}} end={{x:1,y:1}} style={[s.needBanner,{flexDirection:row}]}>
+            <GoldBadge icon="bell" size={38}/>
+            <View style={s.flex1}><Txt lang={lang} bold style={s.needText}>{t.needBanner(counts.action)}</Txt></View>
+            <Txt lang={lang} bold style={s.needShow}>{t.needShow}</Txt>
+          </LinearGradient>
+        </ScalePressable>
+      </Animated.View>:null}
+
+      {loading?<><Skeleton reduce={reduce}/><Skeleton reduce={reduce}/><Skeleton reduce={reduce}/></>:null}
+
+      {empty?<Animated.View entering={enter(0)} style={s.empty}>
+        <GoldBadge icon="folder" size={84}/>
+        <GoldText lang={lang} style={s.emptyTitle}>{t.emptyTitle}</GoldText>
         <Txt lang={lang} style={s.emptyBody}>{t.emptyBody}</Txt>
-        <Pressable accessibilityRole="button" accessibilityLabel={t.start} onPress={onStart} style={s.startBtn} rippleColor="rgba(48,37,31,0.18)"><Txt lang={lang} style={s.startText}>{t.start}</Txt></Pressable>
+        <ScalePressable accessibilityRole="button" accessibilityLabel={t.start} onPress={onStart} rippleColor="rgba(255,255,255,0.3)" style={s.startBtn}>
+          <LinearGradient colors={ORANGE} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
+          <View pointerEvents="none" style={[s.actionInner,{flexDirection:row}]}><Icon name="plus" size={20} color="#FFFFFF"/><Txt lang={lang} bold style={s.startText}>{t.start}</Txt></View>
+        </ScalePressable>
         <Txt lang={lang} style={s.pullHint}>{t.pull}</Txt>
-      </View>:null}
-      {!loading&&!empty&&visible.length===0?<View style={s.empty}>
-        <View style={s.emptyIcon}><Icon name="search" size={30} color={colors.brand}/></View>
-        <Txt lang={lang} style={s.emptyTitle}>{t.noMatchTitle}</Txt><Txt lang={lang} style={s.emptyBody}>{t.noMatchBody}</Txt>
-      </View>:null}
-      {drafts.length&&bucket==='all'&&!q?<View style={s.section}>
-        <Txt lang={lang} style={s.sectionTitle}>{t.drafts}</Txt>
-        {drafts.map(d=><Pressable key={d.key} accessibilityRole="button" onPress={d.resume} style={[s.draft,{flexDirection:ar?'row-reverse':'row'}]}><Icon name="edit" size={20} color={colors.brand}/><Txt lang={lang} style={s.draftText} numberOfLines={1}>{d.title}</Txt></Pressable>)}
-      </View>:null}
-      {visible.map(r=><RequestCard key={r.id} lang={lang} r={r} onOpen={()=>onOpen(r)} onMissing={()=>onMissing(r)}/>)}
-      {!loading?<Pressable accessibilityRole="button" onPress={onDemo} style={s.demoLink}><Txt lang={lang} style={s.demoText}>{demo?t.demoOn:t.demoOff}</Txt></Pressable>:null}
+      </Animated.View>:null}
+
+      {!loading&&!empty&&visible.length===0?<Animated.View entering={FadeIn} style={s.empty}>
+        <GoldBadge icon="search" size={72}/>
+        <Txt lang={lang} bold style={s.noMatchTitle}>{t.noMatchTitle}</Txt><Txt lang={lang} style={s.emptyBody}>{t.noMatchBody}</Txt>
+      </Animated.View>:null}
+
+      {drafts.length&&bucket==='all'&&!q?<Animated.View entering={enter(1)} layout={flow} style={s.section}>
+        <Txt lang={lang} bold style={s.sectionTitle}>{t.drafts}</Txt>
+        {drafts.map(d=><ScalePressable key={d.key} accessibilityRole="button" accessibilityLabel={`${t.resume}: ${d.title}`} onPress={d.resume} style={s.draftPress}>
+          <LuxCard reduce={reduce} radius={18} contentStyle={[s.draft,{flexDirection:row}]}>
+            <GoldBadge icon="edit" size={34}/>
+            <View style={s.flex1}><Txt lang={lang} bold style={s.draftText} numberOfLines={1}>{d.title}</Txt></View>
+            <Txt lang={lang} style={s.draftResume}>{t.resume}</Txt>
+          </LuxCard>
+        </ScalePressable>)}
+      </Animated.View>:null}
+
+      {visible.map((r,i)=><Animated.View key={r.id} entering={enter(i+2)} exiting={FadeOut.duration(160).reduceMotion(ReduceMotion.System)} layout={flow}>
+        <RequestCard lang={lang} r={r} reduce={reduce} onOpen={()=>onOpen(r)} onMissing={()=>onMissing(r)}/>
+      </Animated.View>)}
+
+      {!loading?<ScalePressable accessibilityRole="button" onPress={onDemo} style={s.demoLink}><Txt lang={lang} style={s.demoText}>{demo?t.demoOn:t.demoOff}</Txt></ScalePressable>:null}
     </ScrollView>
 
-    {/* translucent header: content scrolls beneath it */}
+    {/* Frosted header: content scrolls beneath it */}
     <View style={s.header} onLayout={e=>setHeaderH(e.nativeEvent.layout.height)}>
-      <BlurView style={StyleSheet.absoluteFill} tint="light" intensity={60} blurMethod="none"/>
-      <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(248,243,237,0.72)'}]} pointerEvents="none"/>
-      <View style={s.headerLine} pointerEvents="none"/>
+      {!reduce&&<BlurView style={StyleSheet.absoluteFill} tint="light" intensity={70} experimentalBlurMethod={Platform.OS==='android'?'dimezisBlurView':undefined}/>}
+      <LinearGradient pointerEvents="none" colors={reduce?[lux.ivory,lux.ivory]:['rgba(251,246,238,0.92)','rgba(251,246,238,0.72)']} style={StyleSheet.absoluteFill}/>
+      <LinearGradient pointerEvents="none" colors={['rgba(226,181,101,0)','rgba(226,181,101,0.7)','rgba(226,181,101,0)']} start={{x:0,y:0}} end={{x:1,y:0}} style={s.headerLine}/>
       <View style={s.headerInner}>
-        <Txt lang={lang} style={s.largeTitle}>{t.title}</Txt>
+        <GoldText lang={lang} style={s.largeTitle}>{t.title}</GoldText>
         <Txt lang={lang} style={s.subtitle}>{loading?t.loading:t.subtitle(list.length)}{syncStatus==='syncing'&&loadedOnce?' · …':''}</Txt>
-        <View style={[s.search,{flexDirection:ar?'row-reverse':'row'}]}>
-          <Icon name="search" size={18} color={onGlass.soft}/>
-          <TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" accessibilityLabel={t.search} placeholder={t.search} placeholderTextColor={onGlass.placeholder}
+        <LuxCard reduce={reduce} radius={16} contentStyle={[s.search,{flexDirection:row}]}>
+          <Icon name="search" size={18} color={colors.brand}/>
+          <TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" accessibilityLabel={t.search} placeholder={t.search} placeholderTextColor="rgba(48,37,31,0.5)"
             value={query} onChangeText={setQuery} returnKeyType="search" style={[s.searchInput,ar?{fontFamily:'CairoRegular',textAlign:'right',writingDirection:'rtl'}:{textAlign:'left'}]}/>
+          {!!query&&<ScalePressable accessibilityRole="button" accessibilityLabel={t.clear} onPress={()=>setQuery('')} style={s.clear}><View pointerEvents="none"><Icon name="close" size={16} color={colors.muted}/></View></ScalePressable>}
+        </LuxCard>
+        {/* Four equal filter tiles: everything visible at once, in both directions (no sideways scrolling). */}
+        <View accessibilityRole="tablist" accessibilityLabel={t.filters} style={[s.filters,{flexDirection:row}]}>
+          {filters.map(f=>{const on=bucket===f;const alert=f==='action'&&counts.action>0;
+            return <View key={f} style={s.flex1}><ScalePressable accessibilityRole="tab" accessibilityState={{selected:on}} aria-selected={on} accessibilityLabel={`${t[f]} ${counts[f]}`}
+              onPress={()=>setBucket(f)} rippleColor={on?'rgba(255,255,255,0.25)':undefined} style={[s.filter,on&&s.filterOn,alert&&!on&&s.filterAlert]}>
+              {on&&<LinearGradient colors={[lux.espressoSoft,lux.espresso]} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>}
+              <View pointerEvents="none" style={s.filterInner}>
+                <Txt lang="en" bold style={{...s.filterCount,...(on?{color:'#F2D08F'}:alert?{color:'#C25E00'}:null)}}>{String(counts[f])}</Txt>
+                <Txt lang={lang} bold={on} numberOfLines={2} style={{...s.filterText,...(on?{color:lux.onDark}:null)}}>{t[f]}</Txt>
+              </View>
+            </ScalePressable></View>;})}
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.chips,{flexDirection:ar?'row-reverse':'row'}]} style={s.chipsScroll}>
-          {filters.map(f=>{const on=bucket===f;return <Pressable key={f} accessibilityRole="button" accessibilityState={{selected:on}} accessibilityLabel={`${t[f]} ${counts[f]}`} onPress={()=>setBucket(f)} style={[s.chip,on&&s.chipOn]}>
-            <Txt lang={lang} style={[s.chipText,on&&s.chipTextOn]}>{t[f]} {counts[f]}</Txt>
-          </Pressable>;})}
-        </ScrollView>
       </View>
     </View>
   </View>;
 }
 
 const s=StyleSheet.create({
-  fill:{flex:1,backgroundColor:colors.background},
-  scroll:{paddingHorizontal:space.lg,gap:space.lg},
+  fill:{flex:1,backgroundColor:lux.ivory},
+  flex1:{flex:1},
+  backdrop:{position:'absolute',top:0,right:0,bottom:0,left:0,overflow:'hidden'},
+  orb:{position:'absolute',width:340,height:340,borderRadius:170},
+  orbGold:{backgroundColor:'#F3C77A',opacity:0.22,top:120,right:-160},
+  orbSand:{backgroundColor:lux.sand,opacity:0.9,top:520,left:-170},
+  scroll:{paddingHorizontal:space.lg,gap:space.lg,width:'100%',maxWidth:600,alignSelf:'center'},
+
   header:{position:'absolute',top:0,left:0,right:0,overflow:'hidden'},
-  headerLine:{position:'absolute',bottom:0,left:0,right:0,height:layout.hairline,backgroundColor:colors.line},
-  headerInner:{paddingHorizontal:space.lg,paddingTop:space.md,paddingBottom:space.md,gap:space.sm},
-  largeTitle:{fontSize:type.largeTitle,lineHeight:type.largeTitle*1.25,fontWeight:'800'},
+  headerLine:{position:'absolute',bottom:0,left:0,right:0,height:1},
+  headerInner:{paddingHorizontal:space.lg,paddingTop:space.md,paddingBottom:space.md,gap:space.sm,width:'100%',maxWidth:600,alignSelf:'center'},
+  largeTitle:{fontSize:type.largeTitle,lineHeight:type.largeTitle*1.25},
   subtitle:{fontSize:type.subhead,color:colors.muted,marginTop:-space.xs},
-  search:{minHeight:40,alignItems:'center',gap:space.sm,paddingHorizontal:space.md,borderRadius:radius.control,backgroundColor:'rgba(118,102,91,0.12)'},
-  searchInput:{flex:1,minWidth:0,minHeight:layout.minTouch-4,fontSize:type.callout,color:colors.ink},
-  chipsScroll:{flexGrow:0},
-  chips:{gap:space.sm,paddingVertical:2},
-  chip:{minHeight:34,paddingHorizontal:space.md+2,borderRadius:radius.pill,backgroundColor:'rgba(255,255,255,0.7)',borderWidth:1,borderColor:colors.line,alignItems:'center',justifyContent:'center'},
-  chipOn:{backgroundColor:colors.brand,borderColor:colors.brand},
-  chipText:{fontSize:type.footnote,fontWeight:'600',color:colors.ink},chipTextOn:{color:'#FFFFFF'},
-  card:{backgroundColor:colors.white,borderRadius:radius.card,borderWidth:layout.hairline,borderColor:colors.line,...shadow},
-  cardMain:{padding:space.lg+2,gap:space.sm+2},
-  row:{alignItems:'flex-start',justifyContent:'space-between',gap:space.md},
-  cardTitle:{flex:1,fontSize:type.headline,lineHeight:type.headline*1.35,fontWeight:'700'},
-  badge:{borderRadius:radius.pill,paddingHorizontal:space.md,paddingVertical:5},
-  badgeText:{fontSize:type.caption,fontWeight:'700'},
-  meta:{fontSize:type.footnote,color:colors.muted},
-  dots:{gap:6,paddingVertical:2},dot:{flex:1,height:5,borderRadius:3,backgroundColor:'#E3D8C6'},
-  what:{fontSize:type.subhead,lineHeight:type.subhead*1.5,color:colors.muted},
-  whatNeed:{color:'#8A4F0B',backgroundColor:'#FFF4DC',borderRadius:12,padding:space.md,overflow:'hidden',fontWeight:'600'},
-  footer:{alignItems:'center',justifyContent:'space-between',borderTopWidth:layout.hairline,borderColor:colors.line,paddingHorizontal:space.lg+2,minHeight:layout.minTouch},
-  actionPill:{minHeight:34,paddingHorizontal:space.md+2,borderRadius:radius.pill,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center'},
-  actionText:{fontSize:type.footnote,fontWeight:'700',color:colors.ink},
-  detailsLink:{alignItems:'center',gap:6,minHeight:layout.minTouch,paddingHorizontal:space.xs},
-  detailsText:{fontSize:type.subhead,fontWeight:'600',color:colors.brand},
-  notice:{alignItems:'center',gap:space.sm,padding:space.md,borderRadius:14,backgroundColor:'#FFF4DC'},
-  noticeText:{flex:1,fontSize:type.footnote,color:'#8A4F0B'},
-  retry:{paddingHorizontal:space.sm,minHeight:layout.minTouch-8,justifyContent:'center'},retryText:{fontSize:type.footnote,fontWeight:'700',color:colors.brand},
-  empty:{alignItems:'center',gap:space.md,paddingVertical:space.xxl*1.5,paddingHorizontal:space.lg},
-  emptyIcon:{width:72,height:72,borderRadius:36,backgroundColor:colors.brandTint,alignItems:'center',justifyContent:'center'},
-  emptyTitle:{fontSize:type.title2,fontWeight:'700',textAlign:'center'},
-  emptyBody:{fontSize:type.callout,lineHeight:type.callout*1.5,color:colors.muted,textAlign:'center'},
-  startBtn:{minHeight:52,borderRadius:14,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xxl,marginTop:space.sm},
-  startText:{fontSize:type.headline,fontWeight:'700'},
+  search:{minHeight:48,alignItems:'center',gap:space.sm,paddingHorizontal:space.md},
+  searchInput:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.callout,color:colors.ink},
+  clear:{width:layout.minTouch,height:layout.minTouch,alignItems:'center',justifyContent:'center',borderRadius:radius.pill,overflow:'hidden'},
+  filters:{gap:space.sm},
+  filter:{minHeight:58,borderRadius:16,borderWidth:1,borderColor:'rgba(226,181,101,0.55)',backgroundColor:'rgba(255,252,246,0.85)',overflow:'hidden',justifyContent:'center'},
+  filterOn:{borderColor:'rgba(226,181,101,0.9)'},
+  filterAlert:{borderColor:'rgba(224,111,0,0.55)',backgroundColor:'rgba(255,240,214,0.9)'},
+  filterInner:{alignItems:'center',paddingHorizontal:4,paddingVertical:6},
+  filterCount:{fontSize:type.headline,lineHeight:22,color:colors.ink,textAlign:'center'},
+  filterText:{fontSize:type.caption,lineHeight:15,color:colors.muted,textAlign:'center'},
+
+  needBannerPress:{borderRadius:20},
+  needBanner:{alignItems:'center',gap:space.md,padding:space.md,borderRadius:20,borderWidth:1,borderColor:'rgba(217,166,83,0.6)'},
+  needText:{fontSize:type.subhead,lineHeight:22,color:'#6B3C08'},
+  needShow:{fontSize:type.subhead,color:colors.brand},
+
+  needGlow:Platform.select({ios:{shadowColor:'#E08A00',shadowOpacity:0.22},default:{}}) as object,
+  cardMain:{padding:space.lg+2,gap:space.md},
+  cardTop:{alignItems:'flex-start',gap:space.md},
+  cardTitleBox:{gap:2},
+  cardTitle:{fontSize:type.headline,lineHeight:26},
+  meta:{fontSize:type.footnote,lineHeight:18,color:colors.muted},
+  bar:{gap:5},
+  seg:{flex:1,height:6,borderRadius:3},
+  segOff:{backgroundColor:'rgba(118,102,91,0.14)'},
+  what:{gap:space.sm,alignItems:'flex-start'},
+  whatNeed:{backgroundColor:'rgba(255,236,196,0.9)',borderRadius:14,padding:space.md,borderWidth:1,borderColor:'rgba(217,166,83,0.45)'},
+  whatText:{fontSize:type.subhead,lineHeight:22,color:colors.muted},
+  footer:{alignItems:'center',justifyContent:'space-between',borderTopWidth:1,borderColor:'rgba(226,181,101,0.28)',paddingHorizontal:space.lg,minHeight:layout.minTouch+12},
+  actionPill:{minHeight:40,borderRadius:radius.pill,overflow:'hidden',justifyContent:'center'},
+  actionInner:{alignItems:'center',justifyContent:'center',gap:6,paddingHorizontal:space.md+2},
+  actionText:{fontSize:type.footnote+1,color:'#FFFFFF'},
+  detailsLink:{alignItems:'center',gap:space.sm,minHeight:layout.minTouch,paddingHorizontal:space.xs},
+  detailsText:{fontSize:type.subhead,color:colors.brand},
+
+  notice:{alignItems:'center',gap:space.sm,padding:space.md,borderRadius:16,backgroundColor:'#FFF4DC',borderWidth:1,borderColor:'rgba(217,166,83,0.45)'},
+  noticeText:{fontSize:type.footnote,lineHeight:18,color:'#8A4F0B'},
+  retry:{paddingHorizontal:space.sm,minHeight:layout.minTouch,justifyContent:'center'},retryText:{fontSize:type.footnote,color:colors.brand},
+
+  empty:{alignItems:'center',gap:space.md,paddingVertical:space.xxl,paddingHorizontal:space.lg},
+  emptyTitle:{fontSize:type.title2+2,lineHeight:34,textAlign:'center'},
+  noMatchTitle:{fontSize:type.title2,lineHeight:30,textAlign:'center'},
+  emptyBody:{fontSize:type.callout,lineHeight:26,color:colors.muted,textAlign:'center'},
+  startBtn:{minHeight:54,borderRadius:18,overflow:'hidden',justifyContent:'center',paddingHorizontal:space.xl,marginTop:space.sm},
+  startText:{fontSize:type.headline,color:'#FFFFFF'},
   pullHint:{fontSize:type.caption,color:colors.muted,marginTop:space.sm,textAlign:'center'},
-  section:{gap:space.sm},sectionTitle:{fontSize:type.subhead,fontWeight:'700',color:colors.muted},
-  draft:{alignItems:'center',gap:space.md,minHeight:layout.minTouch,paddingHorizontal:space.lg,borderRadius:14,backgroundColor:colors.white,borderWidth:layout.hairline,borderColor:colors.line},
-  draftText:{flex:1,fontSize:type.callout},
-  demoLink:{alignSelf:'center',minHeight:layout.minTouch,justifyContent:'center'},demoText:{fontSize:type.footnote,color:colors.muted,textDecorationLine:'underline'},
-  skelLine1:{height:20,width:'70%',borderRadius:8,backgroundColor:'#E9DACC',margin:space.lg+2,marginBottom:0},
-  skelLine2:{height:14,width:'45%',borderRadius:7,backgroundColor:'#EFE3D4',marginHorizontal:space.lg+2},
-  skelDots:{height:5,borderRadius:3,backgroundColor:'#EFE3D4',margin:space.lg+2,marginTop:space.sm},
+
+  section:{gap:space.sm},sectionTitle:{fontSize:type.subhead,color:colors.muted},
+  draftPress:{borderRadius:18},
+  draft:{alignItems:'center',gap:space.md,minHeight:layout.minTouch+12,paddingHorizontal:space.md},
+  draftText:{fontSize:type.callout,lineHeight:24},
+  draftResume:{fontSize:type.footnote+1,color:colors.brand},
+  demoLink:{alignSelf:'center',minHeight:layout.minTouch,justifyContent:'center',paddingHorizontal:space.md},demoText:{fontSize:type.footnote+1,color:colors.muted,textDecorationLine:'underline'},
+
+  skel:{padding:space.lg+2,gap:space.md},
+  skelLine1:{height:20,width:'70%',borderRadius:8,backgroundColor:'#EADBC5'},
+  skelLine2:{height:14,width:'45%',borderRadius:7,backgroundColor:'#F0E4D2'},
+  skelBar:{height:6,borderRadius:3,backgroundColor:'#F0E4D2'},
 });

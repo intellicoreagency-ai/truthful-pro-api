@@ -188,5 +188,5 @@ const styles=StyleSheet.create({
   docRow:{paddingVertical:space.sm+2,borderBottomWidth:layout.hairline,borderBottomColor:colors.line},
   docLine:{alignItems:'center',gap:space.sm},
   docTitle:{fontSize:type.subhead,lineHeight:22},
-  cta:{paddingHorizontal:space.lg,paddingTop:space.sm,paddingBottom:space.xl+space.xs}, // clears the raised centre tab button
+  cta:{paddingHorizontal:space.lg,paddingTop:space.sm,paddingBottom:space.xxl}, // clears the raised centre "+" of the floating tab bar
 });
