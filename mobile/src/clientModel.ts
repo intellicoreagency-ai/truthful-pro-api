@@ -1,5 +1,6 @@
 import type {Bilingual} from './serviceDetails';
-import {tr} from './i18n';
+// Kept import-free so the offline test can evaluate this file on its own (same rule as i18n.tr).
+const tr=(b:{ar:string;en:string}&Partial<Record<string,string>>|undefined,l:string)=>b?(b[l]??b.en):'';
 export type Status='draft'|'submitted'|'review'|'needs_documents'|'ready_for_authority'|'authority'|'decision'|'completed'|'cancelled'|'rejected';
 export type ClientFile={id:string;remoteId?:string;name:string;mime:string;size:number;kind:'source'|'final'|'invoice';label:Bilingual;createdAt:string};
 export type MissingDocument={id:string;label:Bilingual;note:Bilingual;previous?:string;replacement?:string};
