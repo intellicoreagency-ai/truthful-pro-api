@@ -1252,6 +1252,79 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect((await hit('POST', `/staff/v1/quotes/${d.id}/issue`, {}, agent)).status).toBe(403)
     expect((await acceptQuote(id, d, me)).status).toBe(409)
   })
+  // ===== network drops: the server finished the work but the phone never got the answer, so the app retries the same command =====
+  it('network drop during submit: retrying create and submit gives one request, one submission event, one transition', async () => {
+    const me = await login('+971521140201')
+    const create = () => hit('POST', '/v1/requests', { serviceId: 'emirates-id', data: { name: 'N', title: { ar: 'ت', en: 'T' } }, clientKey: 'local-req-0001' }, me)
+    const a = await create(); expect(a.status).toBe(201)
+    const id = ((await a.json()) as { id: string }).id
+    const b = await create(); expect(b.status).toBe(200); expect(((await b.json()) as { id: string; replay: boolean })).toMatchObject({ id, replay: true }) // the response was lost: same request
+    expect((await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, me)).status).toBe(200)
+    const again = await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, me) // retry after a lost response
+    expect(((await again.json()) as { applied: boolean; status: string })).toMatchObject({ applied: false, status: 'submitted' })
+    const uid = (await env.DB.prepare('SELECT user_id u FROM requests WHERE id=?').bind(id).first<{ u: string }>())!.u
+    expect((await env.DB.prepare('SELECT COUNT(*) n FROM requests WHERE user_id=?').bind(uid).first<{ n: number }>())!.n).toBe(1)
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM request_events WHERE request_id=? AND text_en='Request submitted'").bind(id).first<{ n: number }>())!.n).toBe(1)
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM request_transitions WHERE request_id=? AND to_status='submitted'").bind(id).first<{ n: number }>())!.n).toBe(1)
+    // the same key with different content is refused, not merged
+    expect((await hit('POST', '/v1/requests', { serviceId: 'residence-visa', data: {}, clientKey: 'local-req-0001' }, me)).status).toBe(422)
+  })
+  it('network drop during upload: the retry with the same client key returns the stored file; nothing is stored twice; another file with that key is refused', async () => {
+    const me = await login('+971521140202')
+    const id = ((await (await hit('POST', '/v1/requests', { serviceId: 'emirates-id', data: { name: 'U' } }, me)).json()) as { id: string }).id
+    const up = (bytes: Uint8Array, key: string | null, q = '') => hit('PUT', `/v1/requests/${id}/files${q}`, undefined, me, { 'x-file-name': 'passport.pdf', ...(key ? { 'x-client-key': key } : {}) }, bytes)
+    const r1 = await up(pdf(), 'local-file-0001'); expect(r1.status).toBe(201)
+    const f1 = (await r1.json()) as { id: string }
+    const r2 = await up(pdf(), 'local-file-0001'); expect(r2.status).toBe(200)
+    expect(((await r2.json()) as { id: string; replay: boolean })).toMatchObject({ id: f1.id, replay: true })
+    const other = new TextEncoder().encode('%PDF-1.4\n% a different document\n%%EOF')
+    expect((await up(other, 'local-file-0001')).status).toBe(422) // same key, different bytes: never silently swapped
+    expect((await env.DB.prepare('SELECT COUNT(*) n FROM request_files WHERE request_id=? AND deleted_at IS NULL').bind(id).first<{ n: number }>())!.n).toBe(1)
+    // simultaneous retries: exactly one file
+    const [x, y] = await Promise.all([up(pdf(), 'local-file-0002'), up(pdf(), 'local-file-0002')])
+    expect([x.status, y.status].sort()).toEqual([200, 201])
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM request_files WHERE request_id=? AND client_key='local-file-0002'").bind(id).first<{ n: number }>())!.n).toBe(1)
+    // answering a missing-document request, retried: one file, the request moves back to review once
+    await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, me)
+    await hit('POST', `/staff/v1/requests/${id}/status`, { status: 'review' }, owner)
+    await hit('POST', `/staff/v1/requests/${id}/missing`, { items: [{ labelAr: 'إقامة', labelEn: 'Residence' }] }, owner)
+    const mid = ((await (await hit('GET', `/v1/requests/${id}`, undefined, me)).json()) as { missing: { id: string }[] }).missing[0]!.id
+    expect((await up(pdf(), 'local-file-0003', `?missingId=${mid}`)).status).toBe(201)
+    expect((await up(pdf(), 'local-file-0003', `?missingId=${mid}`)).status).toBe(200)
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM request_transitions WHERE request_id=? AND from_status='needs_documents' AND to_status='review'").bind(id).first<{ n: number }>())!.n).toBe(1)
+  })
+  it('network drop during payment: the customer\'s report and the staff approval can both be retried without a second payment, allocation or receipt', async () => {
+    const me = await login('+971521140203')
+    const id = await submit(me)
+    const { q } = await sendQuote(id, [ITEMS[1]]); expect((await acceptQuote(id, q, me)).status).toBe(201)
+    await env.DB.prepare('DELETE FROM rate_limits').run()
+    const proofId = ((await (await hit('PUT', `/v1/requests/${id}/files`, undefined, me, { 'x-file-name': 'transfer.pdf', 'x-client-key': 'local-proof-0001' }, pdf())).json()) as { id: string }).id
+    const report = () => hit('POST', `/v1/requests/${id}/payments`, { amountFils: 70000, method: 'bank_transfer', reference: 'TRX-NET-0001', proofFileId: proofId, clientKey: 'pay-net-0001' }, me)
+    const p1 = await report(); expect(p1.status).toBe(201)
+    const pid = ((await p1.json()) as { id: string }).id
+    expect(((await (await report()).json()) as { id: string; replay: boolean })).toMatchObject({ id: pid, replay: true })
+    // staff approves; the response is lost; they press again (and a colleague at the same time)
+    expect((await approve(pid)).status).toBe(200)
+    const [r1, r2] = await Promise.all([approve(pid), approve(pid)])
+    expect([r1.status, r2.status]).toEqual([200, 200])
+    expect((await env.DB.prepare('SELECT COUNT(*) n FROM payments WHERE request_id=?').bind(id).first<{ n: number }>())!.n).toBe(1)
+    expect((await env.DB.prepare('SELECT COUNT(*) n FROM allocations WHERE payment_id=?').bind(pid).first<{ n: number }>())!.n).toBe(1)
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM fin_documents WHERE doc_type='receipt' AND related_id=?").bind(pid).first<{ n: number }>())!.n).toBe(1)
+    expect((await fin(id)).totals).toMatchObject({ total: 70000, paid: 70000, remaining: 0, state: 'paid' })
+  })
+  it('network drop during receipt confirmation: the retry records one acknowledgement and one timeline entry', async () => {
+    const me = await login('+971521140204')
+    const id = await submit(me)
+    for (const s of ['review', 'ready_for_authority', 'authority', 'decision', 'completed']) await hit('POST', `/staff/v1/requests/${id}/status`, { status: s, reference: 'AUTH-NET-1', overrideReason: 'test: fees settled outside this test' }, owner)
+    await hit('PUT', `/staff/v1/requests/${id}/files?kind=final`, undefined, owner, { 'x-file-name': 'done.pdf' }, pdf())
+    expect((await hit('POST', `/staff/v1/requests/${id}/deliveries/publish`, {}, owner)).status).toBe(201)
+    const ack = () => hit('POST', `/v1/requests/${id}/acknowledgments`, { deliveryVersion: 1 }, me)
+    const a1 = await ack(); expect(((await a1.json()) as { duplicate: boolean }).duplicate).toBe(false)
+    const [b1, b2] = await Promise.all([ack(), ack()])
+    expect([(await b1.json() as { duplicate: boolean }).duplicate, (await b2.json() as { duplicate: boolean }).duplicate]).toEqual([true, true])
+    expect((await env.DB.prepare('SELECT COUNT(*) n FROM receipt_acks WHERE request_id=?').bind(id).first<{ n: number }>())!.n).toBe(1)
+    expect((await env.DB.prepare("SELECT COUNT(*) n FROM request_events WHERE request_id=? AND text_en='Customer confirmed receipt of the files'").bind(id).first<{ n: number }>())!.n).toBe(1)
+  })
   it('real scanner (clamav-http): configuration rules, explicit verdicts only; outage or odd answers stay pending, never clean', async () => {
     const { scanBytes, scannerMode, uploadsBlocked } = await import('../src/scanner')
     const base = { ...wenv(), SCANNER_MODE: 'clamav-http', SCANNER_TOKEN: 't'.repeat(32) } as Env

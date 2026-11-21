@@ -25,7 +25,7 @@ app.use('*', async (c, next) => {
   if (c.req.method === 'OPTIONS') {
     if (!ok) return c.body(null, 403)
     c.header('Access-Control-Allow-Origin', origin as string); c.header('Vary', 'Origin')
-    c.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE'); c.header('Access-Control-Allow-Headers', 'authorization,content-type,x-file-name,idempotency-key'); c.header('Access-Control-Max-Age', '600')
+    c.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE'); c.header('Access-Control-Allow-Headers', 'authorization,content-type,x-file-name,x-client-key,idempotency-key'); c.header('Access-Control-Max-Age', '600')
     return c.body(null, 204)
   }
   await next()
@@ -529,6 +529,14 @@ authed.put('/requests/:id/files', async (c) => {
   if (uploadsBlocked(c.env)) return c.json({ error: 'scanner_unavailable' }, 503) // production without a real scanner: nothing unscanned is ever stored
   const kind = sniffFile(bytes) // trust the bytes, never the client-declared type
   if (!kind) return c.json({ error: 'unsupported_type' }, 415)
+  // Idempotent retry: the same client key on this request returns the file already stored (same bytes) instead of a second copy.
+  const ckRaw = c.req.header('x-client-key') ?? ''
+  const clientKey = /^[A-Za-z0-9._:-]{8,80}$/.test(ckRaw) ? ckRaw : null
+  const digest = await sha256Hex(bytes)
+  if (clientKey) {
+    const prev = await c.env.DB.prepare('SELECT id,name,mime,size,sha256 FROM request_files WHERE request_id=? AND client_key=? AND deleted_at IS NULL').bind(id, clientKey).first<{ id: string; name: string; mime: string; size: number; sha256: string }>()
+    if (prev) return prev.sha256 === digest ? c.json({ id: prev.id, name: prev.name, mime: prev.mime, size: prev.size, replay: true }, 200) : c.json({ error: 'idempotency_conflict' }, 422)
+  }
   const scan = await scanBytes(c.env, bytes)
   if (scan.status === 'infected') { await audit(c, 'file.rejected_infected', uid); return c.json({ error: 'infected' }, 422) }
   const count = await c.env.DB.prepare('SELECT COUNT(*) n FROM request_files WHERE request_id=? AND deleted_at IS NULL').bind(id).first<{ n: number }>()
@@ -536,8 +544,15 @@ authed.put('/requests/:id/files', async (c) => {
   const fileId = newId(), key = `u/${uid}/${fileId}`
   await c.env.DOCS.put(key, await seal(c.env.DATA_KEY, `file:${uid}:${fileId}`, bytes), { httpMetadata: { contentType: 'application/octet-stream' } })
   const name = safeFileName(c.req.header('x-file-name') ? decodeURIComponent(c.req.header('x-file-name') as string) : null, kind.ext)
-  await c.env.DB.prepare('INSERT INTO request_files (id,request_id,user_id,r2_key,name,mime,size,sha256,created_at,scan_status,scan_engine,scanned_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-    .bind(fileId, id, uid, key, name, kind.mime, bytes.length, await sha256Hex(bytes), Date.now(), scan.status, scan.engine, scan.status === 'pending' ? null : Date.now()).run()
+  try {
+    await c.env.DB.prepare('INSERT INTO request_files (id,request_id,user_id,r2_key,name,mime,size,sha256,created_at,scan_status,scan_engine,scanned_at,client_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      .bind(fileId, id, uid, key, name, kind.mime, bytes.length, digest, Date.now(), scan.status, scan.engine, scan.status === 'pending' ? null : Date.now(), clientKey).run()
+  } catch (e) { // two retries raced: the other one stored it; drop our copy and answer with theirs
+    await c.env.DOCS.delete(key)
+    const won = clientKey ? await c.env.DB.prepare('SELECT id,name,mime,size,sha256 FROM request_files WHERE request_id=? AND client_key=?').bind(id, clientKey).first<{ id: string; name: string; mime: string; size: number; sha256: string }>() : null
+    if (won && won.sha256 === digest) return c.json({ id: won.id, name: won.name, mime: won.mime, size: won.size, replay: true }, 200)
+    throw e
+  }
   const missingId = c.req.query('missingId')
   if (missingId && isUuid(missingId)) {
     const m = await c.env.DB.prepare('UPDATE missing_documents SET replacement_file_id=?, resolved_at=? WHERE id=? AND request_id=? AND resolved_at IS NULL').bind(fileId, Date.now(), missingId, id).run()

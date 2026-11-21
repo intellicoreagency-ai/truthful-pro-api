@@ -88,7 +88,8 @@ function toServerData(r:ClientRequest){return{actionId:r.actionId,title:r.title,
 
 /** Uploads a local file's bytes; returns the server file id. */
 async function upload(requestRemoteId:string,f:ClientFile,bytes:Blob|Uint8Array,missingId?:string){
-  const r=await call('PUT',`/v1/requests/${requestRemoteId}/files${missingId?`?missingId=${missingId}`:''}`,{raw:bytes,headers:{'x-file-name':encodeURIComponent(f.name),'content-type':f.mime}});
+  // x-client-key = the local file id: if the connection drops after the server stored the file, the retry gets the same file back (no duplicate)
+  const r=await call('PUT',`/v1/requests/${requestRemoteId}/files${missingId?`?missingId=${missingId}`:''}`,{raw:bytes,headers:{'x-file-name':encodeURIComponent(f.name),'content-type':f.mime,'x-client-key':f.id}});
   return (await json<{id:string}>(r)).id;
 }
 

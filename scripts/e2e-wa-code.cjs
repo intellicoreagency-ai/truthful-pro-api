@@ -1,10 +1,10 @@
 // Smoke test for the staff WhatsApp login code against a mock Meta server (mockmeta on :8799; set WA_TOKEN=test-token WA_PHONE_NUMBER_ID=111222333 WA_OTP_TEMPLATE=truthful_login_code WA_GRAPH_BASE=http://localhost:8799 in .dev.vars; fresh DB).
-const {chromium}=require('playwright');const crypto=require('crypto');const fs=require('fs');
+const {launch}=require('./lib.cjs');const crypto=require('crypto');const fs=require('fs');
 const B='http://localhost:8788';
 function unb32(s){const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';let bits=0,v=0;const o=[];for(const c of s){v=(v<<5)|A.indexOf(c);bits+=5;if(bits>=8){o.push((v>>>(bits-8))&255);bits-=8}}return Buffer.from(o)}
 function code(secret){const c=Math.floor(Date.now()/30000);const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(c));const h=crypto.createHmac('sha1',unb32(secret)).update(b).digest();const o=h[19]&15;const n=((h[o]&0x7f)<<24)|(h[o+1]<<16)|(h[o+2]<<8)|h[o+3];return String(n%1000000).padStart(6,'0')}
 (async()=>{
- const b=await chromium.launch();const p=await (await b.newContext({viewport:{width:1100,height:800}})).newPage();
+ const b=await launch();const p=await (await b.newContext({viewport:{width:1100,height:800}})).newPage();
  const errs=[];p.on('pageerror',e=>errs.push(e.message));
  await p.goto(B+'/');await p.waitForTimeout(1200);
  // owner enrols (authenticator) and invites a member

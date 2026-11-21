@@ -1,10 +1,10 @@
 // Browser smoke test for fingerprint sign-in using a Chromium virtual authenticator. Same prerequisites as e2e-dashboard.cjs (fresh DB, OWNER_PHONE=+971501234567, OWNER_SETUP_KEY=local-owner-setup-key-12345).
-const {chromium}=require('playwright');const crypto=require('crypto');
+const {launch}=require('./lib.cjs');const crypto=require('crypto');
 const B='http://localhost:8788';
 function unb32(s){const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';let bits=0,v=0;const o=[];for(const c of s){v=(v<<5)|A.indexOf(c);bits+=5;if(bits>=8){o.push((v>>>(bits-8))&255);bits-=8}}return Buffer.from(o)}
 function code(secret,off=0){const c=Math.floor(Date.now()/30000)+off;const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(c));const h=crypto.createHmac('sha1',unb32(secret)).update(b).digest();const o=h[19]&15;const n=((h[o]&0x7f)<<24)|(h[o+1]<<16)|(h[o+2]<<8)|h[o+3];return String(n%1000000).padStart(6,'0')}
 (async()=>{
- const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:1280,height:800}});const p=await ctx.newPage();
+ const b=await launch();const ctx=await b.newContext({viewport:{width:1280,height:800}});const p=await ctx.newPage();
  const cdp=await ctx.newCDPSession(p);await cdp.send('WebAuthn.enable');
  const {authenticatorId}=await cdp.send('WebAuthn.addVirtualAuthenticator',{options:{protocol:'ctap2',transport:'internal',hasResidentKey:true,hasUserVerification:true,isUserVerified:true,automaticPresenceSimulation:true}});
  const errs=[];p.on('pageerror',e=>errs.push(e.message));

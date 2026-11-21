@@ -1,11 +1,11 @@
 // Browser + API acceptance flow for batch 2 (conflict UI, document rules/override, delivery draft/publish/versions, per-version acknowledgement, cross-customer access). Needs wrangler dev :8788 on a fresh DB with OWNER_PHONE=+971501234567, OWNER_SETUP_KEY=local-owner-setup-key-12345, WA_BUSINESS_NUMBER, WA_APP_SECRET=e2e-secret; doc.pdf and photo.jpg in the cwd.
-const {chromium}=require('playwright');const crypto=require('crypto');const fs=require('fs');
+const {launch}=require('./lib.cjs');const crypto=require('crypto');const fs=require('fs');
 const B='http://localhost:8788';
 function unb32(s){const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';let bits=0,v=0;const o=[];for(const c of s){v=(v<<5)|A.indexOf(c);bits+=5;if(bits>=8){o.push((v>>>(bits-8))&255);bits-=8}}return Buffer.from(o)}
 function code(secret,off=0){const c=Math.floor(Date.now()/30000)+off;const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(c));const h=crypto.createHmac('sha1',unb32(secret)).update(b).digest();const o=h[19]&15;const n=((h[o]&0x7f)<<24)|(h[o+1]<<16)|(h[o+2]<<8)|h[o+3];return String(n%1000000).padStart(6,'0')}
 const J=(m,p,b,t,extra={})=>fetch(B+p,{method:m,headers:{'content-type':'application/json',...(t?{authorization:'Bearer '+t}:{}),...extra},body:b===undefined?undefined:JSON.stringify(b)}).then(async r=>({s:r.status,j:await r.json().catch(()=>({}))}));
 const deliver=async(from,c)=>{const raw=JSON.stringify({entry:[{changes:[{value:{messages:[{from,type:'text',text:{body:c}}]}}]}]});const sig='sha256='+crypto.createHmac('sha256','e2e-secret').update(raw).digest('hex');await fetch(B+'/webhooks/whatsapp',{method:'POST',headers:{'x-hub-signature-256':sig,'content-type':'application/json'},body:raw})};
-async function customer(phone){const st=(await J('POST','/v1/auth/wa/start',{phone})).j;await deliver(phone.replace('+',''),st.code);return (await J('POST','/v1/auth/wa/poll',{phone,challengeId:st.challengeId,pollToken:st.pollToken})).j.accessToken}
+async function customer(phone){const st=(await J('POST','/v1/auth/wa/start',{phone})).j;await deliver(phone.replace('+',''),st.code);const t=(await J('POST','/v1/auth/wa/poll',{phone,challengeId:st.challengeId,pollToken:st.pollToken})).j.accessToken;await J('PATCH','/v1/me',{email:`c${phone.slice(-4)}@example.test`},t);return t} // the email is required before submitting
 const ok=(label,cond)=>{console.log((cond?'PASS ':'FAIL ')+label);if(!cond)process.exitCode=1};
 (async()=>{
  // owner enrols (API) and signs in through the UI with the authenticator
@@ -16,7 +16,7 @@ const ok=(label,cond)=>{console.log((cond?'PASS ':'FAIL ')+label);if(!cond)proce
  const rid=(await J('POST','/v1/requests',{serviceId:'emirates-id',data:{name:'Mona',title:{ar:'تجديد الهوية',en:'Renew an Emirates ID'}}},A)).j.id;
  const src=await (await fetch(`${B}/v1/requests/${rid}/files`,{method:'PUT',headers:{authorization:'Bearer '+A,'x-file-name':'passport.pdf'},body:fs.readFileSync('doc.pdf')})).json();
  await J('PATCH',`/v1/requests/${rid}`,{status:'submitted'},A);
- const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:1280,height:900}});const p=await ctx.newPage();
+ const b=await launch();const ctx=await b.newContext({viewport:{width:1280,height:900}});const p=await ctx.newPage();
  const errs=[];p.on('pageerror',e=>errs.push(e.message));
  p.on('dialog',async d=>{const m=d.message();if(d.type()==='prompt'){await d.accept(m.includes('مرجع')?'AUTH-2026-77':'جاء العميل بجواز مجدد وتم التحقق منه أمامي');}else await d.accept()});
  await p.goto(B+'/');await p.waitForTimeout(1000);

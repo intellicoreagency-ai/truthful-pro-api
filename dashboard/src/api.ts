@@ -158,7 +158,6 @@ export const api = {
   rejectAuthority: (pid: string, reason: string) => call('POST', `/staff/v1/authority-payments/${pid}/reject`, { body: { reason } }),
   /** Sends the quote to the customer for approval (no invoice until they accept it in the app). */
   sendQuote: (qid: string) => call('POST', `/staff/v1/quotes/${qid}/issue`, { body: {} }),
-  issueInvoice: (id: string) => call('POST', `/staff/v1/requests/${id}/invoice`, { body: {} }),
   cancelInvoice: (docId: string, reason: string) => call('POST', `/staff/v1/invoices/${docId}/cancel`, { body: { reason } }),
   recordPayment: (id: string, body: { amountFils: number; method: string; reference?: string }) => call('POST', `/staff/v1/requests/${id}/payments`, { body }),
   approvePayment: (pid: string) => call('POST', `/staff/v1/payments/${pid}/approve`, { body: {} }),
