@@ -21,7 +21,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/app/adaptive-icon.png",
         "monochromeImage": "./assets/app/adaptive-icon-mono.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#0A1430"
       },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize"
