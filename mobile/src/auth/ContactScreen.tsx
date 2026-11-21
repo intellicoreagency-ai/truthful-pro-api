@@ -3,12 +3,13 @@ import {StyleSheet,View} from 'react-native';
 import {ApiError,setServerEmail} from '../api';
 import {authCopy,type Lang} from './copy';
 import {isEmail} from './phone';
-import {AuthScaffold,PrimaryButton,RoundedField,SecondaryButton,StepTransition,type AuthText} from './AuthKit';
+import {AuthScaffold,PrimaryButton,RoundedField,SecondaryButton,StepTransition,type AuthText,AText} from './AuthKit';
 import {space} from '../theme';
 
 /** Shown to a signed-in customer whose account has no email yet (older accounts): the email is essential contact data. */
-export function ContactScreen({lang,onLanguage,logo,Text:T,inputFont,onDone,onSignOut}:{lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text:AuthText;inputFont:string;onDone:()=>void;onSignOut:()=>void}){
+export function ContactScreen({lang,onLanguage,logo,inputFont,onDone,onSignOut}:{lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text?:AuthText;inputFont?:string;onDone:()=>void;onSignOut:()=>void}){
   const t=authCopy[lang];
+  const T=AText;
   const [email,setEmail]=useState('');const [error,setError]=useState<string|null>(null);const [busy,setBusy]=useState(false);
   const submit=async()=>{
     if(!email.trim()){setError(t.e_email_req);return;}

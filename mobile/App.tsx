@@ -8,6 +8,7 @@ import {TabBarLayoutProvider,ScrollView} from './src/navigation/TabBarLayout';
 import {activeTab,showsTabBar,type TabKey} from './src/navigation/tabs';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import {useFonts} from 'expo-font';
+import {Cairo_400Regular,Cairo_600SemiBold,Cairo_700Bold} from '@expo-google-fonts/cairo';
 import {IBMPlexSansArabic_500Medium} from '@expo-google-fonts/ibm-plex-sans-arabic/500Medium';
 import {IBMPlexSansArabic_700Bold} from '@expo-google-fonts/ibm-plex-sans-arabic/700Bold';
 import {PlusJakartaSans_500Medium} from '@expo-google-fonts/plus-jakarta-sans/500Medium';
@@ -42,6 +43,7 @@ type RequestDraft={
   saved?:boolean;
 };
 const fonts={
+  CairoRegular:Cairo_400Regular,CairoSemiBold:Cairo_600SemiBold,CairoBold:Cairo_700Bold, // Arabic on the auth screens (English there uses the platform system font: SF Pro on iOS)
   ReferenceArabic:require('./assets/fonts/NotoSansArabic-Bold.ttf'),
   ...companyBannerFonts,
   ArabicMedium:IBMPlexSansArabic_500Medium,
@@ -558,14 +560,13 @@ export default function App() {
  React.useEffect(()=>{const sub=BackHandler.addEventListener('hardwareBackPress',()=>backRef.current());return ()=>sub.remove();},[]);
  if(!fontsLoaded&&!fontError) return <View style={styles.safe}/>;
  if(signedIn&&needsEmail) return <SafeAreaProvider><SafeAreaView edges={['top','bottom','left','right']} style={styles.safe}><StatusBar barStyle="dark-content"/>
-   <ContactScreen lang={lang} onLanguage={setLang} logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily} onDone={()=>setNeedsEmail(false)} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);setNeedsEmail(false);go('welcome')}}/>
+   <ContactScreen lang={lang} onLanguage={setLang} logo={officialLogo} onDone={()=>setNeedsEmail(false)} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);setNeedsEmail(false);go('welcome')}}/>
  </SafeAreaView></SafeAreaProvider>;
  const barVisible=showsTabBar(page)&&!legal&&!(page==='requests'&&clientFocused);
  return <SafeAreaProvider><TabBarLayoutProvider><SafeAreaView edges={barVisible?['top','left','right']:['top','bottom','left','right']} style={[styles.safe,webViewportHeight!==undefined&&{height:webViewportHeight,flexGrow:0,flexShrink:0,flexBasis:'auto'}]}>
    <StatusBar barStyle="dark-content"/>
    <BlurTargetView ref={blurTarget} key={page==='detail'?'detail:'+chosen.id:page} style={styles.screen}>
-     {page==='welcome'?<AuthFlow lang={lang} onLanguage={setLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal}
-       logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily}/>
+     {page==='welcome'?<AuthFlow lang={lang} onLanguage={setLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal} logo={officialLogo}/>
      :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents')}/>:page==='services'?cataloguePage(false):page==='detail'?detailPage():page==='profile'?
        <AccountScreen lang={lang} account={account} update={updateAccount} signedIn={signedIn} onEmail={setServerEmail} onLegal={setLegal} onExport={async()=>{await saveDataExport(await exportMyData());return true}} onDelete={async()=>{await deleteAccount();await wipeLocal();setSignedIn(false);go('welcome');return true}} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);go('welcome')}} requests={clientRecords.length+savedDrafts.length}
          documents={Object.entries(drafts).flatMap(([key,item])=>Object.entries(item.files).map(([id,file])=>({key:key+'/'+id,name:file.name})))}

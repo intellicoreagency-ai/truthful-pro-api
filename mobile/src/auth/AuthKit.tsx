@@ -1,12 +1,33 @@
-import React,{useEffect,useRef,useState} from 'react';
-import {AccessibilityInfo,ActivityIndicator,Animated,Image,KeyboardAvoidingView,Platform,ScrollView,StyleSheet,TextInput,useWindowDimensions,View,type TextInputProps} from 'react-native';
+import React,{createContext,useContext,useEffect,useRef,useState} from 'react';
+import {AccessibilityInfo,ActivityIndicator,Animated,Image,KeyboardAvoidingView,Platform,ScrollView,StyleSheet,Text,TextInput,useWindowDimensions,View,type TextInputProps} from 'react-native';
+import {BlurTargetView,BlurView} from 'expo-blur';
 import Svg,{Defs,LinearGradient,Rect,Stop} from 'react-native-svg';
 import {Pressable} from '../Touch';
 import {Icon,type IconName} from '../Icons';
-import {colors,layout,radius,space,type} from '../theme';
+import {colors,glass,layout,radius,space,type} from '../theme';
 import type {Lang} from './copy';
 
+const cover=require('../../assets/brand/cover-dubai.jpg'); // the approved Dubai cover, full screen behind the glass
+
 export type AuthText=React.ComponentType<{lang:Lang;children:React.ReactNode;style?:object;numberOfLines?:number}>;
+
+/**
+ * Text for the auth screens. Arabic: Cairo (Regular / SemiBold / Bold by fontWeight). English: the platform system font
+ * (San Francisco / SF Pro on iOS, Roboto on Android): Apple's font is only licensed as the system font, so it is never bundled.
+ */
+export const AText:AuthText=({lang,children,style,numberOfLines})=>{
+  const w=String((StyleSheet.flatten(style) as {fontWeight?:string}|undefined)?.fontWeight??'400');
+  const ar=lang==='ar';
+  return <Text maxFontSizeMultiplier={layout.maxFontScale} numberOfLines={numberOfLines}
+    style={[{color:glass.text,textAlign:ar?'right':'left',writingDirection:ar?'rtl':'ltr'},style,
+      ar?{fontFamily:['700','800','900','bold'].includes(w)?'CairoBold':w==='600'?'CairoSemiBold':'CairoRegular',fontWeight:'normal'}:null]}>{children}</Text>;
+};
+export const inputFontFor=(lang:Lang)=>lang==='ar'?'CairoRegular':undefined;
+
+/** Android needs the content behind the glass wrapped in a BlurTargetView; elsewhere a plain View (iOS/web blur what is behind natively). */
+const Backdrop=(Platform.OS==='android'?BlurTargetView:View) as typeof View;
+type BlurRef=React.RefObject<React.ComponentRef<typeof View>|null>;
+const BlurCtx=createContext<BlurRef|undefined>(undefined);
 
 /** Fade + 12 pt rise between steps (≈ 240 ms). Skipped when the system asks to reduce motion. */
 export function StepTransition({stepKey,children}:{stepKey:string;children:React.ReactNode}){
@@ -21,127 +42,147 @@ export function StepTransition({stepKey,children}:{stepKey:string;children:React
   return <Animated.View style={{opacity:v,transform:[{translateY:v.interpolate({inputRange:[0,1],outputRange:[12,0]})}]}}>{children}</Animated.View>;
 }
 
-const cover=require('../../assets/brand/cover-dubai.jpg'); // the approved Dubai cover
+/** Frosted-glass surface: real blur of what is behind (expo-blur) + a 20 % white tint + a light edge. */
+export function GlassCard({children,style}:{children:React.ReactNode;style?:object}){
+  const target=useContext(BlurCtx);
+  return <View style={[s.card,style]}>
+    <BlurView style={StyleSheet.absoluteFill} tint="light" intensity={50} blurTarget={Platform.OS==='android'?target:undefined} blurMethod="dimezisBlurViewSdk31Plus"/>
+    <View style={[StyleSheet.absoluteFill,{backgroundColor:glass.depth}]} pointerEvents="none"/>{/* soft shade so white text stays readable over bright sky */}
+    <View style={[StyleSheet.absoluteFill,{backgroundColor:glass.fill}]} pointerEvents="none"/>
+    <View style={s.cardInner}>{children}</View>
+  </View>;
+}
 
 type ScaffoldProps={
   hero?:'tall'|'compact';
-  lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text:AuthText;title:string;subtitle:string;children:React.ReactNode;footer?:React.ReactNode;
+  lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text?:AuthText;title:string;subtitle:string;children:React.ReactNode;footer?:React.ReactNode;
 };
 /**
- * Page chrome shared by the auth screens: the approved Dubai cover as a hero (tall on Login, compact elsewhere) with the brand mark and language
- * switch on it, and a rounded sheet that overlaps the hero and holds the large title and the form. Keyboard-safe scrolling.
+ * Page chrome for every auth screen: the approved Dubai cover fills the screen; brand mark and language switch float on it;
+ * the title sits on the photo; the form lives in a frosted-glass card that lets the image show through.
  */
-export function AuthScaffold({hero='compact',lang,onLanguage,logo,Text:T,title,subtitle,children,footer}:ScaffoldProps){
+export function AuthScaffold({lang,onLanguage,logo,title,subtitle,children,footer}:ScaffoldProps){
   const ar=lang==='ar';
-  const {height,width}=useWindowDimensions();
-  const heroH=Math.round(Math.min(Math.max(height*(hero==='tall'?0.4:0.22),hero==='tall'?250:150),hero==='tall'?380:200));
-  return <KeyboardAvoidingView style={s.fill} behavior={Platform.OS==='ios'?'padding':undefined}>
-    <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} bounces={false}>
-      <View style={{height:heroH+28}} accessible={false}>
-        {/* the cover is portrait: anchor it to the top so the tower and sky fill the hero */}
-        <View style={[StyleSheet.absoluteFill,{overflow:'hidden'}]} accessible={false}><Image source={cover} resizeMode="cover" style={{position:'absolute',top:0,left:0,width,height:Math.max(heroH+28,Math.round(width*3839/2160))}} accessible={false}/></View>
+  const target=useRef<React.ComponentRef<typeof View>>(null);
+  const T=AText;
+  const {width,height}=useWindowDimensions();
+  return <BlurCtx.Provider value={target}>
+    <View style={s.fill}>
+      <Backdrop ref={target} style={StyleSheet.absoluteFill} accessible={false}>
+        {/* explicit size: the portrait cover is scaled to the screen (cover) and anchored to the right so the tower stays in view */}
+        <Image source={cover} resizeMode="cover" style={{position:'absolute',top:0,left:0,width,height}} accessible={false}/>
         <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} accessible={false}>
-          <Defs><LinearGradient id="heroShade" x1="0%" y1="0%" x2="0%" y2="100%">
-            <Stop offset="0%" stopColor="#080E1C" stopOpacity={0.45}/><Stop offset="35%" stopColor="#080E1C" stopOpacity={0}/>
-            <Stop offset="100%" stopColor="#080E1C" stopOpacity={0.25}/>
+          <Defs><LinearGradient id="authShade" x1="0%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor={glass.scrim} stopOpacity={0.45}/><Stop offset="28%" stopColor={glass.scrim} stopOpacity={0}/>
+            <Stop offset="48%" stopColor={glass.scrim} stopOpacity={0.4}/><Stop offset="65%" stopColor={glass.scrim} stopOpacity={0.62}/><Stop offset="100%" stopColor={glass.scrim} stopOpacity={0.85}/>
           </LinearGradient></Defs>
-          <Rect width="100%" height="100%" fill="url(#heroShade)"/>
+          <Rect width="100%" height="100%" fill="url(#authShade)"/>
         </Svg>
-        <View style={[s.top,{flexDirection:ar?'row-reverse':'row'}]}>
-          <Image source={logo} style={s.logo} accessible={false}/>
-          <View style={[s.langSwitch,{flexDirection:'row'}]} accessibilityRole="tablist">
-            {(['ar','en'] as const).map(l=><Pressable key={l} accessibilityRole="tab" accessibilityState={{selected:lang===l}} accessibilityLabel={l==='ar'?'العربية':'English'} onPress={()=>onLanguage(l)} style={[s.langItem,lang===l&&s.langOn]}>
-              <T lang={l} style={[s.langText,lang===l&&s.langTextOn]}>{l==='ar'?'عربي':'EN'}</T>
-            </Pressable>)}
+      </Backdrop>
+      <KeyboardAvoidingView style={s.flex} behavior={Platform.OS==='ios'?'padding':undefined}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} bounces={false}>
+          <View style={[s.top,{flexDirection:ar?'row-reverse':'row'}]}>
+            <Image source={logo} style={s.logo} accessible={false}/>
+            <View style={s.langSwitch} accessibilityRole="tablist">
+              {(['ar','en'] as const).map(l=><Pressable key={l} accessibilityRole="tab" accessibilityState={{selected:lang===l}} accessibilityLabel={l==='ar'?'العربية':'English'} onPress={()=>onLanguage(l)} style={[s.langItem,lang===l&&s.langOn]} rippleColor="rgba(255,255,255,0.3)">
+                <T lang={l} style={[s.langText,lang===l&&s.langTextOn]}>{l==='ar'?'عربي':'EN'}</T>
+              </Pressable>)}
+            </View>
           </View>
-        </View>
-      </View>
-      <View style={s.sheet}>
-        <T lang={lang} style={[s.title,{textAlign:ar?'right':'left'}]}>{title}</T>
-        <T lang={lang} style={[s.subtitle,{textAlign:ar?'right':'left'}]}>{subtitle}</T>
-        <View style={s.body}>{children}</View>
-        {footer?<View style={s.footer}>{footer}</View>:null}
-      </View>
-    </ScrollView>
-  </KeyboardAvoidingView>;
+          <View style={s.content}>
+            <T lang={lang} style={[s.title,{textAlign:ar?'right':'left'}]}>{title}</T>
+            {subtitle?<T lang={lang} style={[s.subtitle,{textAlign:ar?'right':'left'}]}>{subtitle}</T>:null}
+            <GlassCard>{children}</GlassCard>
+            {footer?<View style={s.footer}>{footer}</View>:null}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  </BlurCtx.Provider>;
 }
 
-type FieldProps={lang:Lang;Text:AuthText;label:string;icon?:IconName;error?:string|null;hint?:string;inputFont:string}&Omit<TextInputProps,'style'>;
-/** Label above, rounded filled field (52 pt), brand focus ring, inline error. */
-export function RoundedField({lang,Text:T,label,icon,error,hint,inputFont,onFocus,onBlur,...input}:FieldProps){
+type FieldProps={lang:Lang;Text?:AuthText;label:string;icon?:IconName;error?:string|null;hint?:string;inputFont?:string}&Omit<TextInputProps,'style'>;
+/** Label above, glass field (52 pt), white focus ring, inline error. */
+export function RoundedField({lang,label,icon,error,hint,inputFont,onFocus,onBlur,...input}:FieldProps){
   const [focused,setFocused]=useState(false);
   const ar=lang==='ar';
+  const T=AText;
   return <View style={s.fieldWrap}>
     <T lang={lang} style={[s.label,{textAlign:ar?'right':'left'}]}>{label}</T>
     <View style={[s.field,{flexDirection:ar?'row-reverse':'row'},focused&&s.fieldFocus,!!error&&s.fieldError]}>
-      {icon?<Icon name={icon} size={20} color={focused?colors.brand:colors.muted}/>:null}
+      {icon?<Icon name={icon} size={20} color={focused?glass.text:glass.textSoft}/>:null}
       <TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" accessibilityLabel={label}
-        placeholderTextColor="#A89A8D" selectionColor={colors.brand}
+        placeholderTextColor={glass.placeholder} selectionColor={glass.link} keyboardAppearance="dark"
         onFocus={e=>{setFocused(true);onFocus?.(e);}} onBlur={e=>{setFocused(false);onBlur?.(e);}}
-        {...input} style={[s.input,{fontFamily:inputFont,textAlign:ar?'right':'left'}]}/>
+        {...input} style={[s.input,inputFont?{fontFamily:inputFont}:null,{textAlign:ar?'right':'left',writingDirection:ar?'rtl':'ltr'}]}/>
     </View>
     {error?<T lang={lang} style={[s.error,{textAlign:ar?'right':'left'}]}>{error}</T>:hint?<T lang={lang} style={[s.hint,{textAlign:ar?'right':'left'}]}>{hint}</T>:null}
   </View>;
 }
 
-export function PrimaryButton({lang,Text:T,label,onPress,busy=false,disabled=false}:{lang:Lang;Text:AuthText;label:string;onPress:()=>void;busy?:boolean;disabled?:boolean}){
+export function PrimaryButton({lang,label,onPress,busy=false,disabled=false}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void;busy?:boolean;disabled?:boolean}){
+  const T=AText;
   return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:disabled||busy,busy}} disabled={disabled||busy} onPress={onPress}
     rippleColor="rgba(48,37,31,0.18)" style={[s.primary,(disabled||busy)&&s.primaryOff]}>
     {busy?<ActivityIndicator color={colors.ink}/>:<T lang={lang} style={s.primaryText}>{label}</T>}
   </Pressable>;
 }
-export function SecondaryButton({lang,Text:T,label,onPress}:{lang:Lang;Text:AuthText;label:string;onPress:()=>void}){
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.secondary}>
+export function SecondaryButton({lang,label,onPress}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void}){
+  const T=AText;
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.secondary} rippleColor="rgba(255,255,255,0.3)">
     <T lang={lang} style={s.secondaryText}>{label}</T>
   </Pressable>;
 }
 /** Inline text link ("Create account"). */
-export function TextLink({lang,Text:T,label,onPress}:{lang:Lang;Text:AuthText;label:string;onPress:()=>void}){
-  return <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress} style={s.link}><T lang={lang} style={s.linkText}>{label}</T></Pressable>;
+export function TextLink({lang,label,onPress}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void}){
+  const T=AText;
+  return <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress} style={s.link} rippleColor="rgba(255,255,255,0.3)"><T lang={lang} style={s.linkText}>{label}</T></Pressable>;
 }
 
-/** Consent row: rounded checkbox + text; the legal names inside the sentence open the documents. */
-export function ConsentRow({lang,Text:T,checked,onToggle,children,label}:{lang:Lang;Text:AuthText;checked:boolean;onToggle:()=>void;children:React.ReactNode;label:string}){
+/** Consent row: rounded checkbox + text. */
+export function ConsentRow({lang,checked,onToggle,children,label}:{lang:Lang;Text?:AuthText;checked:boolean;onToggle:()=>void;children:React.ReactNode;label:string}){
   const ar=lang==='ar';
-  return <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked}} onPress={onToggle} style={[s.consent,{flexDirection:ar?'row-reverse':'row'}]}>
-    <View style={[s.box,checked&&s.boxOn]}>{checked?<Icon name="check" size={14} color={colors.white}/>:null}</View>
+  return <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked}} onPress={onToggle} style={[s.consent,{flexDirection:ar?'row-reverse':'row'}]} rippleColor="rgba(255,255,255,0.25)">
+    <View style={[s.box,checked&&s.boxOn]}>{checked?<Icon name="check" size={14} color={colors.ink}/>:null}</View>
     <View style={s.consentText}>{children}</View>
   </Pressable>;
 }
 
-export const authStyles=StyleSheet.create({legal:{color:colors.brand,textDecorationLine:'underline'}});
+export const authStyles=StyleSheet.create({legal:{color:glass.link,textDecorationLine:'underline'}});
 
 const s=StyleSheet.create({
-  fill:{flex:1,backgroundColor:colors.background},
-  scroll:{flexGrow:1},
-  sheet:{flexGrow:1,marginTop:-28,borderTopLeftRadius:28,borderTopRightRadius:28,backgroundColor:colors.background,paddingHorizontal:space.xl,paddingTop:space.xxl,paddingBottom:space.xxl*2},
-  top:{position:'absolute',top:space.lg,left:space.lg,right:space.lg,alignItems:'center',justifyContent:'space-between'},
+  fill:{flex:1,backgroundColor:'#0B1226'},
+  flex:{flex:1},
+  scroll:{flexGrow:1,justifyContent:'space-between',paddingHorizontal:space.xl,paddingTop:space.lg,paddingBottom:space.xxl},
+  top:{alignItems:'center',justifyContent:'space-between'},
   logo:{width:52,height:52,borderRadius:26,borderWidth:1,borderColor:'rgba(255,255,255,0.6)'},
-  langSwitch:{backgroundColor:'rgba(255,249,244,0.88)',borderRadius:radius.pill,borderWidth:layout.hairline,borderColor:colors.line,padding:3},
+  langSwitch:{flexDirection:'row',backgroundColor:'rgba(255,255,255,0.2)',borderRadius:radius.pill,borderWidth:layout.hairline*2,borderColor:glass.border,padding:3},
   langItem:{minHeight:layout.minTouch-8,minWidth:52,alignItems:'center',justifyContent:'center',borderRadius:radius.pill,paddingHorizontal:space.md},
-  langOn:{backgroundColor:colors.brandTint},
-  langText:{fontSize:type.subhead,color:colors.muted},langTextOn:{color:colors.brand,fontWeight:'700'},
-  title:{fontSize:type.largeTitle,lineHeight:type.largeTitle*1.25,fontWeight:'800',color:colors.ink},
-  subtitle:{marginTop:space.sm,fontSize:type.body,lineHeight:type.body*1.5,color:colors.muted},
-  body:{marginTop:space.xxl,gap:space.lg},
-  footer:{marginTop:space.xxl,alignItems:'center',gap:space.sm},
+  langOn:{backgroundColor:'rgba(255,255,255,0.92)'},
+  langText:{fontSize:type.subhead,color:glass.text},langTextOn:{color:colors.ink,fontWeight:'700'},
+  content:{marginTop:space.xxl,gap:space.md},
+  title:{fontSize:type.largeTitle,lineHeight:type.largeTitle*1.3,fontWeight:'800',color:glass.text,textShadowColor:'rgba(0,0,0,0.45)',textShadowOffset:{width:0,height:1},textShadowRadius:8},
+  subtitle:{fontSize:type.body,lineHeight:type.body*1.5,color:glass.textSoft,textShadowColor:'rgba(0,0,0,0.4)',textShadowOffset:{width:0,height:1},textShadowRadius:6},
+  card:{marginTop:space.sm,borderRadius:28,overflow:'hidden',borderWidth:1,borderColor:glass.border},
+  cardInner:{padding:space.xl,gap:space.lg},
+  footer:{marginTop:space.sm,alignItems:'center',gap:space.xs},
   fieldWrap:{gap:space.sm-2},
-  label:{fontSize:type.footnote,fontWeight:'600',color:colors.muted},
-  field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control,backgroundColor:colors.white,borderWidth:1,borderColor:colors.line},
-  fieldFocus:{borderColor:colors.brand,borderWidth:2,paddingHorizontal:space.lg-1},
-  fieldError:{borderColor:colors.danger,borderWidth:2,paddingHorizontal:space.lg-1},
-  input:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.body,color:colors.ink},
-  error:{fontSize:type.footnote,color:colors.danger},
-  hint:{fontSize:type.footnote,color:colors.muted},
+  label:{fontSize:type.footnote,fontWeight:'600',color:glass.text},
+  field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control+2,backgroundColor:glass.field,borderWidth:1,borderColor:glass.border},
+  fieldFocus:{borderColor:'#FFFFFF',borderWidth:2,paddingHorizontal:space.lg-1},
+  fieldError:{borderColor:glass.error,borderWidth:2,paddingHorizontal:space.lg-1},
+  input:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.body,color:glass.text},
+  error:{fontSize:type.footnote,color:glass.error},
+  hint:{fontSize:type.footnote,color:glass.text},
   primary:{minHeight:52,borderRadius:14,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl},
-  primaryOff:{opacity:0.5},
+  primaryOff:{opacity:0.55},
   primaryText:{fontSize:type.headline,fontWeight:'700',color:colors.ink},
-  secondary:{minHeight:52,borderRadius:14,backgroundColor:colors.brandTint,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl},
-  secondaryText:{fontSize:type.headline,fontWeight:'600',color:colors.brand},
+  secondary:{flex:1,minHeight:48,borderRadius:14,backgroundColor:'rgba(255,255,255,0.18)',borderWidth:1,borderColor:glass.border,alignItems:'center',justifyContent:'center',paddingHorizontal:space.sm},
+  secondaryText:{fontSize:type.subhead,fontWeight:'600',color:glass.text,textAlign:'center'},
   link:{minHeight:layout.minTouch,justifyContent:'center',paddingHorizontal:space.sm},
-  linkText:{fontSize:type.callout,fontWeight:'700',color:colors.brand},
+  linkText:{fontSize:type.callout,fontWeight:'700',color:glass.link},
   consent:{alignItems:'flex-start',gap:space.md,minHeight:layout.minTouch,paddingVertical:space.xs},
-  box:{width:24,height:24,borderRadius:7,borderWidth:1.5,borderColor:colors.muted,alignItems:'center',justifyContent:'center',marginTop:1},
-  boxOn:{backgroundColor:colors.brand,borderColor:colors.brand},
+  box:{width:24,height:24,borderRadius:7,borderWidth:1.5,borderColor:'rgba(255,255,255,0.85)',alignItems:'center',justifyContent:'center',marginTop:1},
+  boxOn:{backgroundColor:colors.orange,borderColor:colors.orange},
   consentText:{flex:1},
 });

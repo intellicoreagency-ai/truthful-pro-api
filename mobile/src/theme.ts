@@ -27,3 +27,17 @@ export const layout={
   hairline:StyleSheet.hairlineWidth,
   maxFontScale:1.35,
 } as const;
+
+/** Glass (frosted) material used on the photo-backed auth screens: translucent white over a blur, white text. */
+export const glass={
+  fill:'rgba(255,255,255,0.20)',     // card tint over the blur
+  depth:'rgba(8,14,28,0.30)',        // faint shade under the tint (legibility over bright areas of the photo)
+  field:'rgba(255,255,255,0.16)',    // inputs inside the card
+  border:'rgba(255,255,255,0.38)',
+  text:'#FFFFFF',
+  textSoft:'rgba(255,255,255,0.92)',
+  placeholder:'rgba(255,255,255,0.72)',
+  error:'#FFB4A8',
+  link:'#FFE1AC',
+  scrim:'#080E1C',
+} as const;

@@ -4,13 +4,13 @@ import {ApiError,recordConsent,setServerEmail,setServerName} from '../api';
 import {LEGAL_VERSION} from '../legal';
 import {authCopy,type Lang} from './copy';
 import {isEmail,toE164} from './phone';
-import {AuthScaffold,ConsentRow,PrimaryButton,RoundedField,StepTransition,TextLink,type AuthText} from './AuthKit';
+import {AuthScaffold,ConsentRow,PrimaryButton,RoundedField,StepTransition,TextLink,type AuthText,AText} from './AuthKit';
 import {WaitingStep} from './WaitingStep';
 import {useWaVerification} from './useWaVerification';
-import {colors,space,type} from '../theme';
+import {glass,space,type} from '../theme';
 
 type Props={
-  lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text:AuthText;inputFont:string;
+  lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text?:AuthText;inputFont?:string;
   /** 'register' = full form incl. phone; 'complete' = a first-time sign-in from the login screen (phone already verified). */
   mode:'register'|'complete';
   onSignedIn:()=>void;onLogin:()=>void;onLegal:(k:'terms'|'privacy')=>void;
@@ -20,8 +20,9 @@ type Props={
  * Create account: name, mobile, email (required), consents → WhatsApp confirmation → consents/name/email saved → signed in.
  * The three consents are recorded with the legal version after the session exists; if saving fails the user can retry.
  */
-export function RegisterScreen({lang,onLanguage,logo,Text:T,inputFont,mode,onSignedIn,onLogin,onLegal}:Props){
+export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,onLogin,onLegal}:Props){
   const t=authCopy[lang];
+  const T=AText;
   const [name,setName]=useState('');const [phone,setPhone]=useState('');const [email,setEmail]=useState('');
   const [terms,setTerms]=useState(false);const [privacy,setPrivacy]=useState(false);const [docs,setDocs]=useState(false);
   const [errors,setErrors]=useState<{name?:string;phone?:string;email?:string;consent?:string}>({});
@@ -86,8 +87,8 @@ export function RegisterScreen({lang,onLanguage,logo,Text:T,inputFont,mode,onSig
 const s=StyleSheet.create({
   form:{gap:space.lg},
   row:{alignItems:'center',gap:space.xs,flexWrap:'wrap'},
-  muted:{fontSize:type.callout,color:colors.muted},
+  muted:{fontSize:type.callout,color:glass.textSoft},
   consents:{gap:space.xs},
-  consentText:{fontSize:type.subhead,lineHeight:type.subhead*1.5,color:colors.ink},
-  error:{fontSize:type.footnote,color:colors.danger},
+  consentText:{fontSize:type.subhead,lineHeight:type.subhead*1.5,color:glass.text},
+  error:{fontSize:type.footnote,color:glass.error},
 });

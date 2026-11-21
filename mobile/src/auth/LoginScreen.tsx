@@ -2,25 +2,26 @@ import React,{useState} from 'react';
 import {StyleSheet,View} from 'react-native';
 import {authCopy,type Lang} from './copy';
 import {toE164} from './phone';
-import {AuthScaffold,PrimaryButton,RoundedField,SecondaryButton,StepTransition,TextLink,type AuthText} from './AuthKit';
+import {AuthScaffold,PrimaryButton,RoundedField,SecondaryButton,StepTransition,TextLink,type AuthText,AText} from './AuthKit';
 import {WaitingStep} from './WaitingStep';
 import {useWaVerification} from './useWaVerification';
-import {colors,space,type} from '../theme';
+import {glass,space,type} from '../theme';
 
 type Props={
-  lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text:AuthText;inputFont:string;
+  lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text?:AuthText;inputFont?:string;
   onVerified:(info:{isNewUser:boolean;phone:string})=>void;onRegister:()=>void;onGuest:()=>void;onLegal:(k:'terms'|'privacy')=>void;
 };
 
 /** Sign in: mobile number → WhatsApp confirmation → session. No password exists in this product. */
-export function LoginScreen({lang,onLanguage,logo,Text:T,inputFont,onVerified,onRegister,onGuest,onLegal}:Props){
+export function LoginScreen({lang,onLanguage,logo,inputFont,onVerified,onRegister,onGuest,onLegal}:Props){
   const t=authCopy[lang];
+  const T=AText;
   const [phone,setPhone]=useState('');
   const [fieldError,setFieldError]=useState<string|null>(null);
   const wa=useWaVerification(lang,onVerified);
   const submit=()=>{const p=toE164(phone);if(!p){setFieldError(t.e_phone);return;}setFieldError(null);void wa.start(p);};
   const waiting=!!wa.challenge;
-  return <AuthScaffold hero="tall" lang={lang} onLanguage={onLanguage} logo={logo} Text={T} title={waiting?t.waitTitle:t.loginTitle} subtitle={waiting?t.waitSub:t.loginSub}
+  return <AuthScaffold lang={lang} onLanguage={onLanguage} logo={logo} title={waiting?t.waitTitle:t.loginTitle} subtitle={waiting?t.waitSub:t.loginSub}
     footer={waiting?null:<>
       <View style={[s.row,{flexDirection:lang==='ar'?'row-reverse':'row'}]}><T lang={lang} style={s.muted}>{t.noAccount}</T><TextLink lang={lang} Text={T} label={t.toRegister} onPress={onRegister}/></View>
       <TextLink lang={lang} Text={T} label={t.guest} onPress={onGuest}/>
@@ -45,7 +46,7 @@ export function LoginScreen({lang,onLanguage,logo,Text:T,inputFont,onVerified,on
 const s=StyleSheet.create({
   form:{gap:space.lg},
   row:{alignItems:'center',gap:space.xs},
-  muted:{fontSize:type.callout,color:colors.muted},
-  notice:{fontSize:type.footnote,color:colors.muted,lineHeight:type.footnote*1.5},
+  muted:{fontSize:type.callout,color:glass.textSoft},
+  notice:{fontSize:type.footnote,color:glass.textSoft,lineHeight:type.footnote*1.5},
   legalRow:{gap:space.sm},
 });
