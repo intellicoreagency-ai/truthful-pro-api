@@ -13,11 +13,16 @@ import {CategoryMedallion} from './CategoryArt';
 import {BANNER_PHOTOS} from './bannerPhotos';
 import type {CategoryId} from './categories';
 
-/** "3 transactions" with Arabic number agreement. */
+/** "3 transactions" with each language's plural rules. */
 export function countLabel(n:number,lang:Lang){
-  if(lang==='en')return `${n} ${n===1?'option':'options'}`;
-  const d=n.toLocaleString('ar-EG');
-  return n===1?'معاملة واحدة':n===2?'معاملتان':n<=10?`${d} معاملات`:`${d} معاملة`;
+  switch(lang){
+    case 'ar':{const d=n.toLocaleString('ar-EG');return n===1?'معاملة واحدة':n===2?'معاملتان':n<=10?`${d} معاملات`:`${d} معاملة`;}
+    case 'ru':{const m=n%10,h=n%100;return `${n} ${m===1&&h!==11?'услуга':m>=2&&m<=4&&(h<12||h>14)?'услуги':'услуг'}`;}
+    case 'zh':return `${n} 项业务`;
+    case 'fr':return `${n} démarche${n>1?'s':''}`;
+    case 'es':return `${n} trámite${n===1?'':'s'}`;
+    default:return `${n} ${n===1?'option':'options'}`;
+  }
 }
 
 // Geometry in a 400 × 150 box: the wave runs from (254,0) to (224,150) with an S-curve.

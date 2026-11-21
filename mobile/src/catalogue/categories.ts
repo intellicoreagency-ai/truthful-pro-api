@@ -6,6 +6,7 @@
  * and the backend keep working unchanged.
  */
 import {catalogueServiceId,catalogueServices,type Service} from '../services';
+import {BRANCH_TR,CATEGORY_TR} from './translations';
 
 export type {Bi} from '../i18n';
 import type {Bi} from '../i18n';
@@ -15,7 +16,7 @@ export type Category={id:CategoryId;title:Bi;desc:Bi;individuals:Branch[];compan
 
 const b=(serviceId:string,ar:string,en:string,descAr:string,descEn:string):Branch=>({serviceId,title:{ar,en},desc:{ar:descAr,en:descEn}});
 
-export const CATEGORIES:Category[]=[
+const RAW:Category[]=[
   {id:'residency',title:{ar:'الإقامة والتأشيرات',en:'Residency & Visas'},desc:{ar:'إصدار وتجديد الإقامات والتأشيرات وشؤون الجوازات',en:'Issue and renew residency, visas and passport matters'},
     individuals:[
       b('residency-individuals','الإقامة','Residency','إصدار وتجديد وإلغاء الإقامة','Issue, renew and cancel residency'),
@@ -69,6 +70,11 @@ export const CATEGORIES:Category[]=[
     individuals:[],
     companies:[b('customs','الخدمات الجمركية','Customs services','كود جمركي وتسجيل المنشأة لدى الجمارك','Customs code and registration')]},
 ];
+
+/** Attach the Russian, Chinese, French and Spanish names to every main service and branch. */
+const withTr=(br:Branch):Branch=>{const t=BRANCH_TR[br.serviceId];return t?{...br,title:{...br.title,...t.title},desc:{...br.desc,...t.desc}}:br};
+export const CATEGORIES:Category[]=RAW.map(c=>{const t=CATEGORY_TR[c.id];
+  return {...c,title:t?{...c.title,...t.title}:c.title,desc:t?{...c.desc,...t.desc}:c.desc,individuals:c.individuals.map(withTr),companies:c.companies.map(withTr)};});
 
 const byService=new Map(catalogueServices.map(s=>[s.id,s]));
 

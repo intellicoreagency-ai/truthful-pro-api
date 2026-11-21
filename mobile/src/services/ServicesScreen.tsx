@@ -28,6 +28,22 @@ const COPY={
     individual:'Individuals',company:'Companies',audience:'Service type',search:'Search for a service...',clear:'Clear search',
     individualTitle:'Individual Services',companyTitle:'Company Services',choose:'Choose service',
     count:(n:number)=>`${n} service${n===1?'':'s'}`,allServices:'All services',chooseBranch:'Choose a branch',none:'No matching services.',noneHint:'Try another word or switch to {other}.'},
+  ru:{tagline:'Услуги по оформлению документов',languageA11y:'Сменить язык',profile:'Мой профиль',
+    individual:'Частным лицам',company:'Компаниям',audience:'Тип услуг',search:'Поиск услуги...',clear:'Очистить поиск',
+    individualTitle:'Услуги для частных лиц',companyTitle:'Услуги для компаний',choose:'Выберите услугу',
+    count:(n:number)=>{const m=n%10,h=n%100;return `${n} ${m===1&&h!==11?'услуга':m>=2&&m<=4&&(h<12||h>14)?'услуги':'услуг'}`},allServices:'Все услуги',chooseBranch:'Выберите направление',none:'Подходящих услуг не найдено.',noneHint:'Попробуйте другое слово или перейдите в раздел «{other}».'},
+  zh:{tagline:'文件清关服务',languageA11y:'切换语言',profile:'我的账户',
+    individual:'个人',company:'企业',audience:'服务类型',search:'搜索服务...',clear:'清除搜索',
+    individualTitle:'个人服务',companyTitle:'企业服务',choose:'选择服务',
+    count:(n:number)=>`${n} 项服务`,allServices:'全部服务',chooseBranch:'选择子服务',none:'未找到匹配的服务。',noneHint:'请换个关键词，或切换到“{other}”。'},
+  fr:{tagline:'Services de formalités administratives',languageA11y:'Changer de langue',profile:'Mon compte',
+    individual:'Particuliers',company:'Entreprises',audience:'Type de services',search:'Rechercher un service...',clear:'Effacer la recherche',
+    individualTitle:'Services aux particuliers',companyTitle:'Services aux entreprises',choose:'Choisir un service',
+    count:(n:number)=>`${n} service${n>1?'s':''}`,allServices:'Tous les services',chooseBranch:'Choisissez une rubrique',none:'Aucun service correspondant.',noneHint:'Essayez un autre mot ou passez à « {other} ».'},
+  es:{tagline:'Servicios de trámites y documentación',languageA11y:'Cambiar idioma',profile:'Mi cuenta',
+    individual:'Particulares',company:'Empresas',audience:'Tipo de servicios',search:'Buscar un servicio...',clear:'Borrar búsqueda',
+    individualTitle:'Servicios para particulares',companyTitle:'Servicios para empresas',choose:'Elegir servicio',
+    count:(n:number)=>`${n} servicio${n===1?'':'s'}`,allServices:'Todos los servicios',chooseBranch:'Elija una opción',none:'No hay servicios que coincidan.',noneHint:'Pruebe otra palabra o cambie a «{other}».'},
 } as const;
 
 type Props={
