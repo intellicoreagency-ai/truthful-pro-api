@@ -43,3 +43,9 @@
 - Registration requires a valid email (and the mobile number from the WhatsApp verification). A number that signs in without an account finishes the account (name, **email**, consents) first; an older account without an email is stopped by `ContactScreen` until it adds one.
 - The server enforces it: a request cannot be submitted without an email on the account (`409 email_required`). Staff see the customer's email (with confirmed / not confirmed) and phone with call, WhatsApp and mail links on every request.
 - The email is stored encrypted; invoices are emailed only after the customer confirms it from the welcome email.
+
+### Login screen (main entry)
+The approved Dubai cover (`assets/brand/cover-dubai.jpg`) is the hero of the Login screen (tall) and of the other auth screens (compact), with the brand mark and the language switch on it and a rounded sheet carrying the large title and the form. Note: the cover shows a third-party building brand (EMAAR signage); see `docs/ASSETS_RIGHTS.md` before a public launch.
+
+### Database rule for the email
+`users.email_enc` stays nullable (the account row is created at WhatsApp verification, before the email is entered, and older accounts exist), so the rule is enforced by migration `0015_email_required.sql` triggers: a request cannot leave *draft* for a customer without an email, and a live account cannot lose its email. The API also answers `409 email_required`.

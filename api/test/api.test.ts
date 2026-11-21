@@ -1470,9 +1470,14 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect(dv.results.map((x) => [x.version, x.status])).toEqual([[1, 'superseded'], [2, 'published']]) // the earlier package is kept, not deleted
   })
   it('the customer email is essential: no request can be submitted without one, and staff see the customer\'s email and phone', async () => {
-    const t = await login('+971521190088')
+    // an account created at verification time has no email yet (the helper `login` adds one, so verify by hand)
+    const st = await (await hit('POST', '/v1/auth/wa/start', { phone: '+971521190088' })).json() as { challengeId: string; pollToken: string; code: string }
+    const raw = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ from: '971521190088', type: 'text', text: { body: st.code } }] } }] }] })
+    const kx = await crypto.subtle.importKey('raw', new TextEncoder().encode('w-secret'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+    const sig = 'sha256=' + Buffer.from(await crypto.subtle.sign('HMAC', kx, new TextEncoder().encode(raw))).toString('hex')
+    await app.fetch(new Request('https://api.test/webhooks/whatsapp', { method: 'POST', headers: { 'x-hub-signature-256': sig, 'content-type': 'application/json', 'cf-connecting-ip': '10.8.99.98' }, body: raw }), wenv())
+    const t = ((await (await hit('POST', '/v1/auth/wa/poll', { phone: '+971521190088', challengeId: st.challengeId, pollToken: st.pollToken })).json()) as { accessToken: string }).accessToken
     const uid = (await env.DB.prepare("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").first<{ id: string }>())!.id
-    await env.DB.prepare('UPDATE users SET email_enc=NULL, email_verified_at=NULL WHERE id=?').bind(uid).run()
     const id = ((await (await hit('POST', '/v1/requests', { serviceId: 'emirates-id', data: { name: 'M', title: { ar: 'ت', en: 'T' } } }, t)).json()) as { id: string }).id
     const no = await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, t)
     expect(no.status).toBe(409); expect(((await no.json()) as { error: string }).error).toBe('email_required')
@@ -1483,6 +1488,9 @@ describe('workflow spec: idempotency, versions, authority evidence, acknowledgem
     expect((await hit('PATCH', `/v1/requests/${id}`, { status: 'submitted' }, t)).status).toBe(200)
     const d = await (await hit('GET', `/staff/v1/requests/${id}`, undefined, owner)).json() as { customer: { phone: string; email: string | null; emailVerified: boolean } }
     expect(d.customer).toMatchObject({ phone: '+971521190088', email: 'mona.test@example.com', emailVerified: false })
+    // the database enforces the same rule: no email -> no submission, and a live account cannot lose its email
+    expect(env.DB.prepare('UPDATE users SET email_enc=NULL WHERE id=?').bind(uid).run()).rejects.toThrow()
+    await env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(uid).run().catch(() => null)
   })
   it('permissions: agents may draft but not issue; accountants issue; customers and other customers are kept out', async () => {
     const id = await submit()

@@ -20,7 +20,7 @@ export function LoginScreen({lang,onLanguage,logo,Text:T,inputFont,onVerified,on
   const wa=useWaVerification(lang,onVerified);
   const submit=()=>{const p=toE164(phone);if(!p){setFieldError(t.e_phone);return;}setFieldError(null);void wa.start(p);};
   const waiting=!!wa.challenge;
-  return <AuthScaffold lang={lang} onLanguage={onLanguage} logo={logo} Text={T} title={waiting?t.waitTitle:t.loginTitle} subtitle={waiting?t.waitSub:t.loginSub}
+  return <AuthScaffold hero="tall" lang={lang} onLanguage={onLanguage} logo={logo} Text={T} title={waiting?t.waitTitle:t.loginTitle} subtitle={waiting?t.waitSub:t.loginSub}
     footer={waiting?null:<>
       <View style={[s.row,{flexDirection:lang==='ar'?'row-reverse':'row'}]}><T lang={lang} style={s.muted}>{t.noAccount}</T><TextLink lang={lang} Text={T} label={t.toRegister} onPress={onRegister}/></View>
       <TextLink lang={lang} Text={T} label={t.guest} onPress={onGuest}/>

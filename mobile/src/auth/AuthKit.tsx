@@ -1,5 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {AccessibilityInfo,ActivityIndicator,Animated,Image,KeyboardAvoidingView,Platform,ScrollView,StyleSheet,TextInput,View,type TextInputProps} from 'react-native';
+import {AccessibilityInfo,ActivityIndicator,Animated,Image,KeyboardAvoidingView,Platform,ScrollView,StyleSheet,TextInput,useWindowDimensions,View,type TextInputProps} from 'react-native';
+import Svg,{Defs,LinearGradient,Rect,Stop} from 'react-native-svg';
 import {Pressable} from '../Touch';
 import {Icon,type IconName} from '../Icons';
 import {colors,layout,radius,space,type} from '../theme';
@@ -20,26 +21,47 @@ export function StepTransition({stepKey,children}:{stepKey:string;children:React
   return <Animated.View style={{opacity:v,transform:[{translateY:v.interpolate({inputRange:[0,1],outputRange:[12,0]})}]}}>{children}</Animated.View>;
 }
 
+const cover=require('../../assets/brand/cover-dubai.jpg'); // the approved Dubai cover
+
 type ScaffoldProps={
+  hero?:'tall'|'compact';
   lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text:AuthText;title:string;subtitle:string;children:React.ReactNode;footer?:React.ReactNode;
 };
-/** Page chrome shared by Login / Register: brand mark, language switch, large title, keyboard-safe scrolling. */
-export function AuthScaffold({lang,onLanguage,logo,Text:T,title,subtitle,children,footer}:ScaffoldProps){
+/**
+ * Page chrome shared by the auth screens: the approved Dubai cover as a hero (tall on Login, compact elsewhere) with the brand mark and language
+ * switch on it, and a rounded sheet that overlaps the hero and holds the large title and the form. Keyboard-safe scrolling.
+ */
+export function AuthScaffold({hero='compact',lang,onLanguage,logo,Text:T,title,subtitle,children,footer}:ScaffoldProps){
   const ar=lang==='ar';
+  const {height,width}=useWindowDimensions();
+  const heroH=Math.round(Math.min(Math.max(height*(hero==='tall'?0.4:0.22),hero==='tall'?250:150),hero==='tall'?380:200));
   return <KeyboardAvoidingView style={s.fill} behavior={Platform.OS==='ios'?'padding':undefined}>
-    <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-      <View style={[s.top,{flexDirection:ar?'row-reverse':'row'}]}>
-        <Image source={logo} style={s.logo} accessible={false}/>
-        <View style={[s.langSwitch,{flexDirection:'row'}]} accessibilityRole="tablist">
-          {(['ar','en'] as const).map(l=><Pressable key={l} accessibilityRole="tab" accessibilityState={{selected:lang===l}} accessibilityLabel={l==='ar'?'العربية':'English'} onPress={()=>onLanguage(l)} style={[s.langItem,lang===l&&s.langOn]}>
-            <T lang={l} style={[s.langText,lang===l&&s.langTextOn]}>{l==='ar'?'عربي':'EN'}</T>
-          </Pressable>)}
+    <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} bounces={false}>
+      <View style={{height:heroH+28}} accessible={false}>
+        {/* the cover is portrait: anchor it to the top so the tower and sky fill the hero */}
+        <View style={[StyleSheet.absoluteFill,{overflow:'hidden'}]} accessible={false}><Image source={cover} resizeMode="cover" style={{position:'absolute',top:0,left:0,width,height:Math.max(heroH+28,Math.round(width*3839/2160))}} accessible={false}/></View>
+        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} accessible={false}>
+          <Defs><LinearGradient id="heroShade" x1="0%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor="#080E1C" stopOpacity={0.45}/><Stop offset="35%" stopColor="#080E1C" stopOpacity={0}/>
+            <Stop offset="100%" stopColor="#080E1C" stopOpacity={0.25}/>
+          </LinearGradient></Defs>
+          <Rect width="100%" height="100%" fill="url(#heroShade)"/>
+        </Svg>
+        <View style={[s.top,{flexDirection:ar?'row-reverse':'row'}]}>
+          <Image source={logo} style={s.logo} accessible={false}/>
+          <View style={[s.langSwitch,{flexDirection:'row'}]} accessibilityRole="tablist">
+            {(['ar','en'] as const).map(l=><Pressable key={l} accessibilityRole="tab" accessibilityState={{selected:lang===l}} accessibilityLabel={l==='ar'?'العربية':'English'} onPress={()=>onLanguage(l)} style={[s.langItem,lang===l&&s.langOn]}>
+              <T lang={l} style={[s.langText,lang===l&&s.langTextOn]}>{l==='ar'?'عربي':'EN'}</T>
+            </Pressable>)}
+          </View>
         </View>
       </View>
-      <T lang={lang} style={[s.title,{textAlign:ar?'right':'left'}]}>{title}</T>
-      <T lang={lang} style={[s.subtitle,{textAlign:ar?'right':'left'}]}>{subtitle}</T>
-      <View style={s.body}>{children}</View>
-      {footer?<View style={s.footer}>{footer}</View>:null}
+      <View style={s.sheet}>
+        <T lang={lang} style={[s.title,{textAlign:ar?'right':'left'}]}>{title}</T>
+        <T lang={lang} style={[s.subtitle,{textAlign:ar?'right':'left'}]}>{subtitle}</T>
+        <View style={s.body}>{children}</View>
+        {footer?<View style={s.footer}>{footer}</View>:null}
+      </View>
     </ScrollView>
   </KeyboardAvoidingView>;
 }
@@ -91,10 +113,11 @@ export const authStyles=StyleSheet.create({legal:{color:colors.brand,textDecorat
 
 const s=StyleSheet.create({
   fill:{flex:1,backgroundColor:colors.background},
-  scroll:{flexGrow:1,paddingHorizontal:space.xl,paddingTop:space.lg,paddingBottom:space.xxl*2},
-  top:{alignItems:'center',justifyContent:'space-between',marginBottom:space.xl},
-  logo:{width:56,height:56,borderRadius:28},
-  langSwitch:{backgroundColor:colors.white,borderRadius:radius.pill,borderWidth:layout.hairline,borderColor:colors.line,padding:3},
+  scroll:{flexGrow:1},
+  sheet:{flexGrow:1,marginTop:-28,borderTopLeftRadius:28,borderTopRightRadius:28,backgroundColor:colors.background,paddingHorizontal:space.xl,paddingTop:space.xxl,paddingBottom:space.xxl*2},
+  top:{position:'absolute',top:space.lg,left:space.lg,right:space.lg,alignItems:'center',justifyContent:'space-between'},
+  logo:{width:52,height:52,borderRadius:26,borderWidth:1,borderColor:'rgba(255,255,255,0.6)'},
+  langSwitch:{backgroundColor:'rgba(255,249,244,0.88)',borderRadius:radius.pill,borderWidth:layout.hairline,borderColor:colors.line,padding:3},
   langItem:{minHeight:layout.minTouch-8,minWidth:52,alignItems:'center',justifyContent:'center',borderRadius:radius.pill,paddingHorizontal:space.md},
   langOn:{backgroundColor:colors.brandTint},
   langText:{fontSize:type.subhead,color:colors.muted},langTextOn:{color:colors.brand,fontWeight:'700'},
