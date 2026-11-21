@@ -1,9 +1,11 @@
 import type {Bilingual} from './serviceDetails';
+import {LEGAL_TR} from './legalTranslations';
 /** DRAFT. Not legal advice. Must be reviewed by a UAE-licensed lawyer before store release. */
 export const LEGAL_VERSION='draft-2026-11-20';
-export const COMPANY={name:{ar:'تروثفل لخدمات التخليص ذ.م.م',en:'Truthful Clearance Services LLC'},city:{ar:'دبي، الإمارات العربية المتحدة',en:'Dubai, United Arab Emirates'}};
+export const COMPANY={name:{ar:'تروثفل لخدمات التخليص ذ.م.م',en:'Truthful Clearance Services LLC',...LEGAL_TR['Truthful Clearance Services LLC']},city:{ar:'دبي، الإمارات العربية المتحدة',en:'Dubai, United Arab Emirates',...LEGAL_TR['Dubai, United Arab Emirates']}};
 export type LegalDoc={title:Bilingual;intro:Bilingual;sections:{h:Bilingual;p:Bilingual}[]};
-const B=(ar:string,en:string):Bilingual=>({ar,en});
+/** Arabic + English (authoritative) plus the informational RU/ZH/FR/ES translation when one exists. */
+const B=(ar:string,en:string):Bilingual=>({ar,en,...LEGAL_TR[en]});
 
 export const TERMS:LegalDoc={
  title:B('شروط الاستخدام','Terms of Use'),

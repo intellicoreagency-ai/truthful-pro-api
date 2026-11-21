@@ -15,6 +15,8 @@ import {apiEnabled,hasSession} from '../api';
 import {LEGAL_VERSION} from '../legal';
 import type {ServiceAction} from '../serviceDetails';
 import {tr} from '../i18n';
+const LEFT:Partial<Record<string,(n:number)=>string>>={ru:n=>`Осталось обязательных: ${n}.`,zh:n=>`还差 ${n} 项必填内容。`,fr:n=>`${n} élément${n>1?'s':''} obligatoire${n>1?'s':''} restant${n>1?'s':''}.`,es:n=>`Faltan ${n} elemento${n===1?'':'s'} obligatorio${n===1?'':'s'}.`};
+const STEP:Partial<Record<string,string>>={en:'Step',ru:'Шаг',zh:'步骤',fr:'Étape',es:'Paso'};
 
 const digit=(n:number,lang:Lang)=>lang==='ar'?String(n).replace(/[0-9]/g,d=>'٠١٢٣٤٥٦٧٨٩'[+d]):String(n);
 
@@ -22,7 +24,7 @@ type Props={lang:Lang;action:ServiceAction;serviceId:string;create:(r:ClientRequ
   defaults:{name:string;phone:string};initial?:ClientRequest;onKeep?:(r:ClientRequest)=>void;onLegal?:(k:'terms'|'privacy')=>void};
 
 export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaults,initial,onKeep,onLegal}:Props){
-  const live=apiEnabled&&hasSession();const ar=lang==='ar',row=rowFor(lang),tx=(a:string,e:string)=>ar?a:e;
+  const live=apiEnabled&&hasSession();const ar=lang==='ar',row=rowFor(lang),tx=(a:string,e:string)=>tr({ar:a,en:e},lang);
   const reduce=useReduceTransparency();
   const idRef=useRef(initial?.id??makeId()),createdRef=useRef(initial?.createdAt??new Date().toISOString()),doneRef=useRef(false);
   const [step,setStep]=useState(1),[name,setName]=useState(initial?.name??defaults.name),[phone,setPhone]=useState(initial?.phone??defaults.phone),
@@ -36,7 +38,7 @@ export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaul
   const valid=step===1?!!name.trim()&&phoneDigits(phone).length>=7&&(!hasAgeRule||age!==null):step===2?required.every(d=>d.field?!!fields[d.id]?.trim():!!files[d.id])&&namesDistinct:step===3?accepted:true;
   /** Plain-language reason the step cannot continue yet (new). */
   const missing=step===1?(!name.trim()?tx('أدخل الاسم الكامل.','Enter your full name.'):phoneDigits(phone).length<7?tx('أدخل رقم هاتف صحيح.','Enter a valid phone number.'):hasAgeRule&&age===null?tx('أدخل تاريخ ميلاد صحيحاً بصيغة YYYY-MM-DD.','Enter a valid date of birth as YYYY-MM-DD.'):'')
-    :step===2?(!namesDistinct?tx('يجب أن تكون الأسماء الثلاثة مختلفة.','The three names must be different.'):(()=>{const n=required.filter(d=>d.field?!fields[d.id]?.trim():!files[d.id]).length;return n?tx(`بقي ${digit(n,lang)} من المطلوب.`,`${n} required item${n===1?'':'s'} left.`):''})())
+    :step===2?(!namesDistinct?tx('يجب أن تكون الأسماء الثلاثة مختلفة.','The three names must be different.'):(()=>{const n=required.filter(d=>d.field?!fields[d.id]?.trim():!files[d.id]).length;return n?(ar?`بقي ${digit(n,lang)} من المطلوب.`:LEFT[lang]?.(n)??`${n} required item${n===1?'':'s'} left.`):''})())
     :step===3&&!accepted?tx('أكّد صحة البيانات ووافق على الشروط للمتابعة.','Confirm your details and accept the terms to continue.'):'';
 
   useEffect(()=>{const sub=BackHandler.addEventListener('hardwareBackPress',()=>{if(step>1){setStep(step-1);return true}return false});return ()=>sub.remove()},[step]);
@@ -55,7 +57,7 @@ export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaul
     <Note lang={lang}>{live?tx('يُحفظ طلبك ومستنداتك مشفّرة في حسابك. لا تُحصَّل أي مبالغ داخل التطبيق.','Your request and documents are stored encrypted in your account. No payments are collected in the app.'):tx('تجربة محلية. لا يتم تقديم المعاملة للجهة أو تحصيل مبالغ.','Local demonstration. No authority submission or payment is made.')}</Note>
 
     {/* Stepper */}
-    <View accessible accessibilityRole="progressbar" accessibilityLabel={tx(`الخطوة ${digit(step,lang)} من ${digit(5,lang)}: ${labels[step-1]}`,`Step ${step} of 5: ${labels[step-1]}`)}
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={(ar?`الخطوة ${digit(step,lang)} من ${digit(5,lang)}: ${labels[step-1]}`:`${STEP[lang]??'Step'} ${step} / 5: ${labels[step-1]}`)}
       accessibilityValue={{min:1,max:5,now:step}} style={{flexDirection:row}}>
       {labels.map((v,i)=>{const done=i<step-1,now=i===step-1;return <View key={v} style={styles.step}>
         {i<4&&<View style={[styles.connector,ar?{right:'50%'}:{left:'50%'},done&&styles.connectorDone]}/>}
