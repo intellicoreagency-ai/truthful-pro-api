@@ -27,6 +27,22 @@ const COPY={
     amountsHint:'Available when the summary is included',invoice:'Invoice and receipts',files:'Files',preview:'Sharing preview',onlyFiles:'Selected files only',
     review:'Review the content before sending',email:'Your email',via:'Share via',emailCh:'Email',whatsapp:'WhatsApp',more:'More',
     onlySelected:'Only selected documents are shared',nothing:'Choose at least one item to share',continue:'Continue sharing',recipient:'Choose the recipient in the sharing app'},
+  ru:{title:'Поделиться заявкой',choose:'Выберите, чем поделиться',close:'Закрыть',summary:'Сводка заявки',amounts:'Включить суммы',
+    amountsHint:'Доступно вместе со сводкой',invoice:'Счёт и квитанции',files:'Файлы',preview:'Предпросмотр',onlyFiles:'Только выбранные файлы',
+    review:'Проверьте содержимое перед отправкой',email:'Ваш e-mail',via:'Отправить через',emailCh:'E-mail',whatsapp:'WhatsApp',more:'Ещё',
+    onlySelected:'Отправляются только выбранные документы',nothing:'Выберите хотя бы один пункт',continue:'Продолжить',recipient:'Выберите получателя в приложении'},
+  zh:{title:'分享申请',choose:'选择要分享的内容',close:'关闭',summary:'申请摘要',amounts:'包含金额',
+    amountsHint:'包含摘要时可用',invoice:'发票与收据',files:'文件',preview:'分享预览',onlyFiles:'仅所选文件',
+    review:'发送前请检查内容',email:'您的邮箱',via:'分享方式',emailCh:'邮件',whatsapp:'WhatsApp',more:'更多',
+    onlySelected:'仅分享所选文件',nothing:'请至少选择一项',continue:'继续分享',recipient:'请在分享应用中选择接收人'},
+  fr:{title:'Partager la demande',choose:'Choisissez le contenu à partager',close:'Fermer',summary:'Résumé de la demande',amounts:'Inclure les montants',
+    amountsHint:'Disponible avec le résumé',invoice:'Facture et reçus',files:'Fichiers',preview:'Aperçu du partage',onlyFiles:'Fichiers sélectionnés uniquement',
+    review:'Vérifiez le contenu avant l’envoi',email:'Votre e-mail',via:'Partager via',emailCh:'E-mail',whatsapp:'WhatsApp',more:'Plus',
+    onlySelected:'Seuls les documents sélectionnés sont partagés',nothing:'Choisissez au moins un élément',continue:'Continuer',recipient:'Choisissez le destinataire dans l’application'},
+  es:{title:'Compartir solicitud',choose:'Elija qué compartir',close:'Cerrar',summary:'Resumen de la solicitud',amounts:'Incluir importes',
+    amountsHint:'Disponible con el resumen',invoice:'Factura y recibos',files:'Archivos',preview:'Vista previa',onlyFiles:'Solo archivos seleccionados',
+    review:'Revise el contenido antes de enviarlo',email:'Su correo',via:'Compartir por',emailCh:'Correo',whatsapp:'WhatsApp',more:'Más',
+    onlySelected:'Solo se comparten los documentos seleccionados',nothing:'Elija al menos un elemento',continue:'Continuar',recipient:'Elija el destinatario en la aplicación'},
 } as const;
 
 type Props={

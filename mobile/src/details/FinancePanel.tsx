@@ -20,7 +20,7 @@ const money=(fils:number)=>ltr(aed(fils));
 const refPattern=/^[A-Za-z0-9 ._/-]{4,60}$/;
 
 function GovSection({lang,r,gov,act,onChanged,setMessage}:{lang:Lang;r:ClientRequest;gov:NonNullable<ClientFinance['gov']>;act:Act;onChanged:()=>void;setMessage:(m:string)=>void}){
-  const ar=lang==='ar',tx=(a:string,e:string)=>ar?a:e;
+  const ar=lang==='ar',tx=(a:string,e:string)=>tr({ar:a,en:e},lang);
   const [open,setOpen]=useState(false);const [amount,setAmount]=useState('');const [reference,setReference]=useState('');const [proof,setProof]=useState<ClientFile|null>(null);
   const keyRef=useRef('gov-'+makeId()+makeId());
   const st:Record<string,[string,string]>={reported:['بانتظار التحقق','Awaiting verification'],verified:['تم التحقق','Verified'],rejected:['مرفوض','Rejected']};
@@ -51,7 +51,7 @@ function GovSection({lang,r,gov,act,onChanged,setMessage}:{lang:Lang;r:ClientReq
 }
 
 export function FinancePanel({lang,r,act,onChanged,setMessage}:{lang:Lang;r:ClientRequest;act:Act;onChanged:()=>void;setMessage:(m:string)=>void}){
-  const ar=lang==='ar',row=rowFor(lang),tx=(a:string,e:string)=>ar?a:e;
+  const ar=lang==='ar',row=rowFor(lang),tx=(a:string,e:string)=>tr({ar:a,en:e},lang);
   const reduce=useReduceTransparency();
   const f=r.finance!;const [open,setOpen]=useState(false);const [amount,setAmount]=useState('');const [reference,setReference]=useState('');const [proof,setProof]=useState<ClientFile|null>(null);
   const keyRef=useRef('pay-'+makeId()+makeId());

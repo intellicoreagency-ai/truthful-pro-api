@@ -16,6 +16,10 @@ const COPY={
     empty:'لا ملفات متاحة بعد',view:'معاينة',save:'تنزيل',pending:'بانتظار الرفع'},
   en:{title:'Request files',back:'Back to request details',final:'Final files',invoice:'Invoices and receipts',source:'Documents you sent',
     empty:'No files available yet',view:'View',save:'Save',pending:'Waiting to upload'},
+  ru:{title:'Файлы заявки',back:'К деталям заявки',final:'Итоговые файлы',invoice:'Счета и квитанции',source:'Отправленные вами документы',empty:'Файлов пока нет',view:'Открыть',save:'Сохранить',pending:'Ожидает загрузки'},
+  zh:{title:'申请文件',back:'返回申请详情',final:'最终文件',invoice:'发票与收据',source:'您发送的文件',empty:'暂无文件',view:'查看',save:'保存',pending:'等待上传'},
+  fr:{title:'Fichiers de la demande',back:'Retour aux détails',final:'Fichiers finaux',invoice:'Factures et reçus',source:'Documents envoyés',empty:'Aucun fichier pour l’instant',view:'Voir',save:'Enregistrer',pending:'En attente d’envoi'},
+  es:{title:'Archivos de la solicitud',back:'Volver a los detalles',final:'Archivos finales',invoice:'Facturas y recibos',source:'Documentos enviados',empty:'Aún no hay archivos',view:'Ver',save:'Guardar',pending:'Pendiente de subir'},
 } as const;
 
 const GROUPS:{kind:ClientFile['kind'];icon:IconName}[]=[{kind:'final',icon:'check'},{kind:'invoice',icon:'card'},{kind:'source',icon:'file'}];

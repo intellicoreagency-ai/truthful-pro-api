@@ -271,7 +271,7 @@ export default function App() {
    const key=draftKey;const requirement=documents.find(d=>d.id===documentId);if(!requirement)return;
    pickerPending.current=true;
    try{const file=await pickClientFile({ar:requirement.ar,en:requirement.en});if(file)updateDraft(key,current=>({...current,files:{...current.files,[documentId]:{name:file.name,size:file.size,uri:'',clientFile:file}}}));}
-   catch{notify(ar?'تعذر رفع الملف':'Upload failed',ar?'اختر PDF أو JPG أو PNG سليمة، حتى ٥ ميغابايت.':'Choose a valid PDF, JPG or PNG, up to 5 MB.');}
+   catch{notify(tr({ar:'تعذر رفع الملف',en:'Upload failed'},lang),tr({ar:'اختر PDF أو JPG أو PNG سليمة، حتى ٥ ميغابايت.',en:'Choose a valid PDF, JPG or PNG, up to 5 MB.'},lang));}
    finally{pickerPending.current=false;}
  };
  const removeFile=(documentId:string)=>editDraft(current=>{
