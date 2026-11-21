@@ -4,10 +4,10 @@ import type {Status} from '../clientModel';
 export const statusTone=(s:Status):{bg:string;fg:string}=>{
   switch(s){
     case 'completed':return {bg:'#E5F2D9',fg:'#2D681F'};
-    case 'needs_documents':return {bg:'#FFF0CE',fg:'#8A4F0B'};
+    case 'needs_documents':return {bg:'#F6EDD6',fg:'#76592A'};
     case 'rejected':case 'cancelled':return {bg:'#FBE6E3',fg:'#A3261A'};
     case 'authority':case 'decision':return {bg:'#E4ECF8',fg:'#25477A'};
-    default:return {bg:'#F5E9CE',fg:'#98500C'};
+    default:return {bg:'#E8EDFB',fg:'#1D3A9E'};
   }
 };
 export type Bucket='all'|'active'|'action'|'done';

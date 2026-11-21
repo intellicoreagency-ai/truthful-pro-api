@@ -101,13 +101,13 @@ export function ShareSheet({lang,r,visible,onClose,summary,financial,selected,in
 }
 
 const styles=StyleSheet.create({
-  overlay:{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(57,41,27,0.28)'},
+  overlay:{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(10,20,48,0.28)'},
   sheet:{maxHeight:'94%',width:'100%',maxWidth:600,alignSelf:'center',borderTopLeftRadius:radius.card+10,borderTopRightRadius:radius.card+10,overflow:'hidden',
     borderWidth:1,borderBottomWidth:0,borderColor:'rgba(255,255,255,0.8)'},
-  tint:{backgroundColor:Platform.select({ios:'rgba(255,249,244,0.62)',default:'rgba(255,249,244,0.94)'})},
+  tint:{backgroundColor:Platform.select({ios:'rgba(255,255,255,0.62)',default:'rgba(255,255,255,0.94)'})},
   opaque:{backgroundColor:colors.white},
   body:{paddingHorizontal:space.xl,paddingTop:space.sm,gap:space.md},
-  handle:{width:40,height:5,borderRadius:3,backgroundColor:'#C2AF9A',alignSelf:'center',marginBottom:space.xs},
+  handle:{width:40,height:5,borderRadius:3,backgroundColor:'#C3CAD6',alignSelf:'center',marginBottom:space.xs},
   head:{alignItems:'center',gap:space.md},
   close:{width:layout.minTouch,height:layout.minTouch,borderRadius:radius.pill,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,0.8)',overflow:'hidden'},
   requestChip:{padding:space.md,borderRadius:radius.control,backgroundColor:colors.brandTint},

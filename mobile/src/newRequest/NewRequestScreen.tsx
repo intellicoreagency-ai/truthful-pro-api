@@ -136,9 +136,9 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
       {!signedIn?<Txt lang={lang} style={s.guest}>{t.guestNote}</Txt>:null}
 
       <ScalePressable accessibilityRole="button" accessibilityLabel={signedIn?(required.length||!action?t.create:t.submit):t.signIn} accessibilityState={{disabled:busy,busy}} disabled={busy} onPress={()=>void submit()}
-        rippleColor="rgba(48,37,31,0.18)" style={[s.primary,(!valid&&signedIn)&&s.primaryDim]}>
+        rippleColor="rgba(14,21,38,0.18)" style={[s.primary,(!valid&&signedIn)&&s.primaryDim]}>
         <LinearGradient pointerEvents="none" colors={lux.orange} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
-        <View pointerEvents="none">{busy?<View style={s.busyRow}><ActivityIndicator color={lux.espresso}/><Txt lang={lang} style={s.primaryText}>{t.creating}</Txt></View>
+        <View pointerEvents="none">{busy?<View style={s.busyRow}><ActivityIndicator color={lux.onAction}/><Txt lang={lang} style={s.primaryText}>{t.creating}</Txt></View>
           :<Txt lang={lang} style={s.primaryText}>{signedIn?(required.length||!action?t.create:t.submit):t.signIn}</Txt>}</View>
       </ScalePressable>
     </ScrollView>
@@ -187,7 +187,7 @@ function Done({lang,info,onUpload,onDashboard}:{lang:Lang;info:CreatedInfo;onUpl
     </Entrance>
     <Entrance index={1}><LuxCard reduce={reduce} contentStyle={s.refBox}><Txt lang={lang} style={s.refLabel}>{t.ref}</Txt><Txt lang="en" style={s.refValue}>{'\u2066#'+ref+'\u2069'}</Txt></LuxCard></Entrance>
     <Entrance index={2} style={s.doneActions}>
-      {!info.submitted?<ScalePressable accessibilityRole="button" accessibilityLabel={t.uploadDocs} onPress={onUpload} rippleColor="rgba(48,37,31,0.18)" style={s.primary}>
+      {!info.submitted?<ScalePressable accessibilityRole="button" accessibilityLabel={t.uploadDocs} onPress={onUpload} rippleColor="rgba(14,21,38,0.18)" style={s.primary}>
         <LinearGradient pointerEvents="none" colors={lux.orange} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
         <View pointerEvents="none"><Txt lang={lang} style={s.primaryText}>{t.uploadDocs}</Txt></View>
       </ScalePressable>:null}
@@ -203,13 +203,13 @@ const s=StyleSheet.create({
   largeTitle:{fontSize:type.largeTitle,lineHeight:type.largeTitle*1.25},
   sub:{fontSize:type.body,lineHeight:type.body*1.5,color:colors.muted},
   groupWrap:{gap:space.sm},groupTitle:{fontSize:type.subhead,color:colors.brand,paddingHorizontal:space.xs},
-  rowLine:{borderBottomWidth:1,borderColor:'rgba(226,181,101,0.3)'},
-  optionalDot:{width:30,height:30,borderRadius:15,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(118,102,91,0.1)'},
+  rowLine:{borderBottomWidth:1,borderColor:'rgba(217,188,126,0.3)'},
+  optionalDot:{width:30,height:30,borderRadius:15,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(91,100,117,0.1)'},
   pickRow:{alignItems:'center',gap:space.md,minHeight:layout.minTouch+14,paddingHorizontal:space.lg,paddingVertical:space.md},
   pickText:{flex:1,gap:2},pickValue:{fontSize:type.body,fontWeight:'600'},
   label:{fontSize:type.footnote,color:colors.muted,fontWeight:'600'},
   field:{paddingHorizontal:space.lg,paddingTop:space.md,paddingBottom:space.md,gap:2},
-  input:{minHeight:layout.minTouch,fontSize:type.body,color:colors.ink,paddingVertical:space.xs,paddingHorizontal:space.md,marginTop:space.xs,borderRadius:radius.control,borderWidth:1,borderColor:'rgba(226,181,101,0.45)',backgroundColor:'rgba(255,255,255,0.6)',...Platform.select({web:{outlineStyle:'none'} as object,default:{}})},
+  input:{minHeight:layout.minTouch,fontSize:type.body,color:colors.ink,paddingVertical:space.xs,paddingHorizontal:space.md,marginTop:space.xs,borderRadius:radius.control,borderWidth:1,borderColor:'rgba(217,188,126,0.45)',backgroundColor:'rgba(255,255,255,0.6)',...Platform.select({web:{outlineStyle:'none'} as object,default:{}})},
   inputTall:{minHeight:88,textAlignVertical:'top'},
   fieldError:{fontSize:type.footnote,color:onGlass.error,fontWeight:'600',paddingBottom:space.sm,paddingHorizontal:space.xs},
   docs:{padding:space.lg,gap:space.sm},docRow:{alignItems:'center',gap:space.md},docLine:{flex:1,fontSize:type.callout,lineHeight:type.callout*1.45},
@@ -218,11 +218,11 @@ const s=StyleSheet.create({
   errorLink:{minHeight:layout.minTouch-8,justifyContent:'center'},errorLinkText:{fontSize:type.subhead,color:colors.brand,fontWeight:'700',textDecorationLine:'underline'},
   guest:{fontSize:type.footnote,color:colors.muted,textAlign:'center'},
   primary:{minHeight:56,borderRadius:18,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl,marginTop:space.sm,overflow:'hidden',
-    ...Platform.select({ios:{shadowColor:'#E06F00',shadowOffset:{width:0,height:8},shadowOpacity:0.3,shadowRadius:14},android:{elevation:4},default:{boxShadow:'0 8px 16px rgba(224,111,0,0.28)'} as object})},
+    ...Platform.select({ios:{shadowColor:'#1D3A9E',shadowOffset:{width:0,height:8},shadowOpacity:0.3,shadowRadius:14},android:{elevation:4},default:{boxShadow:'0 8px 16px rgba(29,58,158,0.28)'} as object})},
   primaryDim:{opacity:0.6},
-  primaryText:{fontSize:type.headline,fontWeight:'700',color:lux.espresso,textAlign:'center'},
+  primaryText:{fontSize:type.headline,fontWeight:'700',color:lux.onAction,textAlign:'center'},
   busyRow:{flexDirection:'row',alignItems:'center',gap:space.md},
-  secondary:{minHeight:54,borderRadius:18,backgroundColor:'rgba(255,252,246,0.9)',borderWidth:1,borderColor:'rgba(226,181,101,0.6)',alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl},
+  secondary:{minHeight:54,borderRadius:18,backgroundColor:'rgba(255,255,255,0.9)',borderWidth:1,borderColor:'rgba(217,188,126,0.6)',alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl},
   secondaryText:{fontSize:type.headline,fontWeight:'600',color:colors.brand,textAlign:'center'},
   doneWrap:{flexGrow:1,justifyContent:'center',alignItems:'stretch',padding:space.xl,gap:space.lg,width:'100%',maxWidth:600,alignSelf:'center'},
   doneHead:{alignItems:'center',gap:space.md},

@@ -1,11 +1,11 @@
 # TRUTHFUL PRO — approved mobile implementation contract
 
 ## Visual truth
-- New **beige/ivory Expo design** is the primary and only current design.
-- Brand orange `#FF8A00`, dark espresso `#3C281B` within approved wave-shaped **service banners only**, soft cream background, warm Dubai photography.
+- **Sapphire & gold** (owner decision, 2026-11-21) replaces the beige/ivory design: pearl pages `#F3F5F8`, frosted white glass cards, ink-navy text `#0E1526`, sapphire actions `#1D3A9E`, champagne gold `#D9BC7E` details, deep navy `#0A1430` hero wash. Tokens live in `src/theme.ts`.
+- Approved service banner artwork keeps its own (warm) colours until replacement artwork in the new palette is approved.
 - The old black/neon screens in the user-provided **مرجع .pdf** (42 pages) are references for **service content, structure, sequence and documents**, **not** the new page color scheme.
 - Standardize banner/card sizes. **All 30 legacy banner images were rejected by the owner and removed from the Expo branch on 2026-11-18.** No previous service photo may be reused; the temporary brown/gold text surface is explicitly NOT an approved finished banner.
-- Every replacement service banner must be a unique, accurately themed image consistent with the approved beige app and warm espresso/gold wave motif. Arabic and English titles must be native text overlays, not baked into raster photographs.
+- Every replacement service banner must be a unique, accurately themed image consistent with the Sapphire & gold app. Arabic and English titles must be native text overlays, not baked into raster photographs.
 - Keep the temporary text-first fallback until the full approved replacement set is imported and visually QA'd, then remove the quarantine guard in a separately reviewed commit.
 - Arabic physical/layout reading direction RTL; English LTR. Back and forward navigation symbols mirror by language. Every control maintains consistent hit target and padding.
 - Approved reference shows: Home > Services list > Detail with banner, tabs (service info / documents / fees), action grid, documents pick/remove, notes and sticky central plus. Other existing pages (account, request tracking, login) require their own bilingual implementation and review.

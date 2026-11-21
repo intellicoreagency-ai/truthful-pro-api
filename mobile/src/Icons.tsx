@@ -41,7 +41,7 @@ const paths = {
 
 export type IconName = keyof typeof paths;
 
-export function Icon({name, size=22, color='#80501F', filled=false}:{name:IconName;size?:number;color?:string;filled?:boolean}) {
+export function Icon({name, size=22, color='#1D3A9E', filled=false}:{name:IconName;size?:number;color?:string;filled?:boolean}) {
   return <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false}>
     <Path d={paths[name]} fill={filled?color:"none"} stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
   </Svg>;

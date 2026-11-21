@@ -24,7 +24,8 @@ Apple's Human Interface Guidelines (HIG) are the **base for the brand identity**
 - Corner radius: 10–14 for controls and fields, 16–24 for cards and sheets; use continuous-feeling rounding consistently.
 
 ## Colour
-- Use semantic roles, not ad-hoc hex values: background, surface/card, primary (brand), secondary text, separators, success, warning, destructive. Define each once in the shared palette (`C` in `App.tsx` / the reference UI) and reuse.
+- Palette (owner decision, Nov 2026): **Sapphire & gold**. Pearl pages `#F3F5F8`, white/frosted-white glass cards, ink-navy text `#0E1526`, slate secondary text `#5B6475`, sapphire primary actions `#1D3A9E` with white text, champagne gold `#D9BC7E` for icons, rings and hairlines (gold as text only in the dark stops, e.g. `#76592A`), deep navy `#0A1430` for the Home hero wash and dark grounds. Champagne tints mark "needs attention"; no cream/beige surfaces.
+- Use semantic roles, not ad-hoc hex values: background, surface/card, primary (brand), secondary text, separators, success, warning, destructive. Define each once in `mobile/src/theme.ts` (`colors`, `lux`, `glass`, `onGlass`) and reuse.
 - Contrast: body text ≥ 4.5:1, large text and icons ≥ 3:1. Never convey meaning with colour alone (add text or icon).
 - The app is light-only (`userInterfaceStyle: light`); do not add dark-mode colours unless the product decision changes.
 

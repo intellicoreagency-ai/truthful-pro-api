@@ -37,5 +37,5 @@ const styles=StyleSheet.create({
   meta:{flexWrap:'wrap',alignItems:'center',gap:space.sm},
   section:{gap:space.sm},
   h:{fontSize:type.headline,lineHeight:26,color:colors.ink},
-  p:{fontSize:type.subhead,lineHeight:26,color:'#4A3A2F'},
+  p:{fontSize:type.subhead,lineHeight:26,color:'#2B3448'},
 });

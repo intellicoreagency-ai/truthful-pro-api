@@ -35,12 +35,12 @@ function Tab({tab,selected,label,onPress,labelFont,compact}:{tab:TabItem;selecte
   useEffect(()=>{on.value=reduce?(selected?1:0):withSpring(selected?1:0,SPRING)},[selected,reduce,on]);
   const pill=useAnimatedStyle(()=>({opacity:on.value,transform:[{scale:0.6+0.4*on.value}]}));
   return <ScalePressable accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{selected}} aria-selected={selected} onPress={onPress}
-    android_ripple={{color:'rgba(152,80,12,0.14)',borderless:true,radius:34}} style={s.item}>
+    android_ripple={{color:'rgba(29,58,158,0.14)',borderless:true,radius:34}} style={s.item}>
     <View style={s.iconBox} pointerEvents="none">
       <Animated.View style={[StyleSheet.absoluteFill,pill]}>
         <LinearGradient colors={lux.goldBadge} start={{x:0,y:0}} end={{x:1,y:1}} style={s.pill}/>
       </Animated.View>
-      <View><Icon name={tab.icon} filled={selected&&tab.icon==='home'} size={23} color={selected?lux.espresso:colors.ink}/></View>
+      <View><Icon name={tab.icon} filled={selected&&tab.icon==='home'} size={23} color={selected?colors.brand:colors.ink}/></View>
     </View>
     <Text maxFontSizeMultiplier={layout.maxFontScale} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[s.label,compact&&s.labelCompact,selected&&s.labelOn,labelFont(selected)]}>{label}</Text>
   </ScalePressable>;
@@ -66,7 +66,7 @@ export function TabBar({active,labels,onSelect,blurTarget,accessory,labelFont,rt
             <BlurView style={StyleSheet.absoluteFill}
               tint={Platform.OS==='ios'?'systemChromeMaterialLight':'light'} intensity={Platform.OS==='ios'?90:70}
               blurTarget={Platform.OS==='android'?blurTarget:undefined} blurMethod="dimezisBlurViewSdk31Plus"/>
-            <LinearGradient colors={['rgba(255,252,246,0.82)','rgba(251,244,232,0.66)']} style={StyleSheet.absoluteFill}/>
+            <LinearGradient colors={['rgba(255,255,255,0.82)','rgba(243,245,248,0.66)']} style={StyleSheet.absoluteFill}/>
           </View>
           <View style={[s.row,{flexDirection:rtl?'row-reverse':'row'}]} accessibilityRole="tablist">
             {TABS.map(tab=>tab.primary
@@ -95,7 +95,7 @@ const s=StyleSheet.create({
   root:{position:'absolute',left:0,right:0,bottom:0,paddingHorizontal:12}, // not clipped: the raised "+" rises above the capsule
   capsuleShadow:{borderRadius:34,width:'100%',maxWidth:560,alignSelf:'center',...Platform.select({
     ios:{shadowColor:lux.shadow,shadowOffset:{width:0,height:12},shadowOpacity:0.18,shadowRadius:24},
-    android:{elevation:12,backgroundColor:'rgba(255,250,242,0.6)'},
+    android:{elevation:12,backgroundColor:'rgba(255,255,255,0.6)'},
     default:{shadowColor:lux.shadow,shadowOffset:{width:0,height:12},shadowOpacity:0.18,shadowRadius:24},
   }) as object},
   capsuleBorder:{borderRadius:34,padding:1},
@@ -110,9 +110,9 @@ const s=StyleSheet.create({
   labelOn:{color:colors.brand,fontWeight:'700'},
   fabHit:{marginTop:-FAB_RISE,borderRadius:34},
   fabShadow:{borderRadius:33,...Platform.select({
-    ios:{shadowColor:'#E06F00',shadowOffset:{width:0,height:8},shadowOpacity:0.38,shadowRadius:14},
+    ios:{shadowColor:'#1D3A9E',shadowOffset:{width:0,height:8},shadowOpacity:0.38,shadowRadius:14},
     android:{elevation:10},
-    default:{shadowColor:'#E06F00',shadowOffset:{width:0,height:8},shadowOpacity:0.38,shadowRadius:14},
+    default:{shadowColor:'#1D3A9E',shadowOffset:{width:0,height:8},shadowOpacity:0.38,shadowRadius:14},
   }) as object},
   fabRing:{width:66,height:66,borderRadius:33,padding:3},
   fab:{flex:1,borderRadius:30,alignItems:'center',justifyContent:'center'},

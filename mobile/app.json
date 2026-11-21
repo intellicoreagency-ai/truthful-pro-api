@@ -34,7 +34,7 @@
           "image": "./assets/app/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#FFF8EE"
+          "backgroundColor": "#0A1430"
         }
       ]
     ],
@@ -47,7 +47,7 @@
       }
     },
     "icon": "./assets/app/icon.png",
-    "backgroundColor": "#FFF8EE",
+    "backgroundColor": "#F3F5F8",
     "web": {
       "favicon": "./assets/app/favicon.png",
       "bundler": "metro"

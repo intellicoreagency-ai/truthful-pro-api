@@ -42,7 +42,7 @@ const copy={
     offline:'Could not refresh. Showing the last saved data.',retry:'Try again',pull:'Pull down to refresh',demoOn:'Show my requests',demoOff:'View sample screens',sample:'Sample',stage:(n:number)=>`Stage ${n} of 5`},
 } as const;
 
-const ORANGE=lux.orange; // espresso text on it (AA)
+const ORANGE=lux.orange; // white text on it (≥ 7:1)
 const enter=(i:number)=>FadeInDown.delay(60+Math.min(i,6)*60).springify().damping(18).mass(0.8).reduceMotion(ReduceMotion.System);
 const flow=LinearTransition.springify().damping(20).reduceMotion(ReduceMotion.System);
 
@@ -85,15 +85,15 @@ function RequestCard({lang,r,onOpen,onMissing,reduce}:{lang:Lang;r:ClientRequest
       <StatusBadge lang={lang} status={r.status}/>
       {!closed&&r.status!=='draft'&&<StageBar lang={lang} stage={r.stage}/>}
       {r.whatNow?.[lang]&&r.status!=='draft'?<View style={[s.what,need&&s.whatNeed,{flexDirection:row}]}>
-        {need&&<Icon name="info" size={18} color="#8A4F0B"/>}
-        <View style={s.flex1}><Txt lang={lang} bold={need} style={{...s.whatText,...(need?{color:'#7A440A'}:null)}}>{r.whatNow[lang]}</Txt></View>
+        {need&&<Icon name="info" size={18} color="#76592A"/>}
+        <View style={s.flex1}><Txt lang={lang} bold={need} style={{...s.whatText,...(need?{color:'#76592A'}:null)}}>{r.whatNow[lang]}</Txt></View>
       </View>:null}
     </ScalePressable>
     <View style={[s.footer,{flexDirection:row}]}>
       {r.status==='needs_documents'
-        ?<ScalePressable accessibilityRole="button" accessibilityLabel={`${t.sendDocs}: ${r.title[lang]}`} onPress={onMissing} rippleColor="rgba(48,37,31,0.18)" style={s.actionPill}>
+        ?<ScalePressable accessibilityRole="button" accessibilityLabel={`${t.sendDocs}: ${r.title[lang]}`} onPress={onMissing} rippleColor="rgba(14,21,38,0.18)" style={s.actionPill}>
           <LinearGradient colors={ORANGE} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
-          <View pointerEvents="none" style={[s.actionInner,{flexDirection:row}]}><Icon name="upload" size={16} color={lux.espresso}/><Txt lang={lang} bold style={s.actionText}>{t.sendDocs}</Txt></View>
+          <View pointerEvents="none" style={[s.actionInner,{flexDirection:row}]}><Icon name="upload" size={16} color={lux.onAction}/><Txt lang={lang} bold style={s.actionText}>{t.sendDocs}</Txt></View>
         </ScalePressable>
         :<View/>}
       <ScalePressable accessibilityRole="button" accessibilityLabel={`${t.details}: ${r.title[lang]}`} onPress={onOpen} style={[s.detailsLink,{flexDirection:row}]}>
@@ -134,13 +134,13 @@ export function DashboardScreen({lang,records,drafts,syncStatus,loadedOnce,demo,
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void doRefresh()} tintColor={colors.brand} colors={[colors.brand]} progressBackgroundColor="#FFFFFF" progressViewOffset={headerH}/>}>
 
       {syncStatus==='error'&&!loading?<Animated.View entering={FadeIn} style={[s.notice,{flexDirection:row}]} accessibilityLiveRegion="polite">
-        <Icon name="info" size={18} color="#8A4F0B"/><View style={s.flex1}><Txt lang={lang} style={s.noticeText}>{t.offline}</Txt></View>
+        <Icon name="info" size={18} color="#76592A"/><View style={s.flex1}><Txt lang={lang} style={s.noticeText}>{t.offline}</Txt></View>
         <ScalePressable accessibilityRole="button" onPress={()=>void doRefresh()} style={s.retry}><Txt lang={lang} bold style={s.retryText}>{t.retry}</Txt></ScalePressable>
       </Animated.View>:null}
 
       {counts.action>0&&bucket!=='action'&&!q?<Animated.View entering={enter(0)} layout={flow}>
         <ScalePressable accessibilityRole="button" accessibilityLabel={`${t.needBanner(counts.action)}. ${t.needShow}`} onPress={()=>setBucket('action')} style={s.needBannerPress}>
-          <LinearGradient colors={['#FFF1CF','#FBE0A6']} start={{x:0,y:0}} end={{x:1,y:1}} style={[s.needBanner,{flexDirection:row}]}>
+          <LinearGradient colors={['#F6EDD6','#EBD9A8']} start={{x:0,y:0}} end={{x:1,y:1}} style={[s.needBanner,{flexDirection:row}]}>
             <GoldBadge icon="bell" size={38}/>
             <View style={s.flex1}><Txt lang={lang} bold style={s.needText}>{t.needBanner(counts.action)}</Txt></View>
             <Txt lang={lang} bold style={s.needShow}>{t.needShow}</Txt>
@@ -154,9 +154,9 @@ export function DashboardScreen({lang,records,drafts,syncStatus,loadedOnce,demo,
         <GoldBadge icon="folder" size={84}/>
         <GoldText lang={lang} style={s.emptyTitle}>{t.emptyTitle}</GoldText>
         <Txt lang={lang} style={s.emptyBody}>{t.emptyBody}</Txt>
-        <ScalePressable accessibilityRole="button" accessibilityLabel={t.start} onPress={onStart} rippleColor="rgba(48,37,31,0.18)" style={s.startBtn}>
+        <ScalePressable accessibilityRole="button" accessibilityLabel={t.start} onPress={onStart} rippleColor="rgba(14,21,38,0.18)" style={s.startBtn}>
           <LinearGradient colors={ORANGE} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
-          <View pointerEvents="none" style={[s.actionInner,{flexDirection:row}]}><Icon name="plus" size={20} color={lux.espresso}/><Txt lang={lang} bold style={s.startText}>{t.start}</Txt></View>
+          <View pointerEvents="none" style={[s.actionInner,{flexDirection:row}]}><Icon name="plus" size={20} color={lux.onAction}/><Txt lang={lang} bold style={s.startText}>{t.start}</Txt></View>
         </ScalePressable>
         <Txt lang={lang} style={s.pullHint}>{t.pull}</Txt>
       </Animated.View>:null}
@@ -187,14 +187,14 @@ export function DashboardScreen({lang,records,drafts,syncStatus,loadedOnce,demo,
     {/* Frosted header: content scrolls beneath it */}
     <View style={s.header} onLayout={e=>setHeaderH(e.nativeEvent.layout.height)}>
       {!reduce&&<BlurView style={StyleSheet.absoluteFill} tint="light" intensity={70} experimentalBlurMethod={Platform.OS==='android'?'dimezisBlurView':undefined}/>}
-      <LinearGradient pointerEvents="none" colors={reduce?[lux.ivory,lux.ivory]:['rgba(251,246,238,0.92)','rgba(251,246,238,0.72)']} style={StyleSheet.absoluteFill}/>
-      <LinearGradient pointerEvents="none" colors={['rgba(226,181,101,0)','rgba(226,181,101,0.7)','rgba(226,181,101,0)']} start={{x:0,y:0}} end={{x:1,y:0}} style={s.headerLine}/>
+      <LinearGradient pointerEvents="none" colors={reduce?[lux.ivory,lux.ivory]:['rgba(243,245,248,0.92)','rgba(243,245,248,0.72)']} style={StyleSheet.absoluteFill}/>
+      <LinearGradient pointerEvents="none" colors={['rgba(217,188,126,0)','rgba(217,188,126,0.7)','rgba(217,188,126,0)']} start={{x:0,y:0}} end={{x:1,y:0}} style={s.headerLine}/>
       <View style={s.headerInner}>
         <GoldText lang={lang} style={s.largeTitle}>{t.title}</GoldText>
         <Txt lang={lang} style={s.subtitle}>{loading?t.loading:t.subtitle(list.length)}{syncStatus==='syncing'&&loadedOnce?' · …':''}</Txt>
         <LuxCard reduce={reduce} radius={16} contentStyle={[s.search,{flexDirection:row}]}>
           <Icon name="search" size={18} color={colors.brand}/>
-          <TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" accessibilityLabel={t.search} placeholder={t.search} placeholderTextColor="rgba(48,37,31,0.5)"
+          <TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" accessibilityLabel={t.search} placeholder={t.search} placeholderTextColor="rgba(14,21,38,0.5)"
             value={query} onChangeText={setQuery} returnKeyType="search" style={[s.searchInput,ar?{fontFamily:'CairoRegular',textAlign:'right',writingDirection:'rtl'}:{textAlign:'left'}]}/>
           {!!query&&<ScalePressable accessibilityRole="button" accessibilityLabel={t.clear} onPress={()=>setQuery('')} style={s.clear}><View pointerEvents="none"><Icon name="close" size={16} color={colors.muted}/></View></ScalePressable>}
         </LuxCard>
@@ -205,7 +205,7 @@ export function DashboardScreen({lang,records,drafts,syncStatus,loadedOnce,demo,
               onPress={()=>setBucket(f)} rippleColor={on?'rgba(255,255,255,0.25)':undefined} style={[s.filter,on&&s.filterOn,alert&&!on&&s.filterAlert]}>
               {on&&<LinearGradient colors={[lux.espressoSoft,lux.espresso]} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>}
               <View pointerEvents="none" style={s.filterInner}>
-                <Txt lang="en" bold style={{...s.filterCount,...(on?{color:'#F2D08F'}:alert?{color:'#C25E00'}:null)}}>{String(counts[f])}</Txt>
+                <Txt lang="en" bold style={{...s.filterCount,...(on?{color:'#E8D3A2'}:alert?{color:'#8A6A2F'}:null)}}>{String(counts[f])}</Txt>
                 <Txt lang={lang} bold={on} numberOfLines={2} style={{...s.filterText,...(on?{color:lux.onDark}:null)}}>{t[f]}</Txt>
               </View>
             </ScalePressable></View>;})}
@@ -220,7 +220,7 @@ const s=StyleSheet.create({
   flex1:{flex:1},
   backdrop:{position:'absolute',top:0,right:0,bottom:0,left:0,overflow:'hidden'},
   orb:{position:'absolute',width:340,height:340,borderRadius:170},
-  orbGold:{backgroundColor:'#F3C77A',opacity:0.22,top:120,right:-160},
+  orbGold:{backgroundColor:'#AFC0F2',opacity:0.22,top:120,right:-160},
   orbSand:{backgroundColor:lux.sand,opacity:0.9,top:520,left:-170},
   scroll:{paddingHorizontal:space.lg,gap:space.lg,width:'100%',maxWidth:600,alignSelf:'center'},
 
@@ -233,19 +233,19 @@ const s=StyleSheet.create({
   searchInput:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.callout,color:colors.ink},
   clear:{width:layout.minTouch,height:layout.minTouch,alignItems:'center',justifyContent:'center',borderRadius:radius.pill,overflow:'hidden'},
   filters:{gap:space.sm},
-  filter:{minHeight:58,borderRadius:16,borderWidth:1,borderColor:'rgba(226,181,101,0.55)',backgroundColor:'rgba(255,252,246,0.85)',overflow:'hidden',justifyContent:'center'},
-  filterOn:{borderColor:'rgba(226,181,101,0.9)'},
-  filterAlert:{borderColor:'rgba(224,111,0,0.55)',backgroundColor:'rgba(255,240,214,0.9)'},
+  filter:{minHeight:58,borderRadius:16,borderWidth:1,borderColor:'rgba(217,188,126,0.55)',backgroundColor:'rgba(255,255,255,0.85)',overflow:'hidden',justifyContent:'center'},
+  filterOn:{borderColor:'rgba(217,188,126,0.9)'},
+  filterAlert:{borderColor:'rgba(29,58,158,0.55)',backgroundColor:'rgba(246,237,214,0.9)'},
   filterInner:{alignItems:'center',paddingHorizontal:4,paddingVertical:6},
   filterCount:{fontSize:type.headline,lineHeight:22,color:colors.ink,textAlign:'center'},
   filterText:{fontSize:type.caption,lineHeight:15,color:colors.muted,textAlign:'center'},
 
   needBannerPress:{borderRadius:20},
-  needBanner:{alignItems:'center',gap:space.md,padding:space.md,borderRadius:20,borderWidth:1,borderColor:'rgba(217,166,83,0.6)'},
-  needText:{fontSize:type.subhead,lineHeight:22,color:'#6B3C08'},
+  needBanner:{alignItems:'center',gap:space.md,padding:space.md,borderRadius:20,borderWidth:1,borderColor:'rgba(184,137,63,0.6)'},
+  needText:{fontSize:type.subhead,lineHeight:22,color:'#6A4F24'},
   needShow:{fontSize:type.subhead,color:colors.brand},
 
-  needGlow:Platform.select({ios:{shadowColor:'#E08A00',shadowOpacity:0.22},default:{}}) as object,
+  needGlow:Platform.select({ios:{shadowColor:'#1D3A9E',shadowOpacity:0.22},default:{}}) as object,
   cardMain:{padding:space.lg+2,gap:space.md},
   cardTop:{alignItems:'flex-start',gap:space.md},
   cardTitleBox:{gap:2},
@@ -253,19 +253,19 @@ const s=StyleSheet.create({
   meta:{fontSize:type.footnote,lineHeight:18,color:colors.muted},
   bar:{gap:5},
   seg:{flex:1,height:6,borderRadius:3},
-  segOff:{backgroundColor:'rgba(118,102,91,0.14)'},
+  segOff:{backgroundColor:'rgba(91,100,117,0.14)'},
   what:{gap:space.sm,alignItems:'flex-start'},
-  whatNeed:{backgroundColor:'rgba(255,236,196,0.9)',borderRadius:14,padding:space.md,borderWidth:1,borderColor:'rgba(217,166,83,0.45)'},
+  whatNeed:{backgroundColor:'rgba(246,237,214,0.9)',borderRadius:14,padding:space.md,borderWidth:1,borderColor:'rgba(184,137,63,0.45)'},
   whatText:{fontSize:type.subhead,lineHeight:22,color:colors.muted},
-  footer:{alignItems:'center',justifyContent:'space-between',borderTopWidth:1,borderColor:'rgba(226,181,101,0.28)',paddingHorizontal:space.lg,minHeight:layout.minTouch+12},
+  footer:{alignItems:'center',justifyContent:'space-between',borderTopWidth:1,borderColor:'rgba(217,188,126,0.28)',paddingHorizontal:space.lg,minHeight:layout.minTouch+12},
   actionPill:{minHeight:40,borderRadius:radius.pill,overflow:'hidden',justifyContent:'center'},
   actionInner:{alignItems:'center',justifyContent:'center',gap:6,paddingHorizontal:space.md+2},
-  actionText:{fontSize:type.footnote+1,color:lux.espresso},
+  actionText:{fontSize:type.footnote+1,color:lux.onAction},
   detailsLink:{alignItems:'center',gap:space.sm,minHeight:layout.minTouch,paddingHorizontal:space.xs},
   detailsText:{fontSize:type.subhead,color:colors.brand},
 
-  notice:{alignItems:'center',gap:space.sm,padding:space.md,borderRadius:16,backgroundColor:'#FFF4DC',borderWidth:1,borderColor:'rgba(217,166,83,0.45)'},
-  noticeText:{fontSize:type.footnote,lineHeight:18,color:'#8A4F0B'},
+  notice:{alignItems:'center',gap:space.sm,padding:space.md,borderRadius:16,backgroundColor:'#F8F1DF',borderWidth:1,borderColor:'rgba(184,137,63,0.45)'},
+  noticeText:{fontSize:type.footnote,lineHeight:18,color:'#76592A'},
   retry:{paddingHorizontal:space.sm,minHeight:layout.minTouch,justifyContent:'center'},retryText:{fontSize:type.footnote,color:colors.brand},
 
   empty:{alignItems:'center',gap:space.md,paddingVertical:space.xxl,paddingHorizontal:space.lg},
@@ -273,7 +273,7 @@ const s=StyleSheet.create({
   noMatchTitle:{fontSize:type.title2,lineHeight:30,textAlign:'center'},
   emptyBody:{fontSize:type.callout,lineHeight:26,color:colors.muted,textAlign:'center'},
   startBtn:{minHeight:54,borderRadius:18,overflow:'hidden',justifyContent:'center',paddingHorizontal:space.xl,marginTop:space.sm},
-  startText:{fontSize:type.headline,color:lux.espresso},
+  startText:{fontSize:type.headline,color:lux.onAction},
   pullHint:{fontSize:type.caption,color:colors.muted,marginTop:space.sm,textAlign:'center'},
 
   section:{gap:space.sm},sectionTitle:{fontSize:type.subhead,color:colors.muted},
@@ -284,7 +284,7 @@ const s=StyleSheet.create({
   demoLink:{alignSelf:'center',minHeight:layout.minTouch,justifyContent:'center',paddingHorizontal:space.md},demoText:{fontSize:type.footnote+1,color:colors.muted,textDecorationLine:'underline'},
 
   skel:{padding:space.lg+2,gap:space.md},
-  skelLine1:{height:20,width:'70%',borderRadius:8,backgroundColor:'#EADBC5'},
-  skelLine2:{height:14,width:'45%',borderRadius:7,backgroundColor:'#F0E4D2'},
-  skelBar:{height:6,borderRadius:3,backgroundColor:'#F0E4D2'},
+  skelLine1:{height:20,width:'70%',borderRadius:8,backgroundColor:'#DDE2EA'},
+  skelLine2:{height:14,width:'45%',borderRadius:7,backgroundColor:'#E6EAF1'},
+  skelBar:{height:6,borderRadius:3,backgroundColor:'#E6EAF1'},
 });

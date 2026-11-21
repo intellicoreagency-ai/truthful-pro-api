@@ -93,7 +93,7 @@ const styles=StyleSheet.create({
   round:{width:layout.minTouch+2,height:layout.minTouch+2,borderRadius:radius.pill,alignItems:'center',justifyContent:'center',
     backgroundColor:onGlass.field,borderWidth:1,borderColor:onGlass.border,overflow:'hidden'},
   languageText:{fontSize:type.callout,color:colors.brand},
-  segment:{padding:4,gap:4,borderRadius:radius.control+4,backgroundColor:'rgba(118,102,91,0.12)'},
+  segment:{padding:4,gap:4,borderRadius:radius.control+4,backgroundColor:'rgba(91,100,117,0.12)'},
   segmentItem:{flex:1,minHeight:layout.minTouch,borderRadius:radius.control,alignItems:'center',justifyContent:'center',overflow:'hidden'},
   segmentOn:{backgroundColor:colors.white,...shadow},
   segmentText:{fontSize:type.subhead,color:colors.muted},

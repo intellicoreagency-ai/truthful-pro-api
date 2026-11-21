@@ -124,7 +124,7 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
   };
   const shortcut=(label:string,value:number,icon:IconName,onPress:()=>void,alert=false)=>
     <ScalePressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}, ${value}`} style={[styles.shortcut,alert&&styles.shortcutAlert]}>
-      <Icon name={icon} size={22} color={alert?'#8A4F0B':colors.brand}/>
+      <Icon name={icon} size={22} color={alert?'#76592A':colors.brand}/>
       <Txt lang={lang} bold style={styles.count}>{String(value)}</Txt>
       <Txt lang={lang} style={styles.shortcutName}>{label}</Txt>
     </ScalePressable>;
@@ -203,7 +203,7 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
       {section==='notifications'&&<>
         {alerts.length?<View>{alerts.map((a,i)=><ScalePressable key={a.id} onPress={onRequests} accessibilityRole="button" accessibilityLabel={`${a.title}. ${a.note}`}
             style={[styles.item,{flexDirection:row},i===alerts.length-1&&g.noBorder]}>
-            <View style={styles.alertIcon}><Icon name="info" size={18} color="#8A4F0B"/></View>
+            <View style={styles.alertIcon}><Icon name="info" size={18} color="#76592A"/></View>
             <View style={g.flex1}><Txt lang={lang} bold style={g.valueText}>{a.title}</Txt><Txt lang={lang} style={g.meta}>{a.note}</Txt></View>
             <Icon name={forward} size={16} color={colors.muted}/>
           </ScalePressable>)}</View>:<Txt lang={lang} style={g.body}>{t.emptyNotifications}</Txt>}
@@ -247,20 +247,20 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
 }
 
 const styles=StyleSheet.create({
-  logo:{width:44,height:44,borderRadius:22,borderWidth:1.5,borderColor:'#DDA04B'},
+  logo:{width:44,height:44,borderRadius:22,borderWidth:1.5,borderColor:'#D9BC7E'},
   identity:{alignItems:'center',gap:space.md},
   identityText:{gap:2},
   name:{fontSize:type.title2,lineHeight:30},
   pill:{alignItems:'center',gap:4,paddingVertical:3,paddingHorizontal:space.sm,borderRadius:radius.pill,backgroundColor:colors.brandTint,marginTop:space.xs},
   pillText:{fontSize:type.caption,lineHeight:16,color:colors.brand},
   avatarButton:{width:80,height:80},
-  avatar:{width:76,height:76,borderRadius:38,overflow:'hidden',borderWidth:1.5,borderColor:'#CF944A',alignItems:'center',justifyContent:'center',backgroundColor:'#FFF5E6'},
+  avatar:{width:76,height:76,borderRadius:38,overflow:'hidden',borderWidth:1.5,borderColor:'#D9BC7E',alignItems:'center',justifyContent:'center',backgroundColor:'#E8EDFB'},
   photo:{width:'100%',height:'100%'},
   camera:{position:'absolute',bottom:0,right:0,width:30,height:30,borderRadius:15,backgroundColor:colors.orange,borderWidth:2,borderColor:colors.white,alignItems:'center',justifyContent:'center'},
   shortcuts:{gap:space.sm},
   shortcut:{flex:1,minHeight:88,alignItems:'center',justifyContent:'center',gap:2,paddingHorizontal:space.xs,borderRadius:radius.card,
-    backgroundColor:'rgba(255,249,244,0.85)',borderWidth:1,borderColor:'rgba(255,255,255,0.9)',overflow:'hidden'},
-  shortcutAlert:{backgroundColor:'#FFF0CE',borderColor:'#E7C27A'},
+    backgroundColor:'rgba(255,255,255,0.85)',borderWidth:1,borderColor:'rgba(255,255,255,0.9)',overflow:'hidden'},
+  shortcutAlert:{backgroundColor:'#F6EDD6',borderColor:'#D9BC7E'},
   count:{fontSize:type.title2,lineHeight:28},
   shortcutName:{fontSize:type.caption,lineHeight:16,textAlign:'center',color:colors.muted},
   menuItem:{alignItems:'center',gap:space.md,minHeight:layout.minTouch+16,paddingVertical:space.sm,borderBottomWidth:layout.hairline,borderBottomColor:colors.line},
@@ -271,7 +271,7 @@ const styles=StyleSheet.create({
   exit:{minHeight:52,alignItems:'center',justifyContent:'center',gap:space.sm,borderRadius:16,borderWidth:1,borderColor:'#E3B9AF',backgroundColor:'rgba(255,244,240,0.9)',overflow:'hidden'},
   exitText:{fontSize:type.subhead,color:colors.danger},
   item:{alignItems:'center',gap:space.md,minHeight:layout.minTouch+8,paddingVertical:space.sm,borderBottomWidth:layout.hairline,borderBottomColor:colors.line},
-  alertIcon:{width:34,height:34,borderRadius:17,alignItems:'center',justifyContent:'center',backgroundColor:'#FFF0CE'},
+  alertIcon:{width:34,height:34,borderRadius:17,alignItems:'center',justifyContent:'center',backgroundColor:'#F6EDD6'},
   pair:{gap:space.sm},
   danger:{minHeight:52,alignItems:'center',justifyContent:'center',gap:space.sm,borderRadius:16,borderWidth:1,borderColor:'#E3B9AF',backgroundColor:'rgba(255,244,240,0.9)',overflow:'hidden'},
   dangerText:{fontSize:type.subhead,color:colors.danger},
@@ -280,7 +280,7 @@ const styles=StyleSheet.create({
   dangerFillText:{fontSize:type.subhead,color:'#FFFFFF'},
   languages:{gap:space.sm},
   radio:{alignItems:'center',gap:space.md,minHeight:layout.minTouch+8,paddingHorizontal:space.md,borderRadius:radius.control,borderWidth:1,borderColor:colors.line,backgroundColor:'rgba(255,255,255,0.7)',overflow:'hidden'},
-  radioOn:{borderColor:colors.orange,backgroundColor:'#FFF0DD'},
+  radioOn:{borderColor:colors.orange,backgroundColor:'#E8EDFB'},
   radioDot:{width:22,height:22,borderRadius:11,borderWidth:2,borderColor:colors.muted,alignItems:'center',justifyContent:'center'},
   radioDotOn:{borderColor:colors.orange},
   radioInner:{width:10,height:10,borderRadius:5,backgroundColor:colors.orange},

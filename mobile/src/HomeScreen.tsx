@@ -84,8 +84,10 @@ export function HomeScreen({lang,onLanguage,onServices,onSearch,onNotifications,
       {/* Hero */}
       <View style={styles.hero} accessible accessibilityRole="image" accessibilityLabel={t.heroA11y}>
         <Animated.Image source={hero} resizeMode="cover" style={[StyleSheet.absoluteFill,styles.heroImage,heroImage]}/>
-        <LinearGradient pointerEvents="none" colors={['rgba(24,15,8,0.62)','rgba(24,15,8,0)']} style={styles.topScrim}/>
-        <LinearGradient pointerEvents="none" colors={['rgba(251,246,238,0)','rgba(251,246,238,0.85)',lux.ivory]} locations={[0,0.7,1]} style={styles.bottomFade}/>
+        {/* Navy wash: the top of Home reads as deep sapphire night, the photo stays visible underneath. */}
+        <LinearGradient pointerEvents="none" colors={['rgba(10,20,48,0.72)','rgba(10,20,48,0.38)','rgba(10,20,48,0.15)']} locations={[0,0.55,1]} style={StyleSheet.absoluteFill}/>
+        <LinearGradient pointerEvents="none" colors={['rgba(10,20,48,0.62)','rgba(10,20,48,0)']} style={styles.topScrim}/>
+        <LinearGradient pointerEvents="none" colors={['rgba(243,245,248,0)','rgba(243,245,248,0.85)',lux.ivory]} locations={[0,0.7,1]} style={styles.bottomFade}/>
       </View>
 
       {/* Brand bar over the photo */}
@@ -110,7 +112,7 @@ export function HomeScreen({lang,onLanguage,onServices,onSearch,onNotifications,
           <LuxCard reduce={reduce} radius={22} contentStyle={[styles.search,{flexDirection:row}]}>
             <Icon name="search" size={20} color={colors.brand}/>
             <TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" value={query} onChangeText={setQuery}
-              accessibilityLabel={t.search} placeholder={t.search} placeholderTextColor="rgba(48,37,31,0.5)" returnKeyType="search" onSubmitEditing={search}
+              accessibilityLabel={t.search} placeholder={t.search} placeholderTextColor="rgba(14,21,38,0.5)" returnKeyType="search" onSubmitEditing={search}
               style={[styles.searchInput,{textAlign:ar?'right':'left',writingDirection:ar?'rtl':'ltr',fontFamily:ar?'CairoRegular':undefined}]}/>
             <ScalePressable accessibilityRole="button" accessibilityLabel={t.searchGo} accessibilityState={{disabled:!query.trim()}} disabled={!query.trim()} onPress={search}
               style={[styles.searchGo,!query.trim()&&styles.dim]} rippleColor="rgba(255,255,255,0.3)">
@@ -198,9 +200,9 @@ const styles=StyleSheet.create({
   brand:{fontSize:type.title2,lineHeight:30,color:lux.onDark},
   tagline:{fontSize:type.footnote,lineHeight:18,color:lux.onDarkSoft},
   photoButton:{width:layout.minTouch+2,height:layout.minTouch+2,borderRadius:radius.pill,alignItems:'center',justifyContent:'center',overflow:'hidden',
-    borderWidth:1,borderColor:'rgba(255,240,210,0.45)'},
-  photoButtonTint:{backgroundColor:'rgba(30,18,8,0.28)'},
-  photoButtonOpaque:{backgroundColor:'rgba(30,18,8,0.85)'},
+    borderWidth:1,borderColor:'rgba(232,211,162,0.45)'},
+  photoButtonTint:{backgroundColor:'rgba(10,20,48,0.28)'},
+  photoButtonOpaque:{backgroundColor:'rgba(10,20,48,0.85)'},
   photoButtonText:{fontSize:type.callout,color:lux.onDark},
   alertDot:{position:'absolute',top:-3,right:-3,width:10,height:10,borderRadius:5,backgroundColor:colors.orange,borderWidth:1.5,borderColor:lux.onDark},
 
@@ -234,8 +236,8 @@ const styles=StyleSheet.create({
   conciergeTitle:{fontSize:type.headline,lineHeight:26,color:lux.onDark},
   conciergeBody:{fontSize:type.footnote+1,lineHeight:20,color:lux.onDarkSoft},
   contactRow:{gap:space.md},
-  contact:{minHeight:52,alignItems:'center',justifyContent:'center',gap:space.sm,borderRadius:16,borderWidth:1,borderColor:'rgba(226,181,101,0.6)',
-    backgroundColor:'rgba(255,246,232,0.08)',overflow:'hidden'},
+  contact:{minHeight:52,alignItems:'center',justifyContent:'center',gap:space.sm,borderRadius:16,borderWidth:1,borderColor:'rgba(217,188,126,0.6)',
+    backgroundColor:'rgba(242,245,251,0.08)',overflow:'hidden'},
   contactText:{fontSize:type.subhead,color:lux.onDark},
   contactError:{fontSize:type.footnote+1,lineHeight:20,color:'#FFC9BD',textAlign:'center'},
 });

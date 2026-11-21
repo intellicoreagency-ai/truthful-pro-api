@@ -74,7 +74,7 @@ export function GoldBadge({icon,size=44,dark=false}:{icon:IconName;size?:number;
 }
 
 /**
- * Glass card with a gold-to-white gradient hairline and a soft warm shadow.
+ * Glass card with a gold-to-white gradient hairline and a soft navy shadow.
  * Layers: shadow (outer) → gradient border → blur → white sheen → content. Opaque when Reduce transparency is on.
  */
 export function LuxCard({children,reduce,style,contentStyle,radius:r=radius.card+10}:{children:React.ReactNode;reduce:boolean;style?:StyleProp<ViewStyle>;contentStyle?:StyleProp<ViewStyle>;radius?:number}){
@@ -93,9 +93,10 @@ const styles=StyleSheet.create({
   badge:{alignItems:'center',justifyContent:'center'},
   shadow:Platform.select({
     ios:{shadowColor:lux.shadow,shadowOffset:{width:0,height:14},shadowOpacity:0.14,shadowRadius:28},
-    android:{elevation:6,backgroundColor:'rgba(255,250,242,0.6)'},
+    android:{elevation:6,backgroundColor:'rgba(255,255,255,0.6)'},
     default:{shadowColor:lux.shadow,shadowOffset:{width:0,height:14},shadowOpacity:0.14,shadowRadius:28},
   }) as ViewStyle,
   border:{padding:1},
-  inner:{overflow:'hidden'},
+  // Pearl base so the gold gradient behind the 1 pt border does not tint the whole card through the glass.
+  inner:{overflow:'hidden',backgroundColor:'rgba(247,248,251,0.88)'},
 });

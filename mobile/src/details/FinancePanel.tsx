@@ -81,7 +81,7 @@ export function FinancePanel({lang,r,act,onChanged,setMessage}:{lang:Lang;r:Clie
     {f.invoice&&<View style={{gap:12}}>
       <View style={{flexDirection:row,alignItems:'center',justifyContent:'space-between',gap:12}}>
         <Txt lang={lang} bold style={g.sectionTitle}>{tx('حالة الدفع','Payment status')}</Txt>
-        <View style={{backgroundColor:'#F5E9CE',borderRadius:999,paddingHorizontal:12,paddingVertical:4}}><Txt lang={lang} bold style={{fontSize:13,color:'#98500C'}}>{state[f.totals.state]?.[ar?0:1]}</Txt></View>
+        <View style={{backgroundColor:'#E8EDFB',borderRadius:999,paddingHorizontal:12,paddingVertical:4}}><Txt lang={lang} bold style={{fontSize:13,color:'#1D3A9E'}}>{state[f.totals.state]?.[ar?0:1]}</Txt></View>
       </View>
       <View>{totalsRows.map(([l,v],i)=><ValueRow key={l} lang={lang} label={l} value={money(v)} strong={i===totalsRows.length-1} last={i===totalsRows.length-1}/>)}</View>
       {f.payments.map(p=><Txt key={p.id} lang={lang} style={g.noteText}>{p.kind==='refund'?tx('استرداد','Refund'):tx('دفعة','Payment')} {money(p.amount)} · {pst[p.status]?.[ar?0:1]}{p.note?' · '+p.note:''}</Txt>)}

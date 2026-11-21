@@ -50,7 +50,7 @@ export function GlassCard({children,style}:{children:React.ReactNode;style?:obje
     <Gradient colors={lux.goldBorder} start={{x:0,y:0}} end={{x:1,y:1}} style={s.cardBorder}>
       <View style={s.card}>
         <BlurView style={StyleSheet.absoluteFill} tint="light" intensity={60} blurTarget={Platform.OS==='android'?target:undefined} blurMethod="dimezisBlurViewSdk31Plus"/>
-        <Gradient pointerEvents="none" colors={['rgba(255,252,246,0.82)','rgba(251,244,232,0.64)']} style={StyleSheet.absoluteFill}/>
+        <Gradient pointerEvents="none" colors={['rgba(255,255,255,0.82)','rgba(243,245,248,0.64)']} style={StyleSheet.absoluteFill}/>
         <View style={s.cardInner}>{children}</View>
       </View>
     </Gradient>
@@ -128,27 +128,27 @@ export function RoundedField({lang,label,icon,error,hint,inputFont,onFocus,onBlu
 export function PrimaryButton({lang,label,onPress,busy=false,disabled=false}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void;busy?:boolean;disabled?:boolean}){
   const T=AText;
   return <ScalePressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:disabled||busy,busy}} disabled={disabled||busy} onPress={onPress}
-    rippleColor="rgba(48,37,31,0.18)" style={[s.primary,(disabled||busy)&&s.primaryOff]}>
+    rippleColor="rgba(14,21,38,0.18)" style={[s.primary,(disabled||busy)&&s.primaryOff]}>
     <Gradient pointerEvents="none" colors={lux.orange} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
-    <View pointerEvents="none">{busy?<ActivityIndicator color={lux.espresso}/>:<T lang={lang} style={s.primaryText}>{label}</T>}</View>
+    <View pointerEvents="none">{busy?<ActivityIndicator color={lux.onAction}/>:<T lang={lang} style={s.primaryText}>{label}</T>}</View>
   </ScalePressable>;
 }
 export function SecondaryButton({lang,label,onPress}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void}){
   const T=AText;
-  return <ScalePressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.secondary} rippleColor="rgba(48,37,31,0.12)">
+  return <ScalePressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.secondary} rippleColor="rgba(14,21,38,0.12)">
     <T lang={lang} style={s.secondaryText}>{label}</T>
   </ScalePressable>;
 }
 /** Inline text link ("Create account"). */
 export function TextLink({lang,label,onPress,tone='glass'}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void;tone?:'glass'|'photo'}){
   const T=AText;
-  return <ScalePressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress} style={s.link} rippleColor={tone==='photo'?'rgba(255,255,255,0.3)':'rgba(152,80,12,0.15)'}><T lang={lang} style={[s.linkText,tone==='glass'&&{color:onGlass.link}]}>{label}</T></ScalePressable>;
+  return <ScalePressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress} style={s.link} rippleColor={tone==='photo'?'rgba(255,255,255,0.3)':'rgba(29,58,158,0.15)'}><T lang={lang} style={[s.linkText,tone==='glass'&&{color:onGlass.link}]}>{label}</T></ScalePressable>;
 }
 
 /** Consent row: rounded checkbox + text. */
 export function ConsentRow({lang,checked,onToggle,children,label}:{lang:Lang;Text?:AuthText;checked:boolean;onToggle:()=>void;children:React.ReactNode;label:string}){
   const ar=lang==='ar';
-  return <ScalePressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked}} onPress={onToggle} style={[s.consent,{flexDirection:ar?'row-reverse':'row'}]} rippleColor="rgba(48,37,31,0.1)">
+  return <ScalePressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked}} onPress={onToggle} style={[s.consent,{flexDirection:ar?'row-reverse':'row'}]} rippleColor="rgba(14,21,38,0.1)">
     <View pointerEvents="none" style={[s.box,checked&&s.boxOn]}>{checked?<Icon name="check" size={14} color={lux.espresso}/>:null}</View>
     <View style={s.consentText}>{children}</View>
   </ScalePressable>;
@@ -163,7 +163,7 @@ const s=StyleSheet.create({
   top:{alignItems:'center',justifyContent:'space-between'},
   logoRing:{width:58,height:58,borderRadius:29,alignItems:'center',justifyContent:'center'},
   logo:{width:52,height:52,borderRadius:26},
-  langSwitch:{flexDirection:'row',backgroundColor:'rgba(30,18,8,0.38)',borderRadius:radius.pill,borderWidth:1,borderColor:'rgba(247,223,166,0.55)',padding:3,gap:2},
+  langSwitch:{flexDirection:'row',backgroundColor:'rgba(10,20,48,0.38)',borderRadius:radius.pill,borderWidth:1,borderColor:'rgba(241,221,170,0.55)',padding:3,gap:2},
   langItem:{minHeight:layout.minTouch-4,minWidth:56,alignItems:'center',justifyContent:'center',borderRadius:radius.pill,paddingHorizontal:space.md,overflow:'hidden'},
   langText:{fontSize:type.subhead,color:lux.onDark},langTextOn:{color:lux.espresso,fontWeight:'700'},
   content:{marginTop:space.xxl,gap:space.md},
@@ -180,22 +180,22 @@ const s=StyleSheet.create({
   footer:{marginTop:space.sm,alignItems:'center',gap:space.xs},
   fieldWrap:{gap:space.sm-2},
   label:{fontSize:type.footnote,fontWeight:'600',color:onGlass.soft},
-  field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control+4,backgroundColor:'rgba(255,255,255,0.62)',borderWidth:1,borderColor:'rgba(226,181,101,0.55)'},
-  fieldFocus:{borderColor:'#C08A3A',borderWidth:2,paddingHorizontal:space.lg-1,backgroundColor:'rgba(255,255,255,0.8)'},
+  field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control+4,backgroundColor:'rgba(255,255,255,0.62)',borderWidth:1,borderColor:'rgba(217,188,126,0.55)'},
+  fieldFocus:{borderColor:'#B8893F',borderWidth:2,paddingHorizontal:space.lg-1,backgroundColor:'rgba(255,255,255,0.8)'},
   fieldError:{borderColor:onGlass.error,borderWidth:2,paddingHorizontal:space.lg-1},
   input:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.body,color:onGlass.text},
   error:{fontSize:type.footnote,color:onGlass.error,fontWeight:'600'},
   hint:{fontSize:type.footnote,color:onGlass.soft},
   primary:{minHeight:54,borderRadius:18,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl,overflow:'hidden',...Platform.select({
-    ios:{shadowColor:'#E06F00',shadowOffset:{width:0,height:8},shadowOpacity:0.3,shadowRadius:14},android:{elevation:4},default:{}}) as object},
+    ios:{shadowColor:'#1D3A9E',shadowOffset:{width:0,height:8},shadowOpacity:0.3,shadowRadius:14},android:{elevation:4},default:{}}) as object},
   primaryOff:{opacity:0.55},
-  primaryText:{fontSize:type.headline,fontWeight:'700',color:lux.espresso},
-  secondary:{flex:1,minHeight:50,borderRadius:16,backgroundColor:'rgba(255,252,246,0.72)',borderWidth:1,borderColor:'rgba(226,181,101,0.6)',alignItems:'center',justifyContent:'center',paddingHorizontal:space.sm},
+  primaryText:{fontSize:type.headline,fontWeight:'700',color:lux.onAction},
+  secondary:{flex:1,minHeight:50,borderRadius:16,backgroundColor:'rgba(255,255,255,0.72)',borderWidth:1,borderColor:'rgba(217,188,126,0.6)',alignItems:'center',justifyContent:'center',paddingHorizontal:space.sm},
   secondaryText:{fontSize:type.subhead,fontWeight:'700',color:colors.brand,textAlign:'center'},
   link:{minHeight:layout.minTouch,justifyContent:'center',paddingHorizontal:space.sm},
   linkText:{fontSize:type.callout,fontWeight:'700',color:glass.link},
   consent:{alignItems:'flex-start',gap:space.md,minHeight:layout.minTouch,paddingVertical:space.xs},
   box:{width:24,height:24,borderRadius:7,borderWidth:1.5,borderColor:onGlass.box,alignItems:'center',justifyContent:'center',marginTop:1},
-  boxOn:{backgroundColor:'#E2B565',borderColor:'#C08A3A'},
+  boxOn:{backgroundColor:'#D9BC7E',borderColor:'#B8893F'},
   consentText:{flex:1},
 });
