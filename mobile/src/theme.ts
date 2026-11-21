@@ -29,6 +29,25 @@ export const layout={
 } as const;
 
 /** Glass (frosted) material used on the photo-backed auth screens: translucent white over a blur, white text. */
+/**
+ * Premium (concierge) layer: gold gradients, ivory glass, espresso depth.
+ * Gold used as TEXT only at display sizes (≥ 22 pt bold) and with the darker stops, so it stays ≥ 3:1 on ivory.
+ */
+export const lux={
+  ivory:'#FBF6EE',
+  sand:'#F3E6D2',
+  espresso:'#24170E',
+  espressoSoft:'#3D2817',
+  goldText:['#8A5A1E','#B27A2C','#7A4C14'] as const,     // display text on light grounds
+  goldBright:['#F7DFA6','#E2B565','#C08A3A'] as const,   // borders, icons on dark grounds
+  goldBadge:['#FCEBC6','#EDC783','#D9A653'] as const,    // icon badge fill (espresso icon on top)
+  goldBorder:['rgba(255,255,255,0.95)','rgba(232,196,128,0.9)','rgba(255,255,255,0.6)'] as const,
+  sheen:['rgba(255,255,255,0.78)','rgba(255,252,246,0.46)'] as const, // card surface over the blur
+  shadow:'#5A3A12',
+  onDark:'#FFF6E8',
+  onDarkSoft:'rgba(255,246,232,0.78)',
+} as const;
+
 export const glass={
   fill:'rgba(255,255,255,0.20)',     // card tint over the blur
   field:'rgba(255,255,255,0.16)',    // inputs inside the card
