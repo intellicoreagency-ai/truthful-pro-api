@@ -137,6 +137,12 @@ export async function pullRequests(local:ClientRequest[]):Promise<ClientRequest[
   return merged;
 }
 
+/** Fresh server copy of one request. The server only returns requests owned by the signed-in user (404 otherwise); the id alone never grants access. */
+export async function fetchRequest(remoteId:string,local?:ClientRequest):Promise<ClientRequest>{
+  const det=await json<ServerDetail&{request:Row}>(await call('GET',`/v1/requests/${encodeURIComponent(remoteId)}`));
+  return toClientRequest(det.request,det,local);
+}
+
 export async function downloadRemote(remoteFileId:string):Promise<Blob>{return await (await call('GET',`/v1/files/${remoteFileId}`)).blob()}
 export async function deleteRemoteRequest(remoteId:string){await call('DELETE',`/v1/requests/${remoteId}`)}
 export async function deleteRemoteFile(remoteFileId:string){await call('DELETE',`/v1/files/${remoteFileId}`)}
