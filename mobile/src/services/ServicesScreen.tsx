@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import {Image,Platform,StyleSheet,TextInput,View} from 'react-native';
-import {Pressable} from '../Touch';
+import {ScalePressable} from '../ui/Premium';
 import {Icon} from '../Icons';
 import {officialLogo} from '../ReferenceUI';
 import {Txt,type Lang} from '../ui/Txt';
@@ -40,21 +40,21 @@ export function ServicesScreen({lang,business,onAudience,query,onQuery,services,
         <Txt lang={lang} bold style={styles.brand}>{t.brand}</Txt>
         <Txt lang={lang} style={g.meta}>{t.tagline}</Txt>
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel={t.languageA11y} onPress={onLanguage} style={styles.round}>
+      <ScalePressable accessibilityRole="button" accessibilityLabel={t.languageA11y} onPress={onLanguage} style={styles.round}>
         <Txt lang={ar?'en':'ar'} bold style={styles.languageText}>{ar?'EN':'ع'}</Txt>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={t.profile} onPress={onProfile} style={styles.round}>
+      </ScalePressable>
+      <ScalePressable accessibilityRole="button" accessibilityLabel={t.profile} onPress={onProfile} style={styles.round}>
         <Icon name="user" size={22} color={colors.ink}/>
-      </Pressable>
+      </ScalePressable>
     </View>
 
     {/* Segmented control */}
     <View accessibilityRole="tablist" accessibilityLabel={t.audience} style={[styles.segment,{flexDirection:row}]}>
       {([[false,t.individual],[true,t.company]] as const).map(([isBusiness,label])=>{const selected=business===isBusiness;
-        return <Pressable key={label} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{selected}} aria-selected={selected}
+        return <ScalePressable key={label} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{selected}} aria-selected={selected}
           onPress={()=>onAudience(isBusiness)} style={[styles.segmentItem,selected&&styles.segmentOn]}>
           <Txt lang={lang} bold style={{...styles.segmentText,...(selected?{color:colors.ink}:null)}}>{label}</Txt>
-        </Pressable>;})}
+        </ScalePressable>;})}
     </View>
 
     <View style={[styles.search,{flexDirection:row}]}>
@@ -62,9 +62,9 @@ export function ServicesScreen({lang,business,onAudience,query,onQuery,services,
       <TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" value={query} onChangeText={onQuery}
         accessibilityLabel={t.search} placeholder={t.search} placeholderTextColor={onGlass.placeholder} returnKeyType="search" autoCorrect={false}
         style={[styles.searchInput,{textAlign:ar?'right':'left',writingDirection:ar?'rtl':'ltr',fontFamily:ar?'CairoRegular':undefined}]}/>
-      {!!query&&<Pressable accessibilityRole="button" accessibilityLabel={t.clear} onPress={()=>onQuery('')} style={styles.clear}>
+      {!!query&&<ScalePressable accessibilityRole="button" accessibilityLabel={t.clear} onPress={()=>onQuery('')} style={styles.clear}>
         <Icon name="close" size={16} color={colors.muted}/>
-      </Pressable>}
+      </ScalePressable>}
     </View>
 
     <View style={[g.between,{flexDirection:row}]}>
@@ -72,10 +72,10 @@ export function ServicesScreen({lang,business,onAudience,query,onQuery,services,
       <Txt lang={lang} style={g.meta}>{t.count(services.length)}</Txt>
     </View>
 
-    {services.map(service=><Pressable key={service.id} accessibilityRole="button" accessibilityLabel={serviceLabel(service,lang)}
+    {services.map(service=><ScalePressable key={service.id} accessibilityRole="button" accessibilityLabel={serviceLabel(service,lang)}
       onPress={()=>onOpen(service)} style={styles.tile}>
       <View style={styles.tileClip}>{renderBanner(service)}</View>
-    </Pressable>)}
+    </ScalePressable>)}
 
     {services.length===0&&<Note lang={lang}>{`${t.none} ${t.noneHint.replace('{other}',other)}`}</Note>}
   </GlassScreen>;

@@ -4,11 +4,11 @@
  */
 import React,{useEffect,useState} from 'react';
 import {AccessibilityInfo,ActivityIndicator,Platform,StyleSheet,TextInput,View,type ScrollViewProps,type TextInputProps} from 'react-native';
-import {BlurView} from 'expo-blur';
-import {Pressable} from '../Touch';
+import {LinearGradient} from 'expo-linear-gradient';
+import {Entrance,GoldText,LuxCard,ScalePressable} from './Premium';
 import {Icon,type IconName} from '../Icons';
 import {Txt,type Lang} from './Txt';
-import {colors,layout,onGlass,radius,space,type} from '../theme';
+import {colors,layout,lux,onGlass,radius,space,type} from '../theme';
 import {ScrollView} from '../navigation/TabBarLayout';
 import {statusLabels,steps,type Status} from '../clientModel';
 import {statusTone} from '../dashboard/statusStyle';
@@ -34,13 +34,8 @@ export function useReduceTransparency(){
 
 /** Frosted card. The shadow sits on an outer View so the inner rounded clip keeps the blur. */
 export function GlassCard({children,reduce,tone}:{children:React.ReactNode;reduce:boolean;tone?:'warning'|'success'}){
-  return <View style={g.cardShadow}>
-    <View style={[g.card,tone==='warning'&&g.cardWarning]}>
-      {!reduce&&<BlurView pointerEvents="none" tint="light" intensity={60}
-        experimentalBlurMethod={Platform.OS==='android'?'dimezisBlurView':undefined} style={StyleSheet.absoluteFill}/>}
-      <View style={[g.cardContent,reduce&&g.opaque,tone==='warning'&&g.warningFill,tone==='success'&&g.successFill]}>{children}</View>
-    </View>
-  </View>;
+  // Premium glass: blur + ivory sheen + gold gradient hairline + warm shadow (see LuxCard); tones add a soft tint.
+  return <LuxCard reduce={reduce} contentStyle={[g.luxContent,tone==='warning'&&g.warningTint,tone==='success'&&g.successTint]}>{children}</LuxCard>;
 }
 
 export function SectionTitle({lang,children}:{lang:Lang;children:React.ReactNode}){
@@ -67,20 +62,23 @@ export function GlassButton({lang,label,onPress,icon,primary,disabled,busy,acces
   /** Share a row equally with its siblings (same width and height). */fill?:boolean;
 }){
   const off=!!disabled||!!busy,fg=primary?'#FFFFFF':colors.brand;
-  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel??label} accessibilityState={{disabled:off,busy:!!busy}}
+  return <ScalePressable accessibilityRole="button" accessibilityLabel={accessibilityLabel??label} accessibilityState={{disabled:off,busy:!!busy}}
     disabled={off} onPress={onPress} rippleColor={primary?'rgba(255,255,255,0.3)':undefined}
-    style={[g.button,compact&&g.buttonCompact,fill&&g.fill,{flexDirection:rowFor(lang)},primary?g.primary:g.secondary,off&&g.disabled]}>
-    {busy?<ActivityIndicator color={fg}/>:icon?<Icon name={icon} size={19} color={fg}/>:null}
-    {!!label&&<Txt lang={lang} bold style={{...g.buttonText,color:fg}}>{label}</Txt>}
-  </Pressable>;
+    style={[g.button,compact&&g.buttonCompact,fill&&g.fill,primary?g.primary:g.secondary,off&&g.disabled]}>
+    {primary&&<LinearGradient pointerEvents="none" colors={['#FFA43A',colors.orange,'#E06F00']} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>}
+    <View pointerEvents="none" style={[g.buttonInner,{flexDirection:rowFor(lang)}]}>
+      {busy?<ActivityIndicator color={fg}/>:icon?<Icon name={icon} size={19} color={fg}/>:null}
+      {!!label&&<Txt lang={lang} bold style={{...g.buttonText,color:fg}}>{label}</Txt>}
+    </View>
+  </ScalePressable>;
 }
 
 /** Round icon-only button (≥ 44/48 touch target) with a required spoken label. */
 export function IconButton({icon,label,onPress,disabled}:{icon:IconName;label:string;onPress:()=>void;disabled?:boolean}){
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:!!disabled}} disabled={disabled}
+  return <ScalePressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:!!disabled}} disabled={disabled}
     onPress={onPress} style={[g.iconButton,disabled&&g.disabled]}>
-    <Icon name={icon} size={20} color={colors.brand}/>
-  </Pressable>;
+    <View pointerEvents="none"><Icon name={icon} size={20} color={colors.brand}/></View>
+  </ScalePressable>;
 }
 
 export function GlassField({lang,label,...input}:{lang:Lang;label:string}&TextInputProps){
@@ -105,15 +103,29 @@ export function GlassBackdrop(){
 export function ScreenHeader({lang,title,subtitle,onBack,backLabel,trailing}:{lang:Lang;title:string;subtitle?:string;onBack?:()=>void;backLabel?:string;trailing?:React.ReactNode}){
   const ar=lang==='ar';
   return <View style={[g.header,{flexDirection:rowFor(lang)}]}>
-    {onBack&&<Pressable accessibilityRole="button" accessibilityLabel={backLabel??(ar?'رجوع':'Go back')} onPress={onBack} style={g.backButton}>
-      <Icon name={ar?'next':'back'} size={24} color={colors.ink}/>
-    </Pressable>}
-    <View style={g.flex1} accessibilityRole="header">
-      <Txt lang={lang} bold style={g.headerTitle}>{title}</Txt>
+    {onBack&&<ScalePressable accessibilityRole="button" accessibilityLabel={backLabel??(ar?'رجوع':'Go back')} onPress={onBack} style={g.backButton}>
+      <View pointerEvents="none"><Icon name={ar?'next':'back'} size={24} color={colors.ink}/></View>
+    </ScalePressable>}
+    <View style={g.flex1}>
+      <GoldText lang={lang} style={g.headerTitle}>{title}</GoldText>
       {!!subtitle&&<Txt lang={lang} style={g.headerSubtitle}>{subtitle}</Txt>}
     </View>
     {trailing}
   </View>;
+}
+
+/**
+ * Top-level sections of a screen, with fragments unpacked so each keeps the page spacing.
+ * Keys come from React's own positional keys (stable when conditional sections appear or disappear),
+ * so a section never remounts or swaps state because something above it changed.
+ */
+function sections(nodes:React.ReactNode,prefix=''):[string,React.ReactElement][]{
+  return React.Children.toArray(nodes).flatMap((child):[string,React.ReactElement][]=>{
+    if(!React.isValidElement(child))return [];
+    const key=prefix+String(child.key);
+    if(child.type===React.Fragment)return sections((child.props as {children?:React.ReactNode}).children,key+'/');
+    return [[key,child]];
+  });
 }
 
 /** Full-screen glass page: backdrop + scroll view (keeps clear of the tab bar) + centred column. */
@@ -122,7 +134,7 @@ export function GlassScreen({children,refreshControl,scrollRef}:{children:React.
     <GlassBackdrop/>
     <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets
       refreshControl={refreshControl} contentContainerStyle={g.content}>
-      <View style={g.page}>{children}</View>
+      <View style={g.page}>{sections(children).map(([key,el],i)=><Entrance key={key} index={i}>{el}</Entrance>)}</View>
     </ScrollView>
   </View>;
 }
@@ -167,11 +179,13 @@ export function StageTracker({lang,stage}:{lang:Lang;stage:number}){
 
 /** Checkbox row (label + tick), for choices such as what to share. */
 export function CheckRow({lang,label,checked,onPress,disabled}:{lang:Lang;label:string;checked:boolean;onPress:()=>void;disabled?:boolean}){
-  return <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked,disabled:!!disabled}} aria-checked={checked} disabled={disabled} onPress={onPress}
-    style={[g.check,{flexDirection:rowFor(lang)},checked&&g.checkOn,disabled&&g.disabled]}>
-    <View style={[g.checkBox,checked&&g.checkBoxOn]}>{checked&&<Icon name="check" size={16} color="#FFFFFF"/>}</View>
-    <View style={g.flex1}><Txt lang={lang} bold={checked} style={g.valueText}>{label}</Txt></View>
-  </Pressable>;
+  return <ScalePressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked,disabled:!!disabled}} aria-checked={checked} disabled={disabled} onPress={onPress}
+    style={[g.check,checked&&g.checkOn,disabled&&g.disabled]}>
+    <View pointerEvents="none" style={[g.checkInner,{flexDirection:rowFor(lang)}]}>
+      <View style={[g.checkBox,checked&&g.checkBoxOn]}>{checked&&<Icon name="check" size={16} color="#FFFFFF"/>}</View>
+      <View style={g.flex1}><Txt lang={lang} bold={checked} style={g.valueText}>{label}</Txt></View>
+    </View>
+  </ScalePressable>;
 }
 
 const shadow=Platform.select({
@@ -182,18 +196,21 @@ const shadow=Platform.select({
 
 export const g=StyleSheet.create({
   flex1:{flex:1},
+  luxContent:{padding:space.xl,gap:space.lg},
+  warningTint:{backgroundColor:'rgba(255,233,190,0.55)'},
+  successTint:{backgroundColor:'rgba(222,240,208,0.55)'},
   between:{alignItems:'center',justifyContent:'space-between',gap:space.md},
-  screen:{flex:1,backgroundColor:colors.background},
+  screen:{flex:1,backgroundColor:lux.ivory},
   backdrop:{position:'absolute',top:0,right:0,bottom:0,left:0,overflow:'hidden'},
   orb:{position:'absolute',width:320,height:320,borderRadius:160},
-  orbWarm:{backgroundColor:colors.gold,opacity:0.28,top:40,left:-130},
-  orbSand:{backgroundColor:colors.brandTint,opacity:0.9,top:420,right:-150},
+  orbWarm:{backgroundColor:'#F3C77A',opacity:0.22,top:60,left:-140},
+  orbSand:{backgroundColor:lux.sand,opacity:0.9,top:440,right:-160},
   content:{flexGrow:1,paddingHorizontal:space.lg,paddingTop:space.md,paddingBottom:space.xxl+space.sm},
   page:{width:'100%',maxWidth:600,alignSelf:'center',gap:space.lg},
   header:{alignItems:'center',gap:space.md},
   backButton:{width:layout.minTouch+4,height:layout.minTouch+4,borderRadius:radius.pill,alignItems:'center',justifyContent:'center',
     backgroundColor:onGlass.field,borderWidth:1,borderColor:onGlass.border,overflow:'hidden'},
-  headerTitle:{fontSize:type.title2,lineHeight:32},
+  headerTitle:{fontSize:type.title2+2,lineHeight:34},
   headerSubtitle:{fontSize:type.subhead,lineHeight:22,color:colors.muted},
   badge:{alignItems:'center',gap:6,borderRadius:radius.pill,paddingHorizontal:space.md,paddingVertical:5,alignSelf:'flex-start'},
   badgeText:{fontSize:type.footnote,lineHeight:20},
@@ -209,7 +226,8 @@ export const g=StyleSheet.create({
   dotDone:{backgroundColor:colors.orange,borderColor:colors.orange},
   dotNow:{borderColor:colors.orange,borderWidth:4,backgroundColor:'#FFF0DD'},
   stepText:{fontSize:type.caption,lineHeight:18,textAlign:'center',color:colors.muted},
-  check:{alignItems:'center',gap:space.md,minHeight:layout.minTouch+4,paddingHorizontal:space.md,paddingVertical:space.sm,borderRadius:radius.control,
+  checkInner:{alignItems:'center',gap:space.md,paddingHorizontal:space.md,paddingVertical:space.sm},
+  check:{minHeight:layout.minTouch+4,justifyContent:'center',borderRadius:radius.control,
     borderWidth:1,borderColor:colors.line,backgroundColor:'rgba(255,249,244,0.9)',overflow:'hidden'},
   checkOn:{borderColor:'#EBA65B',backgroundColor:'#FFF0DB'},
   checkBox:{width:24,height:24,borderRadius:6,borderWidth:1.5,borderColor:colors.muted,alignItems:'center',justifyContent:'center'},
@@ -239,14 +257,15 @@ export const g=StyleSheet.create({
   noteSuccess:{backgroundColor:'#E5F2D9'},
   noteText:{fontSize:type.footnote+1,lineHeight:22,color:onGlass.soft},
 
-  button:{minHeight:52,borderRadius:16,paddingHorizontal:space.lg,paddingVertical:space.md,alignItems:'center',justifyContent:'center',gap:space.sm+2,overflow:'hidden'},
-  buttonCompact:{minHeight:layout.minTouch,paddingVertical:space.sm,paddingHorizontal:space.md},
-  primary:{backgroundColor:colors.orange},
-  secondary:{backgroundColor:'rgba(255,249,244,0.9)',borderWidth:1,borderColor:colors.line},
+  button:{minHeight:52,borderRadius:18,justifyContent:'center',overflow:'hidden'},
+  buttonInner:{alignItems:'center',justifyContent:'center',gap:space.sm+2,paddingHorizontal:space.lg,paddingVertical:space.md,flexWrap:'nowrap'},
+  buttonCompact:{minHeight:layout.minTouch},
+  primary:{backgroundColor:colors.orange,borderWidth:0},
+  secondary:{backgroundColor:'rgba(255,252,246,0.9)',borderWidth:1,borderColor:'rgba(226,181,101,0.55)'},
   buttonText:{fontSize:type.subhead,textAlign:'center',flexShrink:1},
   disabled:{opacity:0.45},
   iconButton:{width:layout.minTouch,height:layout.minTouch,borderRadius:radius.pill,alignItems:'center',justifyContent:'center',
-    backgroundColor:'rgba(255,249,244,0.9)',borderWidth:1,borderColor:colors.line,overflow:'hidden'},
+    backgroundColor:'rgba(255,252,246,0.9)',borderWidth:1,borderColor:'rgba(226,181,101,0.55)',overflow:'hidden'},
 
   field:{gap:space.xs+2},
   fieldLabel:{fontSize:type.footnote+1,lineHeight:20,color:onGlass.soft},

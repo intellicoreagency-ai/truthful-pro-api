@@ -1,5 +1,5 @@
 import React,{useEffect} from 'react';
-import {Platform,StyleSheet,Text,View,type TextStyle} from 'react-native';
+import {Platform,StyleSheet,Text,View,useWindowDimensions,type TextStyle} from 'react-native';
 import Animated,{useAnimatedStyle,useReducedMotion,useSharedValue,withSpring} from 'react-native-reanimated';
 import {BlurView} from 'expo-blur';
 import {LinearGradient} from 'expo-linear-gradient';
@@ -25,9 +25,11 @@ type Props={
 };
 
 const SPRING={damping:15,stiffness:240,mass:0.6};
+/** How far the raised "+" rises above the capsule; screens reserve it so their last item is never covered. */
+const FAB_RISE=34;
 
 /** One tab: the selected one gets a gold pill that springs in behind its icon. */
-function Tab({tab,selected,label,onPress,labelFont}:{tab:TabItem;selected:boolean;label:string;onPress:()=>void;labelFont:(s:boolean)=>TextStyle}){
+function Tab({tab,selected,label,onPress,labelFont,compact}:{tab:TabItem;selected:boolean;label:string;onPress:()=>void;labelFont:(s:boolean)=>TextStyle;compact:boolean}){
   const reduce=useReducedMotion();
   const on=useSharedValue(selected?1:0);
   useEffect(()=>{on.value=reduce?(selected?1:0):withSpring(selected?1:0,SPRING)},[selected,reduce,on]);
@@ -40,7 +42,7 @@ function Tab({tab,selected,label,onPress,labelFont}:{tab:TabItem;selected:boolea
       </Animated.View>
       <View><Icon name={tab.icon} filled={selected&&tab.icon==='home'} size={23} color={selected?lux.espresso:colors.ink}/></View>
     </View>
-    <Text maxFontSizeMultiplier={layout.maxFontScale} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[s.label,selected&&s.labelOn,labelFont(selected)]}>{label}</Text>
+    <Text maxFontSizeMultiplier={layout.maxFontScale} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[s.label,compact&&s.labelCompact,selected&&s.labelOn,labelFont(selected)]}>{label}</Text>
   </ScalePressable>;
 }
 
@@ -51,9 +53,10 @@ function Tab({tab,selected,label,onPress,labelFont}:{tab:TabItem;selected:boolea
  */
 export function TabBar({active,labels,onSelect,blurTarget,accessory,labelFont,rtl=false}:Props){
   const insets=useSafeAreaInsets();
+  const compact=useWindowDimensions().width<380; // small phones: slightly smaller labels so none truncate
   const setHeight=useSetTabBarHeight();
   React.useEffect(()=>()=>setHeight(0),[setHeight]); // content gets the full screen back when the bar is hidden
-  return <View style={[s.root,{paddingBottom:Math.max(insets.bottom,10)}]} onLayout={e=>setHeight(e.nativeEvent.layout.height)} pointerEvents="box-none">
+  return <View style={[s.root,{paddingBottom:Math.max(insets.bottom,10)}]} onLayout={e=>setHeight(e.nativeEvent.layout.height+(accessory?0:FAB_RISE))} pointerEvents="box-none">
     {accessory}
     <View style={s.capsuleShadow}>
       <LinearGradient colors={lux.goldBorder} start={{x:0,y:0}} end={{x:1,y:1}} style={s.capsuleBorder}>
@@ -67,7 +70,7 @@ export function TabBar({active,labels,onSelect,blurTarget,accessory,labelFont,rt
           </View>
           <View style={[s.row,{flexDirection:rtl?'row-reverse':'row'}]} accessibilityRole="tablist">
             {TABS.map(tab=>tab.primary
-              ?<View key={tab.key} style={s.item}>
+              ?<View key={tab.key} style={[s.item,s.fabItem]}>
                 <ScalePressable accessibilityRole="button" accessibilityLabel={labels[tab.key]} onPress={()=>onSelect(tab.key)} scaleTo={0.92}
                   rippleColor="rgba(255,255,255,0.3)" style={s.fabHit}>
                   <View pointerEvents="none" style={s.fabShadow}>
@@ -78,9 +81,9 @@ export function TabBar({active,labels,onSelect,blurTarget,accessory,labelFont,rt
                     </LinearGradient>
                   </View>
                 </ScalePressable>
-                <Text maxFontSizeMultiplier={layout.maxFontScale} numberOfLines={1} style={[s.label,s.fabLabel,labelFont(false)]}>{labels[tab.key]}</Text>
+                <Text maxFontSizeMultiplier={layout.maxFontScale} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[s.label,compact&&s.labelCompact,s.fabLabel,labelFont(false)]}>{labels[tab.key]}</Text>
               </View>
-              :<Tab key={tab.key} tab={tab} selected={active===tab.key} label={labels[tab.key]} onPress={()=>onSelect(tab.key)} labelFont={labelFont}/>)}
+              :<Tab key={tab.key} tab={tab} selected={active===tab.key} label={labels[tab.key]} onPress={()=>onSelect(tab.key)} labelFont={labelFont} compact={compact}/>)}
           </View>
         </View>
       </LinearGradient>
@@ -103,8 +106,9 @@ const s=StyleSheet.create({
   iconBox:{width:52,height:32,alignItems:'center',justifyContent:'center'},
   pill:{flex:1,borderRadius:16},
   label:{fontSize:type.tabLabel,color:colors.muted,textAlign:'center',maxWidth:'100%'},
+  labelCompact:{fontSize:type.tabLabel-1},
   labelOn:{color:colors.brand,fontWeight:'700'},
-  fabHit:{marginTop:-34,borderRadius:34},
+  fabHit:{marginTop:-FAB_RISE,borderRadius:34},
   fabShadow:{borderRadius:33,...Platform.select({
     ios:{shadowColor:'#E06F00',shadowOffset:{width:0,height:8},shadowOpacity:0.38,shadowRadius:14},
     android:{elevation:10},
@@ -112,5 +116,6 @@ const s=StyleSheet.create({
   }) as object},
   fabRing:{width:66,height:66,borderRadius:33,padding:3},
   fab:{flex:1,borderRadius:30,alignItems:'center',justifyContent:'center'},
-  fabLabel:{marginTop:2},
+  fabItem:{flex:1.25}, // a little wider so "Start Request" fits without shrinking
+  fabLabel:{marginTop:2,alignSelf:'stretch'},
 });

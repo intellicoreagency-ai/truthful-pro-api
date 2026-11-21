@@ -2,7 +2,7 @@ import React,{createContext,useContext,useEffect,useRef,useState} from 'react';
 import {AccessibilityInfo,ActivityIndicator,Animated,Image,KeyboardAvoidingView,Platform,ScrollView,StyleSheet,Text,TextInput,useWindowDimensions,View,type TextInputProps} from 'react-native';
 import {BlurTargetView,BlurView} from 'expo-blur';
 import Svg,{Defs,LinearGradient,Rect,Stop} from 'react-native-svg';
-import {Pressable} from '../Touch';
+import {ScalePressable} from '../ui/Premium';
 import {Icon,type IconName} from '../Icons';
 import {colors,glass,layout,onGlass,radius,space,type} from '../theme';
 import type {Lang} from './copy';
@@ -83,9 +83,9 @@ export function AuthScaffold({lang,onLanguage,logo,title,subtitle,children,foote
           <View style={[s.top,{flexDirection:ar?'row-reverse':'row'}]}>
             <Image source={logo} style={s.logo} accessible={false}/>
             <View style={s.langSwitch} accessibilityRole="tablist">
-              {(['ar','en'] as const).map(l=><Pressable key={l} accessibilityRole="tab" accessibilityState={{selected:lang===l}} accessibilityLabel={l==='ar'?'العربية':'English'} onPress={()=>onLanguage(l)} style={[s.langItem,lang===l&&s.langOn]} rippleColor="rgba(255,255,255,0.3)">
+              {(['ar','en'] as const).map(l=><ScalePressable key={l} accessibilityRole="tab" accessibilityState={{selected:lang===l}} accessibilityLabel={l==='ar'?'العربية':'English'} onPress={()=>onLanguage(l)} style={[s.langItem,lang===l&&s.langOn]} rippleColor="rgba(255,255,255,0.3)">
                 <T lang={l} style={[s.langText,lang===l&&s.langTextOn]}>{l==='ar'?'عربي':'EN'}</T>
-              </Pressable>)}
+              </ScalePressable>)}
             </View>
           </View>
           <View style={s.content}>
@@ -121,30 +121,30 @@ export function RoundedField({lang,label,icon,error,hint,inputFont,onFocus,onBlu
 
 export function PrimaryButton({lang,label,onPress,busy=false,disabled=false}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void;busy?:boolean;disabled?:boolean}){
   const T=AText;
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:disabled||busy,busy}} disabled={disabled||busy} onPress={onPress}
+  return <ScalePressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:disabled||busy,busy}} disabled={disabled||busy} onPress={onPress}
     rippleColor="rgba(48,37,31,0.18)" style={[s.primary,(disabled||busy)&&s.primaryOff]}>
     {busy?<ActivityIndicator color={colors.ink}/>:<T lang={lang} style={s.primaryText}>{label}</T>}
-  </Pressable>;
+  </ScalePressable>;
 }
 export function SecondaryButton({lang,label,onPress}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void}){
   const T=AText;
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.secondary} rippleColor="rgba(48,37,31,0.12)">
+  return <ScalePressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.secondary} rippleColor="rgba(48,37,31,0.12)">
     <T lang={lang} style={s.secondaryText}>{label}</T>
-  </Pressable>;
+  </ScalePressable>;
 }
 /** Inline text link ("Create account"). */
 export function TextLink({lang,label,onPress,tone='glass'}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void;tone?:'glass'|'photo'}){
   const T=AText;
-  return <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress} style={s.link} rippleColor={tone==='photo'?'rgba(255,255,255,0.3)':'rgba(152,80,12,0.15)'}><T lang={lang} style={[s.linkText,tone==='glass'&&{color:onGlass.link}]}>{label}</T></Pressable>;
+  return <ScalePressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress} style={s.link} rippleColor={tone==='photo'?'rgba(255,255,255,0.3)':'rgba(152,80,12,0.15)'}><T lang={lang} style={[s.linkText,tone==='glass'&&{color:onGlass.link}]}>{label}</T></ScalePressable>;
 }
 
 /** Consent row: rounded checkbox + text. */
 export function ConsentRow({lang,checked,onToggle,children,label}:{lang:Lang;Text?:AuthText;checked:boolean;onToggle:()=>void;children:React.ReactNode;label:string}){
   const ar=lang==='ar';
-  return <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked}} onPress={onToggle} style={[s.consent,{flexDirection:ar?'row-reverse':'row'}]} rippleColor="rgba(48,37,31,0.1)">
+  return <ScalePressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked}} onPress={onToggle} style={[s.consent,{flexDirection:ar?'row-reverse':'row'}]} rippleColor="rgba(48,37,31,0.1)">
     <View style={[s.box,checked&&s.boxOn]}>{checked?<Icon name="check" size={14} color={colors.ink}/>:null}</View>
     <View style={s.consentText}>{children}</View>
-  </Pressable>;
+  </ScalePressable>;
 }
 
 export const authStyles=StyleSheet.create({legal:{color:glass.link,textDecorationLine:'underline'}});

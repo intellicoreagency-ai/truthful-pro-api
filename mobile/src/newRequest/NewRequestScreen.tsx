@@ -1,6 +1,6 @@
 import React,{useMemo,useState} from 'react';
 import {ActivityIndicator,KeyboardAvoidingView,Platform,StyleSheet,TextInput,View} from 'react-native';
-import {Pressable} from '../Touch';
+import {ScalePressable} from '../ui/Premium';
 import {Icon} from '../Icons';
 import {Txt} from '../ui/Txt';
 import {ScrollView} from '../navigation/TabBarLayout';
@@ -126,15 +126,15 @@ export function NewRequestScreen({lang,account,signedIn,onSaved,onOpenDocuments,
       </Group>:null}
 
       {error?<View style={s.errorBox} accessibilityLiveRegion="polite"><Txt lang={lang} style={s.errorText}>{error}</Txt>
-        {canLocal?<Pressable accessibilityRole="button" onPress={()=>{onSaved(build());onBack();}} style={s.errorLink}><Txt lang={lang} style={s.errorLinkText}>{t.saveLocal}</Txt></Pressable>:null}
+        {canLocal?<ScalePressable accessibilityRole="button" onPress={()=>{onSaved(build());onBack();}} style={s.errorLink}><Txt lang={lang} style={s.errorLinkText}>{t.saveLocal}</Txt></ScalePressable>:null}
       </View>:null}
       {!signedIn?<Txt lang={lang} style={s.guest}>{t.guestNote}</Txt>:null}
 
-      <Pressable accessibilityRole="button" accessibilityLabel={signedIn?(required.length||!action?t.create:t.submit):t.signIn} accessibilityState={{disabled:busy,busy}} disabled={busy} onPress={()=>void submit()}
+      <ScalePressable accessibilityRole="button" accessibilityLabel={signedIn?(required.length||!action?t.create:t.submit):t.signIn} accessibilityState={{disabled:busy,busy}} disabled={busy} onPress={()=>void submit()}
         rippleColor="rgba(48,37,31,0.18)" style={[s.primary,(!valid&&signedIn)&&s.primaryDim]}>
         {busy?<View style={s.busyRow}><ActivityIndicator color={colors.ink}/><Txt lang={lang} style={s.primaryText}>{t.creating}</Txt></View>
           :<Txt lang={lang} style={s.primaryText}>{signedIn?(required.length||!action?t.create:t.submit):t.signIn}</Txt>}
-      </Pressable>
+      </ScalePressable>
     </ScrollView>
 
     <SelectSheet visible={sheet==='service'} lang={lang} title={t.pickService} sections={sections} selectedId={service?.id} searchPlaceholder={t.searchService}
@@ -150,10 +150,10 @@ function Group({lang,title,children}:{lang:Lang;title:string;children:React.Reac
 }
 function PickerRow({lang,label,value,placeholder,onPress,last}:{lang:Lang;label:string;value:string;placeholder:string;onPress:()=>void;last?:boolean}){
   const ar=lang==='ar';
-  return <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value||placeholder}`} onPress={onPress} style={[s.pickRow,{flexDirection:ar?'row-reverse':'row'},!last&&s.rowLine]}>
+  return <ScalePressable accessibilityRole="button" accessibilityLabel={`${label}: ${value||placeholder}`} onPress={onPress} style={[s.pickRow,{flexDirection:ar?'row-reverse':'row'},!last&&s.rowLine]}>
     <View style={s.pickText}><Txt lang={lang} style={s.label}>{label}</Txt><Txt lang={lang} style={[s.pickValue,!value&&{color:onGlass.placeholder}]} numberOfLines={2}>{value||placeholder}</Txt></View>
     <Icon name={ar?'back':'next'} size={18} color={colors.muted}/>
-  </Pressable>;
+  </ScalePressable>;
 }
 function Field({lang,label,error,last,children}:{lang:Lang;label:string;error?:string;last?:boolean;children:React.ReactNode}){
   return <View style={[s.field,!last&&s.rowLine]}><Txt lang={lang} style={s.label}>{label}</Txt>{children}{error?<Txt lang={lang} style={s.fieldError}>{error}</Txt>:null}</View>;
@@ -173,8 +173,8 @@ function Done({lang,info,onUpload,onDashboard}:{lang:Lang;info:CreatedInfo;onUpl
     <Txt lang={lang} style={s.doneTitle}>{t.doneTitle}</Txt>
     <Txt lang={lang} style={s.doneBody}>{info.onServer?(info.submitted?t.doneSubmitted:t.doneDraft):t.localOnly}</Txt>
     <View style={s.refBox}><Txt lang={lang} style={s.refLabel}>{t.ref}</Txt><Txt lang="en" style={s.refValue}>{'⁦#'+ref+'⁩'}</Txt></View>
-    {!info.submitted?<Pressable accessibilityRole="button" accessibilityLabel={t.uploadDocs} onPress={onUpload} rippleColor="rgba(48,37,31,0.18)" style={s.primary}><Txt lang={lang} style={s.primaryText}>{t.uploadDocs}</Txt></Pressable>:null}
-    <Pressable accessibilityRole="button" accessibilityLabel={t.toDashboard} onPress={onDashboard} style={s.secondary}><Txt lang={lang} style={s.secondaryText}>{t.toDashboard}</Txt></Pressable>
+    {!info.submitted?<ScalePressable accessibilityRole="button" accessibilityLabel={t.uploadDocs} onPress={onUpload} rippleColor="rgba(48,37,31,0.18)" style={s.primary}><Txt lang={lang} style={s.primaryText}>{t.uploadDocs}</Txt></ScalePressable>:null}
+    <ScalePressable accessibilityRole="button" accessibilityLabel={t.toDashboard} onPress={onDashboard} style={s.secondary}><Txt lang={lang} style={s.secondaryText}>{t.toDashboard}</Txt></ScalePressable>
   </ScrollView>;
 }
 

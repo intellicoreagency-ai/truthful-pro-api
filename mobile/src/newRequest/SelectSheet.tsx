@@ -1,6 +1,7 @@
 import React,{useMemo,useState} from 'react';
 import {Modal,Platform,ScrollView,StyleSheet,TextInput,View} from 'react-native';
 import {Pressable} from '../Touch';
+import {ScalePressable} from '../ui/Premium';
 import {Icon} from '../Icons';
 import {Txt} from '../ui/Txt';
 import {colors,layout,onGlass,radius,space,type} from '../theme';
@@ -27,7 +28,7 @@ export function SelectSheet({visible,lang,title,sections,selectedId,searchPlaceh
         <View style={s.grabber}/>
         <View style={[s.head,{flexDirection:ar?'row-reverse':'row'}]}>
           <Txt lang={lang} style={s.title}>{title}</Txt>
-          <Pressable accessibilityRole="button" accessibilityLabel={ar?'إغلاق':'Close'} onPress={onClose} style={s.close}><Icon name="close" size={18} color={colors.ink}/></Pressable>
+          <ScalePressable accessibilityRole="button" accessibilityLabel={ar?'إغلاق':'Close'} onPress={onClose} style={s.close}><Icon name="close" size={18} color={colors.ink}/></ScalePressable>
         </View>
         {searchPlaceholder?<View style={[s.search,{flexDirection:ar?'row-reverse':'row'}]}>
           <Icon name="search" size={18} color={onGlass.soft}/>
@@ -38,11 +39,11 @@ export function SelectSheet({visible,lang,title,sections,selectedId,searchPlaceh
           {filtered.map((sec,si)=><View key={si} style={s.section}>
             {sec.title?<Txt lang={lang} style={s.sectionTitle}>{sec.title}</Txt>:null}
             <View style={s.group}>
-              {sec.items.map((it,i)=>{const on=it.id===selectedId;return <Pressable key={it.id} accessibilityRole="radio" accessibilityState={{selected:on}} accessibilityLabel={it.title} onPress={()=>{onSelect(it.id);setQ('');}}
+              {sec.items.map((it,i)=>{const on=it.id===selectedId;return <ScalePressable key={it.id} accessibilityRole="radio" accessibilityState={{selected:on}} accessibilityLabel={it.title} onPress={()=>{onSelect(it.id);setQ('');}}
                 style={[s.row,{flexDirection:ar?'row-reverse':'row'},i<sec.items.length-1&&s.rowLine]}>
                 <View style={s.rowText}><Txt lang={lang} style={[s.rowTitle,on&&{color:colors.brand}]}>{it.title}</Txt>{it.subtitle?<Txt lang={lang} style={s.rowSub} numberOfLines={2}>{it.subtitle}</Txt>:null}</View>
                 {on?<Icon name="check" size={20} color={colors.brand}/>:null}
-              </Pressable>;})}
+              </ScalePressable>;})}
             </View>
           </View>)}
           {!filtered.length?<Txt lang={lang} style={s.none}>{ar?'لا نتائج':'No results'}</Txt>:null}

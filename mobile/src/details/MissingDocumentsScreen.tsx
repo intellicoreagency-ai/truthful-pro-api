@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import {StyleSheet,View} from 'react-native';
-import {Pressable} from '../Touch';
+import {ScalePressable} from '../ui/Premium';
 import {Icon} from '../Icons';
 import {Txt,type Lang} from '../ui/Txt';
 import {GlassButton,GlassCard,GlassScreen,Note,ScreenHeader,SectionTitle,StageTracker,Tag,g,ltr,rowFor,useReduceTransparency} from '../ui/Glass';
@@ -90,12 +90,12 @@ export function MissingDocumentsScreen({lang,r,onBack,onPick,onSend,busy,message
             <GlassButton lang={lang} icon="upload" label={replacement?t.change:t.replace} accessibilityLabel={t.replaceA11y(label)}
               disabled={busy||!open} onPress={()=>onPick(d.id)}/>
           </View>
-          :<Pressable accessibilityRole="button" accessibilityLabel={t.uploadA11y(label)} accessibilityHint={t.formats}
+          :<ScalePressable accessibilityRole="button" accessibilityLabel={t.uploadA11y(label)} accessibilityHint={t.formats}
             accessibilityState={{disabled:busy||!open}} disabled={busy||!open} onPress={()=>onPick(d.id)} style={[styles.drop,(busy||!open)&&g.disabled]}>
             <Icon name="upload" size={30} color={colors.orange}/>
             <Txt lang={lang} bold style={styles.dropTitle}>{t.upload}</Txt>
             <Txt lang={lang} style={{...g.meta,textAlign:'center'}}>{t.formats}</Txt>
-          </Pressable>}
+          </ScalePressable>}
       </GlassCard>;
     })}
 

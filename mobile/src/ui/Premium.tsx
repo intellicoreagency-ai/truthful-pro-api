@@ -18,15 +18,26 @@ import {lux,radius} from '../theme';
 
 const SPRING={damping:16,stiffness:260,mass:0.6};
 
+/** Layout styles that belong on the animated wrapper, so a ScalePressable drops in anywhere a Pressable was. */
+const OUTER=new Set(['flex','flexGrow','flexShrink','flexBasis','alignSelf','position','top','left','right','bottom','start','end','zIndex',
+  'margin','marginTop','marginBottom','marginLeft','marginRight','marginHorizontal','marginVertical','marginStart','marginEnd','width','minWidth','maxWidth']);
+function splitStyle(style:StyleProp<ViewStyle>){
+  const flat=(StyleSheet.flatten(style)??{}) as Record<string,unknown>;
+  const outer:Record<string,unknown>={},inner:Record<string,unknown>={flexGrow:1};
+  for(const [k,v] of Object.entries(flat))(OUTER.has(k)?outer:inner)[k]=v;
+  return [outer as ViewStyle,inner as ViewStyle] as const;
+}
+
 /** Pressable that settles with a spring (scale 0.97) and a light haptic tick; native ripple/highlight kept. */
 export function ScalePressable({style,children,onPressIn,onPressOut,onPress,haptic=true,scaleTo=0.97,disabled,...rest}:
-  PressableProps&{style?:StyleProp<ViewStyle>;children:React.ReactNode;haptic?:boolean;scaleTo?:number;rippleColor?:string}){
+  Omit<PressableProps,'style'>&{style?:StyleProp<ViewStyle>;children:React.ReactNode;haptic?:boolean;scaleTo?:number;rippleColor?:string}){
   const reduce=useReducedMotion();
   const scale=useSharedValue(1);
   const animated=useAnimatedStyle(()=>({transform:[{scale:scale.value}]}));
-  return <Animated.View style={[animated,styles.pressWrap]}>
-    <Pressable {...rest} disabled={disabled} style={style}
-      onPressIn={e=>{if(!reduce)scale.value=withSpring(scaleTo,SPRING);onPressIn?.(e)}}
+  const [outer,inner]=splitStyle(style);
+  return <Animated.View style={[outer,animated]}>
+    <Pressable {...rest} disabled={disabled} style={inner}
+      onPressIn={e=>{if(!reduce&&!disabled)scale.value=withSpring(scaleTo,SPRING);onPressIn?.(e)}}
       onPressOut={e=>{scale.value=withSpring(1,SPRING);onPressOut?.(e)}}
       onPress={e=>{if(haptic&&Platform.OS!=='web')void Haptics.selectionAsync().catch(()=>{});onPress?.(e)}}>
       {children}
@@ -79,7 +90,6 @@ export function LuxCard({children,reduce,style,contentStyle,radius:r=radius.card
 }
 
 const styles=StyleSheet.create({
-  pressWrap:{},
   badge:{alignItems:'center',justifyContent:'center'},
   shadow:Platform.select({
     ios:{shadowColor:lux.shadow,shadowOffset:{width:0,height:14},shadowOpacity:0.14,shadowRadius:28},

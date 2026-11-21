@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import {StyleSheet,View} from 'react-native';
-import {Pressable} from '../Touch';
+import {ScalePressable} from '../ui/Premium';
 import {Icon,transactionIcon,type IconName} from '../Icons';
 import {Txt,type Lang} from '../ui/Txt';
 import {GlassButton,GlassCard,GlassField,GlassScreen,IconButton,Note,ScreenHeader,SectionTitle,g,rowFor,useReduceTransparency} from '../ui/Glass';
@@ -83,27 +83,27 @@ export function ServiceDetailsScreen(p:Props){
 
   return <GlassScreen scrollRef={p.scrollRef}>
     <ScreenHeader lang={lang} title={serviceLabel(service,lang)} subtitle={serviceDescription(service,lang)} backLabel={t.back} onBack={p.onBack}
-      trailing={<Pressable accessibilityRole="button" accessibilityLabel={t.languageA11y} onPress={p.onLanguage} style={styles.round}>
+      trailing={<ScalePressable accessibilityRole="button" accessibilityLabel={t.languageA11y} onPress={p.onLanguage} style={styles.round}>
         <Txt lang={ar?'en':'ar'} bold style={styles.languageText}>{ar?'EN':'ع'}</Txt>
-      </Pressable>}/>
+      </ScalePressable>}/>
 
     <View style={styles.banner}>{p.banner}</View>
 
     <View style={{alignItems:ar?'flex-end':'flex-start'}}>
-      <Pressable accessibilityRole="button" accessibilityLabel={p.favorite?t.favRemove:t.favAdd} accessibilityState={{selected:p.favorite}} onPress={p.onToggleFavorite}
+      <ScalePressable accessibilityRole="button" accessibilityLabel={p.favorite?t.favRemove:t.favAdd} accessibilityState={{selected:p.favorite}} onPress={p.onToggleFavorite}
         style={[styles.favorite,{flexDirection:row},p.favorite&&styles.favoriteOn]}>
         <Icon name="star" size={18} color={colors.brand} filled={p.favorite}/>
         <Txt lang={lang} bold style={styles.favoriteText}>{p.favorite?t.favRemove:t.favAdd}</Txt>
-      </Pressable>
+      </ScalePressable>
     </View>
 
     <View accessibilityRole="tablist" accessibilityLabel={t.tabs} style={[styles.tabs,{flexDirection:row}]}>
       {tabs.map(([key,label,icon])=>{const selected=tab===key;
-        return <Pressable key={key} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{selected}} aria-selected={selected} onPress={()=>p.onTab(key)}
+        return <ScalePressable key={key} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{selected}} aria-selected={selected} onPress={()=>p.onTab(key)}
           style={[styles.tab,selected&&styles.tabOn]}>
           <Icon name={icon} size={17} color={selected?colors.brand:colors.muted}/>
           <Txt lang={lang} bold style={{...styles.tabText,...(selected?{color:colors.ink}:null)}}>{label}</Txt>
-        </Pressable>;})}
+        </ScalePressable>;})}
     </View>
 
     {tab==='about'&&<>
@@ -119,12 +119,12 @@ export function ServiceDetailsScreen(p:Props){
             const group=service.id==='trade-licenses'?tradeLicenceSectionTitles[item.id]:undefined;
             return <React.Fragment key={item.id}>
               {group&&<Txt lang={lang} bold style={styles.group}>{wording(group,lang)}</Txt>}
-              <Pressable accessibilityRole="button" accessibilityLabel={wording(item,lang)+(selected?`, ${t.selected}`:'')} accessibilityState={{selected}}
+              <ScalePressable accessibilityRole="button" accessibilityLabel={wording(item,lang)+(selected?`, ${t.selected}`:'')} accessibilityState={{selected}}
                 onPress={()=>p.onSelectAction(item)} style={[styles.action,{flexDirection:row},selected&&styles.actionOn]}>
                 <View style={[styles.actionIcon,selected&&styles.actionIconOn]}><Icon name={transactionIcon(item.icon)} size={18} color={selected?'#FFFFFF':colors.brand}/></View>
                 <View style={g.flex1}><Txt lang={lang} bold={selected} style={styles.actionText}>{wording(item,lang)}</Txt></View>
                 <Icon name={selected?'check':ar?'back':'next'} size={16} color={selected?colors.brand:colors.muted}/>
-              </Pressable>
+              </ScalePressable>
             </React.Fragment>;})}
         </View>
       </GlassCard>

@@ -6,7 +6,7 @@
  */
 import React,{useEffect,useRef,useState} from 'react';
 import {BackHandler,Image,StyleSheet,View} from 'react-native';
-import {Pressable} from './Touch';
+import {ScalePressable} from './ui/Premium';
 import {Icon,type IconName} from './Icons';
 import {officialLogo} from './ReferenceUI';
 import {Txt} from './ui/Txt';
@@ -123,19 +123,19 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
     if(ok&&signedIn&&onEmail&&mail)void onEmail(mail).then(()=>setMessage(t.emailSent)).catch(()=>setMessage(t.emailServerError));
   };
   const shortcut=(label:string,value:number,icon:IconName,onPress:()=>void,alert=false)=>
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}, ${value}`} style={[styles.shortcut,alert&&styles.shortcutAlert]}>
+    <ScalePressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}, ${value}`} style={[styles.shortcut,alert&&styles.shortcutAlert]}>
       <Icon name={icon} size={22} color={alert?'#8A4F0B':colors.brand}/>
       <Txt lang={lang} bold style={styles.count}>{String(value)}</Txt>
       <Txt lang={lang} style={styles.shortcutName}>{label}</Txt>
-    </Pressable>;
+    </ScalePressable>;
   const menuRow=(key:Section,last:boolean)=>{const item=sections[key];const badge=key==='notifications'&&alerts.length>0;
-    return <Pressable key={key} onPress={()=>open(key)} accessibilityRole="button" accessibilityLabel={item.title+(badge?`, ${alerts.length}`:'')}
+    return <ScalePressable key={key} onPress={()=>open(key)} accessibilityRole="button" accessibilityLabel={item.title+(badge?`, ${alerts.length}`:'')}
       style={[styles.menuItem,{flexDirection:row},last&&g.noBorder]}>
       <View style={styles.menuIcon}><Icon name={item.icon} size={20} color={colors.brand}/></View>
       <View style={g.flex1}><Txt lang={lang} bold style={styles.label}>{item.title}</Txt><Txt lang={lang} style={g.meta}>{item.description}</Txt></View>
       {badge&&<View style={styles.badgeCount}><Txt lang={lang} bold style={styles.badgeCountText}>{String(alerts.length)}</Txt></View>}
       <Icon name={forward} size={16} color={colors.muted}/>
-    </Pressable>};
+    </ScalePressable>};
   const menu=['personal','company','documents','notifications','security','language'] as const;
 
   return <GlassScreen scrollRef={scroll}>
@@ -145,13 +145,13 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
     {!section?<>
       <GlassCard reduce={reduce}>
         <View style={[styles.identity,{flexDirection:row}]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={account.photo?t.changePhoto:t.addPhoto} style={styles.avatarButton} onPress={pickPhoto}>
+          <ScalePressable accessibilityRole="button" accessibilityLabel={account.photo?t.changePhoto:t.addPhoto} style={styles.avatarButton} onPress={pickPhoto}>
             <View style={styles.avatar}>
               {account.photo&&!photoFailed?<Image key={account.photo} source={{uri:account.photo}} style={styles.photo}
                 onError={()=>{setPhotoFailed(true);setPhotoMessage(t.photoError)}} accessible={false}/>:<Icon name="user" size={34} color={colors.brand}/>}
             </View>
             <View style={styles.camera}><Icon name="camera" size={16} color="#FFFFFF"/></View>
-          </Pressable>
+          </ScalePressable>
           <View style={[g.flex1,styles.identityText]}>
             <Txt lang={lang} bold style={styles.name} numberOfLines={2}>{account.name||t.guest}</Txt>
             <Txt lang={lang} style={g.meta}>{account.company?t.business:t.individual}</Txt>
@@ -174,9 +174,9 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
         <View>{menu.map((key,i)=>menuRow(key,i===menu.length-1))}</View>
       </GlassCard>
 
-      <Pressable accessibilityRole="button" onPress={onLeave} style={[styles.exit,{flexDirection:row}]}>
+      <ScalePressable accessibilityRole="button" onPress={onLeave} style={[styles.exit,{flexDirection:row}]}>
         <Icon name="power" size={19} color={colors.danger}/><Txt lang={lang} bold style={styles.exitText}>{t.exit}</Txt>
-      </Pressable>
+      </ScalePressable>
     </>:<GlassCard reduce={reduce}>
       {(section==='personal'||section==='company')&&<>
         {fields.map(([key,label])=><GlassField key={key} lang={lang} label={label} value={edits[key]??account[key]}
@@ -193,20 +193,20 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
         </View>)}</View>:<Txt lang={lang} style={g.body}>{t.emptyDocs}</Txt>)}
 
       {section==='favorites'&&<>
-        {favorites.length?<View>{favorites.map((item,i)=><Pressable key={item.id} onPress={()=>onFavorite(item.id)} accessibilityRole="button" accessibilityLabel={item.label}
+        {favorites.length?<View>{favorites.map((item,i)=><ScalePressable key={item.id} onPress={()=>onFavorite(item.id)} accessibilityRole="button" accessibilityLabel={item.label}
             style={[styles.item,{flexDirection:row},i===favorites.length-1&&g.noBorder]}>
             <Icon name="star" size={18} color={colors.brand} filled/><View style={g.flex1}><Txt lang={lang} bold style={g.valueText}>{item.label}</Txt></View><Icon name={forward} size={16} color={colors.muted}/>
-          </Pressable>)}</View>:<Txt lang={lang} style={g.body}>{t.emptyFavorites}</Txt>}
+          </ScalePressable>)}</View>:<Txt lang={lang} style={g.body}>{t.emptyFavorites}</Txt>}
         <GlassButton lang={lang} icon="grid" label={t.browse} onPress={onBrowse}/>
       </>}
 
       {section==='notifications'&&<>
-        {alerts.length?<View>{alerts.map((a,i)=><Pressable key={a.id} onPress={onRequests} accessibilityRole="button" accessibilityLabel={`${a.title}. ${a.note}`}
+        {alerts.length?<View>{alerts.map((a,i)=><ScalePressable key={a.id} onPress={onRequests} accessibilityRole="button" accessibilityLabel={`${a.title}. ${a.note}`}
             style={[styles.item,{flexDirection:row},i===alerts.length-1&&g.noBorder]}>
             <View style={styles.alertIcon}><Icon name="info" size={18} color="#8A4F0B"/></View>
             <View style={g.flex1}><Txt lang={lang} bold style={g.valueText}>{a.title}</Txt><Txt lang={lang} style={g.meta}>{a.note}</Txt></View>
             <Icon name={forward} size={16} color={colors.muted}/>
-          </Pressable>)}</View>:<Txt lang={lang} style={g.body}>{t.emptyNotifications}</Txt>}
+          </ScalePressable>)}</View>:<Txt lang={lang} style={g.body}>{t.emptyNotifications}</Txt>}
         <GlassButton lang={lang} icon="file" label={t.openRequests} onPress={onRequests}/>
       </>}
 
@@ -220,15 +220,15 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
           <GlassButton lang={lang} icon="download" label={t.exportData} busy={working&&!confirmDelete} onPress={()=>{if(!working)void run(onExport,t.exported)}}/>
           <GlassButton lang={lang} icon="power" label={t.signOut} disabled={working} onPress={()=>{if(!working)void run(async()=>{await onSignOut()})}}/>
           {!confirmDelete
-            ?<Pressable accessibilityRole="button" onPress={()=>setConfirmDelete(true)} style={[styles.danger,{flexDirection:row}]}>
+            ?<ScalePressable accessibilityRole="button" onPress={()=>setConfirmDelete(true)} style={[styles.danger,{flexDirection:row}]}>
               <Icon name="close" size={18} color={colors.danger}/><Txt lang={lang} bold style={styles.dangerText}>{t.deleteAccount}</Txt>
-            </Pressable>
+            </ScalePressable>
             :<View style={styles.confirm}>
               <Note lang={lang} tone="danger">{t.deleteWarn}</Note>
-              <Pressable accessibilityRole="button" accessibilityState={{disabled:working,busy:working}} disabled={working} onPress={()=>{if(!working)void run(onDelete)}}
+              <ScalePressable accessibilityRole="button" accessibilityState={{disabled:working,busy:working}} disabled={working} onPress={()=>{if(!working)void run(onDelete)}}
                 rippleColor="rgba(255,255,255,0.3)" style={[styles.dangerFill,{flexDirection:row},working&&g.disabled]}>
                 <Txt lang={lang} bold style={styles.dangerFillText}>{t.deleteConfirm}</Txt>
-              </Pressable>
+              </ScalePressable>
               <GlassButton lang={lang} label={t.cancel} onPress={()=>setConfirmDelete(false)}/>
             </View>}
           {!!privacyMsg&&<View accessibilityLiveRegion="polite"><Note lang={lang}>{privacyMsg}</Note></View>}
@@ -236,11 +236,11 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
       </>}
 
       {section==='language'&&<View accessibilityRole="radiogroup" style={styles.languages}>
-        {(['ar','en'] as const).map(code=>{const on=lang===code;return <Pressable key={code} accessibilityRole="radio" accessibilityState={{checked:on}} aria-checked={on}
+        {(['ar','en'] as const).map(code=>{const on=lang===code;return <ScalePressable key={code} accessibilityRole="radio" accessibilityState={{checked:on}} aria-checked={on}
           accessibilityLabel={code==='ar'?'العربية':'English'} onPress={()=>onLanguage(code)} style={[styles.radio,{flexDirection:row},on&&styles.radioOn]}>
           <View style={[styles.radioDot,on&&styles.radioDotOn]}>{on&&<View style={styles.radioInner}/>}</View>
           <View style={g.flex1}><Txt lang={code} bold style={g.valueText}>{code==='ar'?'العربية':'English'}</Txt></View>
-        </Pressable>})}
+        </ScalePressable>})}
       </View>}
     </GlassCard>}
   </GlassScreen>;

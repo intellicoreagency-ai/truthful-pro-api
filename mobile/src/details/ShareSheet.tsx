@@ -8,6 +8,7 @@ import {Modal,Platform,ScrollView,StyleSheet,View} from 'react-native';
 import {BlurView} from 'expo-blur';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Pressable} from '../Touch';
+import {ScalePressable} from '../ui/Premium';
 import {Icon} from '../Icons';
 import {ContactGlyph} from '../ReferenceUI';
 import {Txt,type Lang} from '../ui/Txt';
@@ -57,9 +58,9 @@ export function ShareSheet({lang,r,visible,onClose,summary,financial,selected,in
               <Txt lang={lang} bold style={g.headerTitle}>{t.title}</Txt>
               <Txt lang={lang} style={g.headerSubtitle}>{t.choose}</Txt>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel={t.close} onPress={onClose} style={styles.close}>
+            <ScalePressable accessibilityRole="button" accessibilityLabel={t.close} onPress={onClose} style={styles.close}>
               <Icon name="close" size={20} color={colors.ink}/>
-            </Pressable>
+            </ScalePressable>
           </View>
           <View style={styles.requestChip}><Txt lang={lang} bold style={{...g.valueText,textAlign:'center'}}>{r.title[lang]} • {ltr('#'+r.id.replace('DEMO-',''))}</Txt></View>
 
@@ -84,11 +85,11 @@ export function ShareSheet({lang,r,visible,onClose,summary,financial,selected,in
 
           <Txt lang={lang} bold style={styles.groupLabel}>{t.via}</Txt>
           <View style={[styles.channels,{flexDirection:row}]}>
-            {channels.map(c=><Pressable key={c.id} accessibilityRole="button" accessibilityLabel={`${t.via} ${c.label}`} accessibilityState={{disabled:off}} disabled={off}
+            {channels.map(c=><ScalePressable key={c.id} accessibilityRole="button" accessibilityLabel={`${t.via} ${c.label}`} accessibilityState={{disabled:off}} disabled={off}
               onPress={()=>onShare(c.id)} style={[styles.channel,off&&g.disabled]}>
               {c.id==='whatsapp'?<ContactGlyph whatsapp size={30}/>:<Icon name={c.id==='email'?'mail':'arrows'} size={26} color={colors.brand}/>}
               <Txt lang={lang} bold style={styles.channelText}>{c.label}</Txt>
-            </Pressable>)}
+            </ScalePressable>)}
           </View>
           <Txt lang={lang} style={{...g.meta,textAlign:'center'}}>{nothing?t.nothing:t.onlySelected}</Txt>
           <GlassButton lang={lang} primary icon="arrows" label={t.continue} busy={busy} disabled={nothing} onPress={()=>onShare('system')}/>
