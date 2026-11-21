@@ -90,9 +90,9 @@ const copy={
     title:'Услуги для компаний',individualTitle:'Услуги для частных лиц',details:'Об услуге',docs:'Необходимые документы',fees:'Сборы и сроки',start:'Подать заявку',support:'Поддержка',choose:'Выберите услугу',name:'Полное имя',phone:'Телефон',next:'Далее'},
   zh:{home:'首页',services:'服务',request:'发起申请',requests:'我的申请',profile:'我的账户',individual:'个人',company:'企业',search:'搜索服务...',
     title:'企业服务',individualTitle:'个人服务',details:'服务详情',docs:'所需文件',fees:'费用与时长',start:'发起申请',support:'客服支持',choose:'选择服务',name:'全名',phone:'电话',next:'继续'},
-  fr:{home:'Accueil',services:'Services',request:'Nouvelle demande',requests:'Demandes',profile:'Mon compte',individual:'Particuliers',company:'Entreprises',search:'Rechercher un service...',
+  fr:{home:'Accueil',services:'Services',request:'Demande',requests:'Suivi',profile:'Compte',individual:'Particuliers',company:'Entreprises',search:'Rechercher un service...',
     title:'Services aux entreprises',individualTitle:'Services aux particuliers',details:'Détails du service',docs:'Documents requis',fees:'Frais et délais',start:'Faire une demande',support:'Assistance',choose:'Choisir un service',name:'Nom complet',phone:'Téléphone',next:'Continuer'},
-  es:{home:'Inicio',services:'Servicios',request:'Nueva solicitud',requests:'Solicitudes',profile:'Mi cuenta',individual:'Particulares',company:'Empresas',search:'Buscar un servicio...',
+  es:{home:'Inicio',services:'Servicios',request:'Solicitar',requests:'Solicitudes',profile:'Cuenta',individual:'Particulares',company:'Empresas',search:'Buscar un servicio...',
     title:'Servicios para empresas',individualTitle:'Servicios para particulares',details:'Detalles del servicio',docs:'Documentos necesarios',fees:'Tasas y plazos',start:'Iniciar solicitud',support:'Soporte',choose:'Elegir servicio',name:'Nombre completo',phone:'Teléfono',next:'Continuar'},
 } as const;
 function AppText({children,lang,style,numberOfLines}: {children:React.ReactNode,lang:Language,style?:any,numberOfLines?:number}) {

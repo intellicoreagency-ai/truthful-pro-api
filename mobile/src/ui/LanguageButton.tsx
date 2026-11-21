@@ -33,9 +33,9 @@ export function LanguageButton({lang,onPress,tone='light'}:{lang:Lang;onPress:()
 const s=StyleSheet.create({
   hit:{minHeight:layout.minTouch,justifyContent:'center'},
   ring:{borderRadius:radius.pill,padding:1.2},
-  inner:{minHeight:layout.minTouch-4,minWidth:68,paddingHorizontal:space.md,borderRadius:radius.pill,overflow:'hidden',justifyContent:'center'},
+  inner:{minHeight:layout.minTouch-4,minWidth:58,paddingHorizontal:space.sm+2,borderRadius:radius.pill,overflow:'hidden',justifyContent:'center'},
   innerDark:{backgroundColor:'rgba(10,20,48,0.55)'},
   innerLight:{backgroundColor:'rgba(255,255,255,0.92)'},
-  row:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6},
+  row:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5},
   code:{fontSize:type.subhead,lineHeight:20,letterSpacing:0.4},
 });

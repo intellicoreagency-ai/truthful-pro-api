@@ -37,8 +37,8 @@ export function LoginScreen({lang,onLanguage,logo,inputFont,onVerified,onRegiste
           <PrimaryButton lang={lang} Text={T} label={t.verify} onPress={submit} busy={wa.busy}/>
           <T lang={lang} style={[s.notice,{textAlign:lang==='ar'?'right':'left'}]}>{t.loginNotice} {t.terms} {t.and} {t.privacy}</T>
           <View style={[s.legalRow,{flexDirection:lang==='ar'?'row-reverse':'row'}]}>
-            <SecondaryButton lang={lang} Text={T} label={t.terms} onPress={()=>onLegal('terms')}/>
-            <SecondaryButton lang={lang} Text={T} label={t.privacy} onPress={()=>onLegal('privacy')}/>
+            <SecondaryButton lang={lang} Text={T} label={t.termsLink} onPress={()=>onLegal('terms')}/>
+            <SecondaryButton lang={lang} Text={T} label={t.privacyLink} onPress={()=>onLegal('privacy')}/>
           </View>
         </View>}
     </StepTransition>

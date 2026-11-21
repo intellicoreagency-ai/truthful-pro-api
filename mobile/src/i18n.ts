@@ -43,3 +43,13 @@ export const LANG_NAMES:Record<Lang,Record<Lang,string>>={
   es:{ar:'Árabe',en:'Inglés',ru:'Ruso',zh:'Chino (simplificado)',fr:'Francés',es:'Español'},
 };
 export const LANG_MENU_TITLE:Record<Lang,string>={ar:'اختر اللغة',en:'Choose your language',ru:'Выберите язык',zh:'选择语言',fr:'Choisissez votre langue',es:'Elija su idioma'};
+
+/** Words shared by many controls. */
+export const COMMON:Record<Lang,{close:string;noResults:string;back:string;cancel:string;retry:string}>={
+  ar:{close:'إغلاق',noResults:'لا نتائج',back:'رجوع',cancel:'إلغاء',retry:'إعادة المحاولة'},
+  en:{close:'Close',noResults:'No results',back:'Back',cancel:'Cancel',retry:'Try again'},
+  ru:{close:'Закрыть',noResults:'Ничего не найдено',back:'Назад',cancel:'Отмена',retry:'Повторить'},
+  zh:{close:'关闭',noResults:'无结果',back:'返回',cancel:'取消',retry:'重试'},
+  fr:{close:'Fermer',noResults:'Aucun résultat',back:'Retour',cancel:'Annuler',retry:'Réessayer'},
+  es:{close:'Cerrar',noResults:'Sin resultados',back:'Atrás',cancel:'Cancelar',retry:'Reintentar'},
+};

@@ -8,13 +8,25 @@ export type ClientGov={total:number;payUrl:string|null;verified:number;reported:
 export type ClientFinance={credit?:number;gov?:ClientGov;quote?:{id:string;version:number;status:'issued'|'accepted';number:string|null;total:number;items:{kind:'government_fee'|'service_fee';ar:string;en:string;amount:number}[]};invoice?:{id:string;number:string;total:number};payments:{id:string;kind:'payment'|'refund';amount:number;status:'pending_verification'|'approved'|'rejected';at:string;note?:string}[];documents:{id:string;type:'quote'|'invoice'|'receipt'|'credit_note';number:string;status:'issued'|'void';total:number;at:string}[];totals:{total:number;paid:number;refunded:number;pending:number;remaining:number;state:'unpriced'|'awaiting_payment'|'partial'|'paid'|'refunded'}};
 export type ClientRequest={id:string;serviceId:string;actionId:string;title:Bilingual;createdAt:string;updatedAt:string;expectedAt?:string;completedAt?:string;deliveredAt?:string;acknowledgedAt?:string;expiresAt?:string;status:Status;stage:1|2|3|4|5;name:string;phone:string;fields:Record<string,string>;files:ClientFile[];missing:MissingDocument[];events:{id:string;at:string;text:Bilingual}[];money:{government:number;handling:number;tax:number;extra:number;paid:number;refunded:number;quoted:boolean;taxConfigured?:boolean};finance?:ClientFinance;whatNow?:{ar:string;en:string;actionRequired:boolean};sample?:boolean;termsVersion?:string;termsAcceptedAt?:string;issue?:string;renewalOf?:string;remoteId?:string;syncedAt?:string;deliveryVersion?:number};
 export const steps:Bilingual[]=[{ar:'الإرسال',en:'Sent'},{ar:'المراجعة',en:'Review'},{ar:'الجهة',en:'Authority'},{ar:'القرار',en:'Decision'},{ar:'مكتمل',en:'Complete'}];
-export const statusLabels:Record<Status,Bilingual>={draft:{ar:'مسودة',en:'Draft'},submitted:{ar:'تم الإرسال',en:'Submitted'},review:{ar:'قيد المراجعة',en:'Under review'},needs_documents:{ar:'مطلوب استكمال',en:'Action required'},ready_for_authority:{ar:'جاهزة للتقديم',en:'Ready to submit'},authority:{ar:'لدى الجهة',en:'With authority'},decision:{ar:'بانتظار القرار',en:'Decision pending'},completed:{ar:'منجزة',en:'Completed'},cancelled:{ar:'ملغاة',en:'Cancelled'},rejected:{ar:'مرفوضة',en:'Rejected'}};
+export const statusLabels:Record<Status,Bilingual>={
+  draft:{ar:'مسودة',en:'Draft',ru:'Черновик',zh:'草稿',fr:'Brouillon',es:'Borrador'},
+  submitted:{ar:'تم الإرسال',en:'Submitted',ru:'Отправлена',zh:'已提交',fr:'Envoyée',es:'Enviada'},
+  review:{ar:'قيد المراجعة',en:'Under review',ru:'На проверке',zh:'审核中',fr:'En cours d’examen',es:'En revisión'},
+  needs_documents:{ar:'مطلوب استكمال',en:'Action required',ru:'Требуется действие',zh:'需要处理',fr:'Action requise',es:'Acción requerida'},
+  ready_for_authority:{ar:'جاهزة للتقديم',en:'Ready to submit',ru:'Готова к подаче',zh:'待递交',fr:'Prête à déposer',es:'Lista para presentar'},
+  authority:{ar:'لدى الجهة',en:'With authority',ru:'В госоргане',zh:'主管部门处理中',fr:'Auprès de l’autorité',es:'En la autoridad'},
+  decision:{ar:'بانتظار القرار',en:'Decision pending',ru:'Ожидает решения',zh:'等待决定',fr:'Décision en attente',es:'Decisión pendiente'},
+  completed:{ar:'منجزة',en:'Completed',ru:'Завершена',zh:'已完成',fr:'Terminée',es:'Completada'},
+  cancelled:{ar:'ملغاة',en:'Cancelled',ru:'Отменена',zh:'已取消',fr:'Annulée',es:'Cancelada'},
+  rejected:{ar:'مرفوضة',en:'Rejected',ru:'Отклонена',zh:'已拒绝',fr:'Refusée',es:'Rechazada'}};
 /** What the customer owes the COMPANY. For synced requests government fees are paid to the authority and are not part of it (demo data still adds them up). */
 export function total(r:ClientRequest){return (r.finance?0:r.money.government)+r.money.handling+r.money.tax+r.money.extra;}
 export function remaining(r:ClientRequest){return Math.max(0,total(r)-r.money.paid+r.money.refunded);}
-export function money(cents:number,lang:import('./i18n').Lang){return new Intl.NumberFormat(lang==='ar'?'ar-AE':'en-AE',{style:'currency',currency:'AED',minimumFractionDigits:2}).format(cents/100);}
+const LOCALE:Record<string,string>={ar:'ar-AE',en:'en-GB',ru:'ru-RU',zh:'zh-CN',fr:'fr-FR',es:'es-ES'};
+const NOT_SET:Record<string,string>={ar:'غير محدد',en:'Not set',ru:'Не указано',zh:'未设定',fr:'Non défini',es:'Sin definir'};
+export function money(cents:number,lang:import('./i18n').Lang){return new Intl.NumberFormat(LOCALE[lang]??'en-AE',{style:'currency',currency:'AED',minimumFractionDigits:2}).format(cents/100);}
 export function renewalDue(r:ClientRequest,now=new Date()){if(r.status!=='completed'||!r.expiresAt)return false;const days=(new Date(r.expiresAt).getTime()-now.getTime())/86400000;return days<=90;}
-export function dateText(value:string|undefined,lang:import('./i18n').Lang){if(!value)return lang==='ar'?'غير محدد':'Not set';return new Intl.DateTimeFormat(lang==='ar'?'ar-AE':'en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Dubai'}).format(new Date(value));}
+export function dateText(value:string|undefined,lang:import('./i18n').Lang){if(!value)return NOT_SET[lang]??'Not set';return new Intl.DateTimeFormat(LOCALE[lang]??'en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Dubai'}).format(new Date(value));}
 /** Calendar day in the UAE (UTC+4, no DST) for an ISO timestamp stored in UTC. */
 export function dubaiDay(iso:string){return new Date(new Date(iso).getTime()+4*3600000).toISOString().slice(0,10);}
 export const makeId=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,9);

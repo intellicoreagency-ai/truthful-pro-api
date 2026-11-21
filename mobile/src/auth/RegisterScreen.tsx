@@ -76,7 +76,7 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
             <ConsentRow lang={lang} Text={T} checked={privacy} onToggle={()=>setPrivacy(v=>!v)} label={sentence(t.privacy,'privacy')}><T lang={lang} style={s.consentText}>{sentence(t.privacy,'privacy')}</T></ConsentRow>
             <ConsentRow lang={lang} Text={T} checked={docs} onToggle={()=>setDocs(v=>!v)} label={t.docConsent}><T lang={lang} style={s.consentText}>{t.docConsent}</T></ConsentRow>
             <View style={[s.row,{flexDirection:lang==='ar'?'row-reverse':'row'}]}>
-              <TextLink lang={lang} Text={T} label={t.terms} onPress={()=>onLegal('terms')}/><TextLink lang={lang} Text={T} label={t.privacy} onPress={()=>onLegal('privacy')}/>
+              <TextLink lang={lang} Text={T} label={t.termsLink} onPress={()=>onLegal('terms')}/><TextLink lang={lang} Text={T} label={t.privacyLink} onPress={()=>onLegal('privacy')}/>
             </View>
             {errors.consent?<T lang={lang} style={s.error}>{errors.consent}</T>:null}
           </View>

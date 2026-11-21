@@ -7,6 +7,7 @@ import {GoldBadge,LuxCard,ScalePressable} from '../ui/Premium';
 import {useReduceTransparency} from '../ui/Glass';
 import {Icon} from '../Icons';
 import {Txt} from '../ui/Txt';
+import {COMMON} from '../i18n';
 import {colors,layout,lux,onGlass,radius,space,type} from '../theme';
 
 export type SheetItem={id:string;title:string;subtitle?:string};
@@ -27,7 +28,7 @@ export function SelectSheet({visible,lang,title,sections,selectedId,searchPlaceh
   },[sections,q]);
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
     <View style={s.backdrop}>
-      <Pressable accessibilityRole="button" accessibilityLabel={ar?'إغلاق':'Close'} onPress={onClose} style={s.dismiss}><View/></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={COMMON[lang].close} onPress={onClose} style={s.dismiss}><View/></Pressable>
       <View style={s.sheet} accessibilityViewIsModal>
         {/* glass material: blur + ivory sheen; gold hairline along the top edge */}
         {!reduce&&<BlurView pointerEvents="none" tint="light" intensity={70} experimentalBlurMethod={Platform.OS==='android'?'dimezisBlurView':undefined} style={StyleSheet.absoluteFill}/>}
@@ -36,7 +37,7 @@ export function SelectSheet({visible,lang,title,sections,selectedId,searchPlaceh
         <View style={s.grabber}/>
         <View style={[s.head,{flexDirection:ar?'row-reverse':'row'}]}>
           <Txt lang={lang} style={s.title}>{title}</Txt>
-          <ScalePressable accessibilityRole="button" accessibilityLabel={ar?'إغلاق':'Close'} onPress={onClose} style={s.close}><View pointerEvents="none"><Icon name="close" size={18} color={colors.ink}/></View></ScalePressable>
+          <ScalePressable accessibilityRole="button" accessibilityLabel={COMMON[lang].close} onPress={onClose} style={s.close}><View pointerEvents="none"><Icon name="close" size={18} color={colors.ink}/></View></ScalePressable>
         </View>
         {searchPlaceholder?<View style={[s.search,{flexDirection:ar?'row-reverse':'row'}]}>
           <Icon name="search" size={18} color={onGlass.soft}/>
@@ -54,7 +55,7 @@ export function SelectSheet({visible,lang,title,sections,selectedId,searchPlaceh
               </ScalePressable>;})}
             </LuxCard>
           </View>)}
-          {!filtered.length?<Txt lang={lang} style={s.none}>{ar?'لا نتائج':'No results'}</Txt>:null}
+          {!filtered.length?<Txt lang={lang} style={s.none}>{COMMON[lang].noResults}</Txt>:null}
         </ScrollView>
       </View>
     </View>

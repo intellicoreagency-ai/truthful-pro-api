@@ -98,8 +98,8 @@ export function ServicesScreen({lang,business,onAudience,query,onQuery,services,
     <View style={[styles.brandBar,{flexDirection:row}]}>
       <Image source={officialLogo} style={styles.logo} accessible={false}/>
       <View style={g.flex1} accessibilityRole="header">
-        <Txt lang={lang} bold style={styles.brand}>{t.brand}</Txt>
-        <Txt lang={lang} style={g.meta}>{t.tagline}</Txt>
+        <Txt lang={lang} bold numberOfLines={1} style={styles.brand}>{t.brand}</Txt>
+        <Txt lang={lang} numberOfLines={1} style={g.meta}>{t.tagline}</Txt>
       </View>
       <LanguageButton lang={lang} onPress={onLanguage}/>
       <ScalePressable accessibilityRole="button" accessibilityLabel={t.profile} onPress={onProfile} style={styles.round}>
@@ -151,7 +151,7 @@ const shadow=Platform.select({
 const styles=StyleSheet.create({
   brandBar:{alignItems:'center',gap:space.md},
   logo:{width:52,height:52,borderRadius:26},
-  brand:{fontSize:type.title2,lineHeight:30},
+  brand:{fontSize:type.title2-2,lineHeight:28},
   round:{width:layout.minTouch+2,height:layout.minTouch+2,borderRadius:radius.pill,alignItems:'center',justifyContent:'center',
     backgroundColor:onGlass.field,borderWidth:1,borderColor:onGlass.border,overflow:'hidden'},
   languageText:{fontSize:type.callout,color:colors.brand},
