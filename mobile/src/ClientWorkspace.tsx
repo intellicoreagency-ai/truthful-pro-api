@@ -1,15 +1,17 @@
 import React,{useMemo,useState,useEffect,useRef} from 'react';
-import {View, Text, Image, TextInput, StyleSheet, Modal, Linking, BackHandler} from 'react-native';
+import {View, Text, Image, TextInput, StyleSheet, Modal, BackHandler} from 'react-native';
 import {Pressable} from './Touch';
 import {ScrollView} from './navigation/TabBarLayout';
 import {DashboardScreen,type SyncStatus} from './dashboard/DashboardScreen';
-import {DashboardTop,DashboardCard,DetailDesign,MissingDesign,ShareDesign} from './ClientDesign';
+import {DashboardTop,DashboardCard,MissingDesign,ShareDesign} from './ClientDesign';
+import {TransactionDetailsScreen} from './details/TransactionDetailsScreen';
+import {FinancePanel} from './details/FinancePanel';
 import {RefText,RefButton,RefHeader,ReferenceProgress,useReference,refStyles,palette,stageNumber} from './ReferenceUI';
 import {Icon,type IconName} from './Icons';
-import {dubaiDay,steps,statusLabels,phoneDigits,applicantAge,total,remaining,money,renewalDue,dateText,makeId,event,confirmReceipt,canSendMissing,shareSummary,demoRequests,type ClientRequest,type ClientFile,type ClientFinance} from './clientModel';
-import {pickClientFile,downloadFile,previewFile,shareRequest,exportSummary,seedDemoFiles,getBytes,openHtmlDocument} from './clientStorage';
+import {dubaiDay,steps,statusLabels,phoneDigits,applicantAge,total,remaining,money,renewalDue,dateText,makeId,event,confirmReceipt,canSendMissing,shareSummary,demoRequests,type ClientRequest,type ClientFile} from './clientModel';
+import {pickClientFile,downloadFile,previewFile,shareRequest,exportSummary,seedDemoFiles} from './clientStorage';
 import type {ServiceAction} from './serviceDetails';
-import {apiEnabled,hasSession,submitPayment,reportAuthorityPayment,reportDeliveryProblem,fetchDocumentHtml} from './api';
+import {apiEnabled,hasSession,reportDeliveryProblem} from './api';
 import {LEGAL_VERSION} from './legal';
 type Lang='ar'|'en';
 type Props={lang:Lang;onLanguage:()=>void;onFocusChange:(focused:boolean)=>void;records:ClientRequest[];save:(records:ClientRequest[])=>boolean;onStart:()=>void;onResume:(serviceId:string,actionId:string,draftId?:string,renewalOf?:string)=>void;drafts:{key:string;title:string;resume:()=>void}[];onRefresh?:()=>Promise<void>|void;syncStatus?:SyncStatus;loadedOnce?:boolean;};
@@ -45,9 +47,27 @@ export function ClientWorkspace({lang,onLanguage,onFocusChange,records,save,onSt
  const main= <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets showsVerticalScrollIndicator={false} contentContainerStyle={{paddingHorizontal:current?tab==='missing'?18*u*.75:18*u*1.5:28*u,paddingTop:current?0:10*u,paddingBottom:20*u,gap:current?tab==='missing'?12*u:18*u:17*u,backgroundColor:palette.background}}>
  {!!message&&<RefText lang={lang} size={23} style={{backgroundColor:'#FFF0DC',padding:10*u,borderRadius:10*u}}>{message}</RefText>}
  {!current?null
-:tab==='missing'&&current.status==='needs_documents'?<MissingDesign lang={lang} r={current} onBack={()=>setSelected(null)} onPick={pickMissing} onSend={sendMissing} busy={busy}/>:tab==='files'?<><RefHeader lang={lang} onBack={()=>setTab('detail')}/><RefText lang={lang} bold size={40}>{tx('ملفات المعاملة','Request files')}</RefText>{current.files.map(f=>fileRow(f,current))}{!current.files.length&&<RefText lang={lang}>{tx('لا ملفات متاحة بعد','No files available yet')}</RefText>}</>:<><DetailDesign lang={lang} r={current} onBack={()=>setSelected(null)} onFiles={()=>setTab('files')} onShare={()=>{setShareDetailed(true);setInvoiceSelected(false);startShare(current)}} onReceipt={()=>void act(()=>update(confirmReceipt(current)))} onIssue={()=>setShowIssue(!showIssue)} onExport={()=>void act(async()=>{await exportSummary(current,lang)})} renderFile={f=>fileRow(f,current)}>{showIssue&&<><TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" multiline accessibilityLabel={tx('وصف المشكلة','Describe the issue')} placeholder={tx('اشرح المشكلة','Describe the problem')} value={issue} onChangeText={setIssue} style={[s.input,font(lang)]}/><RefButton lang={lang} label={tx('إرسال البلاغ للفريق','Send the report to the team')} disabled={!issue.trim()} onPress={()=>void act(async()=>{if(current.remoteId&&!demo)await reportDeliveryProblem(current.remoteId,issue.trim());update(event({...current,issue:issue.trim()},'سجل العميل مشكلة في التسليم','Client reported a delivery problem'));setShowIssue(false)})}/></>}{current.status==='needs_documents'&&<RefButton lang={lang} primary label={tx('استكمال المستندات','Complete documents')} onPress={()=>setTab('missing')}/>}</DetailDesign>{!demo&&current.finance&&current.remoteId?<FinancePanel lang={lang} r={current} act={act} onChanged={()=>onRefresh?.()} setMessage={setMessage}/>:null}</>}
+:tab==='missing'&&current.status==='needs_documents'?<MissingDesign lang={lang} r={current} onBack={()=>setSelected(null)} onPick={pickMissing} onSend={sendMissing} busy={busy}/>:tab==='files'?<><RefHeader lang={lang} onBack={()=>setTab('detail')}/><RefText lang={lang} bold size={40}>{tx('ملفات المعاملة','Request files')}</RefText>{current.files.map(f=>fileRow(f,current))}{!current.files.length&&<RefText lang={lang}>{tx('لا ملفات متاحة بعد','No files available yet')}</RefText>}</>:null}
  </ScrollView>;
- return <View style={{flex:1}}>{current?main:<DashboardScreen lang={lang} records={all} drafts={drafts} syncStatus={syncStatus} loadedOnce={loadedOnce} demo={demo} onRefresh={async()=>{await onRefresh?.()}} onOpen={openDetails} onMissing={r=>{setSelected(r.id);setTab('missing')}} onStart={onStart} onLanguage={onLanguage} onDemo={()=>void act(async()=>{if(!demoData.length)setDemoData(await seedDemoFiles(demoRequests()));setDemo(!demo)})}/>}<Modal visible={!!sharing} transparent animationType="slide" onRequestClose={()=>setShareId(null)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:shareDetailed?'#39291B30':'transparent'}}><ScrollView keyboardShouldPersistTaps="handled" style={{flexGrow:0,maxHeight:shareDetailed?'98%':'65%',marginBottom:shareDetailed?0:72,width:'100%',maxWidth:480,backgroundColor:palette.paper,borderTopLeftRadius:30*u,borderTopRightRadius:30*u}} contentContainerStyle={{padding:27*u,paddingBottom:30*u}}>{sharing&&<ShareDesign compact={!shareDetailed} lang={lang} r={sharing} summary={includeSummary} financial={financial} selected={shareFiles} toggleSummary={()=>setIncludeSummary(!includeSummary)} toggleFinancial={()=>setFinancial(!financial)} toggleFile={id=>setShareFiles(a=>a.includes(id)?a.filter(v=>v!==id):[...a,id])} onClose={()=>setShareId(null)} onShare={performShare} email={shareEmail} setEmail={setShareEmail} busy={busy} invoiceSelected={invoiceSelected} onInvoice={toggleInvoice}/>} {!!message&&<RefText lang={lang} size={24}>{message}</RefText>}</ScrollView></View></Modal></View>;
+ // Request details (glass redesign). The missing-documents and files layers still render in `main`.
+ const detailsVisible=!!current&&tab!=='files'&&!(tab==='missing'&&current.status==='needs_documents');
+ const details=current&&detailsVisible?<TransactionDetailsScreen lang={lang} request={current} busy={busy} message={message}
+   onBack={()=>setSelected(null)}
+   onRefresh={demo?undefined:onRefresh}
+   onUpdated={fresh=>{try{update(fresh)}catch{/* storage full: keep showing the saved copy */}}}
+   financePanel={!demo&&current.finance&&current.remoteId?<FinancePanel lang={lang} r={current} act={act} onChanged={()=>onRefresh?.()} setMessage={setMessage}/>:null}
+   actions={{
+     onFiles:()=>setTab('files'),
+     onMissing:()=>setTab('missing'),
+     onShare:()=>{setShareDetailed(true);setInvoiceSelected(false);startShare(current)},
+     onReceipt:()=>void act(()=>update(confirmReceipt(current))),
+     onExport:()=>void act(async()=>{await exportSummary(current,lang)}),
+     onViewFile:f=>void act(async()=>{await previewFile(f);update(event(current,'فتح العميل الملف للمعاينة','Client opened a file to view'))}),
+     onSaveFile:f=>void act(async()=>{await downloadFile(f);update(event(current,'طلب العميل تنزيل ملف','Client requested a file download'))}),
+     issue:{open:showIssue,text:issue,setText:setIssue,toggle:()=>setShowIssue(!showIssue),
+       send:()=>void act(async()=>{if(current.remoteId&&!demo)await reportDeliveryProblem(current.remoteId,issue.trim());update(event({...current,issue:issue.trim()},'سجل العميل مشكلة في التسليم','Client reported a delivery problem'));setShowIssue(false)})},
+   }}/>:null;
+ return <View style={{flex:1}}>{current?(details??main):<DashboardScreen lang={lang} records={all} drafts={drafts} syncStatus={syncStatus} loadedOnce={loadedOnce} demo={demo} onRefresh={async()=>{await onRefresh?.()}} onOpen={openDetails} onMissing={r=>{setSelected(r.id);setTab('missing')}} onStart={onStart} onLanguage={onLanguage} onDemo={()=>void act(async()=>{if(!demoData.length)setDemoData(await seedDemoFiles(demoRequests()));setDemo(!demo)})}/>}<Modal visible={!!sharing} transparent animationType="slide" onRequestClose={()=>setShareId(null)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:shareDetailed?'#39291B30':'transparent'}}><ScrollView keyboardShouldPersistTaps="handled" style={{flexGrow:0,maxHeight:shareDetailed?'98%':'65%',marginBottom:shareDetailed?0:72,width:'100%',maxWidth:480,backgroundColor:palette.paper,borderTopLeftRadius:30*u,borderTopRightRadius:30*u}} contentContainerStyle={{padding:27*u,paddingBottom:30*u}}>{sharing&&<ShareDesign compact={!shareDetailed} lang={lang} r={sharing} summary={includeSummary} financial={financial} selected={shareFiles} toggleSummary={()=>setIncludeSummary(!includeSummary)} toggleFinancial={()=>setFinancial(!financial)} toggleFile={id=>setShareFiles(a=>a.includes(id)?a.filter(v=>v!==id):[...a,id])} onClose={()=>setShareId(null)} onShare={performShare} email={shareEmail} setEmail={setShareEmail} busy={busy} invoiceSelected={invoiceSelected} onInvoice={toggleInvoice}/>} {!!message&&<RefText lang={lang} size={24}>{message}</RefText>}</ScrollView></View></Modal></View>;
 }
 
 export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaults,initial,onKeep,onLegal}:{lang:Lang;action:ServiceAction;serviceId:string;create:(r:ClientRequest)=>boolean;onDone:()=>void;onBack:()=>void;defaults:{name:string;phone:string};initial?:ClientRequest;onKeep?:(r:ClientRequest)=>void;onLegal?:(k:'terms'|'privacy')=>void}){const live=apiEnabled&&hasSession();const ar=lang==='ar',row=ar?'row-reverse':'row',tx=(a:string,e:string)=>ar?a:e;const idRef=useRef(initial?.id??makeId()),createdRef=useRef(initial?.createdAt??new Date().toISOString()),doneRef=useRef(false);const [step,setStep]=useState(1),[name,setName]=useState(initial?.name??defaults.name),[phone,setPhone]=useState(initial?.phone??defaults.phone),[fields,setFields]=useState<Record<string,string>>(initial?.fields??{}),[files,setFiles]=useState<Record<string,ClientFile>>(Object.fromEntries(action.documents.flatMap(d=>{const f=initial?.files.find(f=>f.label.ar===d.ar&&f.kind==='source');return f?[[d.id,f]]:[]}))),[accepted,setAccepted]=useState(false),[terms,setTerms]=useState(false),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);const age=applicantAge(fields['applicant-dob']??'');const hasAgeRule=action.documents.some(d=>d.minimumAge!==undefined);const applicableDocs=action.documents.filter(d=>d.minimumAge===undefined||age===null||age>=d.minimumAge);const required=applicableDocs.filter(d=>!d.optional);const tradeNames=['trade-name-1','trade-name-2','trade-name-3'].filter(id=>applicableDocs.some(d=>d.id===id)).map(id=>(fields[id]??'').trim().toLocaleLowerCase()).filter(Boolean);const namesDistinct=new Set(tradeNames).size===tradeNames.length;const valid=step===1?!!name.trim()&&phoneDigits(phone).length>=7&&(!hasAgeRule||age!==null):step===2?required.every(d=>d.field?!!fields[d.id]?.trim():!!files[d.id])&&namesDistinct:step===3?accepted:true;
@@ -67,83 +87,3 @@ export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaul
  </ScrollView>
 }
 const s=StyleSheet.create({page:{padding:16,paddingBottom:30,gap:13,backgroundColor:'#FBF5EB'},text:{fontSize:15,lineHeight:25},heading:{fontSize:27,lineHeight:40},subtitle:{fontSize:15,color:c.muted},small:{fontSize:12,lineHeight:20,color:c.muted},preview:{fontSize:12,lineHeight:20,padding:10,backgroundColor:'#F7EBD6',borderRadius:12},panel:{padding:14,gap:10,borderWidth:1,borderColor:c.line,borderRadius:19,backgroundColor:c.surface,boxShadow:'0 3px 8px #A57C2412'},between:{alignItems:'center',justifyContent:'space-between',gap:8},cardTitle:{fontSize:19,lineHeight:29,flexShrink:1},badge:{fontSize:11,lineHeight:20,paddingHorizontal:10,paddingVertical:3,borderRadius:16,backgroundColor:'#FFE9C7',color:'#80501F',overflow:'hidden'},button:{minHeight:43,paddingHorizontal:12,paddingVertical:7,borderRadius:12,borderColor:c.line,borderWidth:1,backgroundColor:'#FFFBF5',alignItems:'center',justifyContent:'center',gap:6,flexShrink:1},primary:{backgroundColor:c.orange,borderColor:c.orange},buttonText:{fontSize:14,lineHeight:23,textAlign:'center'},actions:{flexWrap:'wrap',gap:8,alignItems:'center'},stats:{flexWrap:'wrap',gap:9},stat:{width:'48%',flexGrow:1,padding:14,borderWidth:1,borderColor:c.line,borderRadius:17,gap:12,alignItems:'center',backgroundColor:c.surface},number:{fontSize:26,lineHeight:35},search:{alignItems:'center',gap:8},input:{borderWidth:1,borderColor:c.line,borderRadius:12,paddingHorizontal:12,paddingVertical:9,minHeight:46,fontSize:15,backgroundColor:'#FFFBF6'},chips:{gap:8,paddingVertical:4},alert:{backgroundColor:'#FFF0DD',borderWidth:1,borderColor:c.orange,borderRadius:16,padding:13,gap:9},notice:{fontSize:14,lineHeight:24,padding:9,backgroundColor:'#FFF0CF',borderRadius:10},progress:{paddingTop:12,paddingBottom:5},step:{flex:1,alignItems:'center',position:'relative'},circle:{width:27,height:27,borderRadius:15,borderWidth:2,borderColor:'#CFBEA7',backgroundColor:'#FBF5EB',zIndex:1,alignItems:'center',justifyContent:'center'},connector:{position:'absolute',top:12,height:3,width:'100%'},stepText:{fontSize:10,lineHeight:21,textAlign:'center'},money:{borderTopWidth:1,borderColor:'#E8DDCF',paddingTop:10,gap:5},amount:{fontSize:13,lineHeight:24,textAlign:'center'},file:{alignItems:'center',flexWrap:'wrap',gap:8,paddingVertical:10,borderBottomWidth:1,borderColor:'#E8DDCF'},history:{paddingVertical:10,borderBottomWidth:1,borderColor:c.line},feedback:{padding:11,borderRadius:10,backgroundColor:'#FFF0DD',color:'#8C4000',fontSize:14},check:{alignItems:'center',padding:11,gap:10,borderWidth:1,borderColor:c.line,borderRadius:12},overlay:{flex:1,backgroundColor:'#2D1A0C65',justifyContent:'flex-end'},sheet:{backgroundColor:'#FBF5EB',borderTopLeftRadius:25,borderTopRightRadius:25,padding:20,paddingBottom:35,gap:13,minHeight:400}});
-
-
-const aed=(fils:number)=>'AED '+String(Math.floor(Math.abs(fils)/100)).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'.'+String(Math.abs(fils)%100).padStart(2,'0');
-/** "350.50" -> 35050 with integer arithmetic only. */
-const aedToFils=(v:string)=>{const m=/^(\d{1,7})(?:\.(\d{1,2}))?$/.exec(v.trim().replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632)));if(!m)return null;const n=Number(m[1])*100+Number((m[2]??'').padEnd(2,'0'));return n>0?n:null};
-function GovSection({lang,r,gov,act,onChanged,setMessage}:{lang:Lang;r:ClientRequest;gov:NonNullable<ClientFinance['gov']>;act:(fn:()=>Promise<void>|void)=>void;onChanged:()=>void;setMessage:(m:string)=>void}){
- const ar=lang==='ar',row=ar?'row-reverse':'row',tx=(a:string,e:string)=>ar?a:e;
- const [open,setOpen]=useState(false);const [amount,setAmount]=useState('');const [reference,setReference]=useState('');const [proof,setProof]=useState<ClientFile|null>(null);
- const keyRef=useRef('gov-'+makeId()+makeId());
- const st:Record<string,[string,string]>={reported:['بانتظار التحقق','Awaiting verification'],verified:['تم التحقق','Verified'],rejected:['مرفوض','Rejected']};
- const room=Math.max(0,gov.total-gov.verified-gov.reported);
- const fils=aedToFils(amount);const refOk=/^[A-Za-z0-9 ._/-]{4,60}$/.test(reference.trim());
- const send=()=>act(async()=>{if(!fils||!refOk||!r.remoteId||fils>room)return;try{await reportAuthorityPayment(r.remoteId,proof,proof?await getBytes(proof):null,{amountFils:fils,reference:reference.trim(),clientKey:keyRef.current});keyRef.current='gov-'+makeId()+makeId();setOpen(false);setAmount('');setReference('');setProof(null);onChanged()}catch(e){const c=(e as {code?:string}).code;setMessage(c==='exceeds_balance'?tx('المبلغ يتجاوز الرسوم الحكومية','Amount exceeds the government fees'):c==='reference_used'?tx('هذا المرجع مسجل مسبقاً','This reference is already recorded'):tx('تعذر الإرسال','Could not send'))}});
- return <View style={{gap:6,borderTopWidth:1,borderColor:'#E3D8C6',paddingTop:8}}>
-  <T lang={lang} bold>{tx('الرسوم الحكومية — تُدفع مباشرة للجهة','Government fees — paid directly to the authority')}</T>
-  <T lang={lang} style={s.small}>{tx('تُسدَّد للجهة الحكومية عبر الرابط الرسمي وفق التعرفة الحكومية. لا تحصّلها الشركة، وتتقاضى الشركة أتعابها فقط.','Paid to the government authority through the official link at the official tariff. The Company does not collect them; it only charges its own fee.')}</T>
-  {([[tx('الرسوم الحكومية','Government fees'),gov.total],[tx('تم التحقق منها','Verified'),gov.verified],[tx('المتبقي','Remaining'),gov.remaining]] as [string,number][]).map(([l,v])=><View key={l} style={[s.between,{flexDirection:row}]}><T lang={lang}>{l}</T><T lang="en" bold>{aed(v)}</T></View>)}
-  {gov.payUrl?<Button lang={lang} primary icon="arrows" label={tx('فتح رابط الدفع الرسمي','Open the official payment link')} onPress={()=>{if(/^https:\/\//i.test(gov.payUrl!))void Linking.openURL(gov.payUrl!)}}/>:<T lang={lang} style={s.small}>{tx('سيضيف الفريق رابط الدفع الرسمي قريباً','The team will add the official payment link shortly')}</T>}
-  {gov.entries.map(e=><T key={e.id} lang={lang} style={s.small}>{aed(e.amount)} · {e.reference} · {st[e.status]?.[ar?0:1]}{e.note?' · '+e.note:''}</T>)}
-  {room>0&&!open&&<Button lang={lang} icon="upload" label={tx('أبلغ بأنك دفعت للجهة','Report that you paid the authority')} onPress={()=>setOpen(true)}/>}
-  {open&&<>
-   <T lang={lang}>{tx('المبلغ بالدرهم (حتى '+aed(room)+')','Amount in AED (up to '+aed(room)+')')}</T>
-   <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" accessibilityLabel={tx('المبلغ','Amount')} keyboardType="decimal-pad" value={amount} onChangeText={setAmount} style={[s.input,font(lang)]}/>
-   <T lang={lang}>{tx('رقم إيصال/عملية الجهة','Authority receipt / transaction number')}</T>
-   <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" accessibilityLabel={tx('رقم العملية','Transaction number')} autoCapitalize="characters" value={reference} onChangeText={setReference} style={[s.input,font(lang)]}/>
-   <Button lang={lang} icon="upload" label={proof?proof.name:tx('إرفاق الإيصال (اختياري)','Attach receipt (optional)')} onPress={()=>act(async()=>{const x=await pickClientFile({ar:'إيصال الجهة',en:'Authority receipt'});if(x)setProof(x)})}/>
-   <Button lang={lang} primary disabled={!fils||!refOk||fils>room} label={tx('إرسال للتحقق','Send for verification')} onPress={send}/>
-   <Button lang={lang} label={tx('إلغاء','Cancel')} onPress={()=>setOpen(false)}/>
-  </>}
- </View>;
-}
-
-function FinancePanel({lang,r,act,onChanged,setMessage}:{lang:Lang;r:ClientRequest;act:(fn:()=>Promise<void>|void)=>void;onChanged:()=>void;setMessage:(m:string)=>void}){
- const ar=lang==='ar',row=ar?'row-reverse':'row',tx=(a:string,e:string)=>ar?a:e;
- const f=r.finance!;const [open,setOpen]=useState(false);const [amount,setAmount]=useState('');const [reference,setReference]=useState('');const [proof,setProof]=useState<ClientFile|null>(null);
- const keyRef=useRef('pay-'+makeId()+makeId());
- const kind:Record<string,[string,string]>={government_fee:['رسوم حكومية (تُدفع للجهة)','Government fee (paid to authority)'],service_fee:['أتعاب الشركة','Company fee']};
- const state:Record<string,[string,string]>={unpriced:['غير مسعّر','Not priced'],awaiting_payment:['بانتظار الدفع','Awaiting payment'],partial:['مدفوع جزئياً','Partly paid'],paid:['مدفوع','Paid'],refunded:['مسترد','Refunded']};
- const pst:Record<string,[string,string]>={pending_verification:['بانتظار التحقق','Awaiting verification'],approved:['معتمدة','Approved'],rejected:['مرفوضة','Rejected']};
- const dtype:Record<string,[string,string]>={quote:['عرض سعر','Quotation'],invoice:['فاتورة','Invoice'],receipt:['إيصال','Receipt'],credit_note:['إشعار دائن','Credit note']};
- const room=f.totals.remaining-f.totals.pending;
- const fils=aedToFils(amount);const refOk=/^[A-Za-z0-9 ._/-]{4,60}$/.test(reference.trim());
- const send=()=>act(async()=>{if(!fils||!refOk||!proof||!r.remoteId)return;try{await submitPayment(r.remoteId,proof,await getBytes(proof),{amountFils:fils,reference:reference.trim(),clientKey:keyRef.current});keyRef.current='pay-'+makeId()+makeId();setOpen(false);setAmount('');setReference('');setProof(null);onChanged()}catch(e){const c=(e as {code?:string}).code;setMessage(c==='exceeds_balance'?tx('المبلغ يتجاوز المتبقي على الفاتورة','The amount exceeds the invoice balance'):c==='reference_used'?tx('مرجع التحويل مسجّل مسبقاً','That transfer reference is already registered'):tx('تعذّر إرسال الدفعة. حاول مجدداً','Could not send the payment. Try again'))}});
- return <View style={[s.panel,{marginTop:12}]}>
-  <T lang={lang} bold style={s.cardTitle}>{tx('الفاتورة والدفع','Invoice & payment')}</T>
-  <T lang={lang} style={[s.notice,{color:'#A3261A',backgroundColor:'#FBE6E3'}]}>{tx('نسخة تجريبية — لا قيمة مالية لهذه المستندات','TEST COPY — these documents have no financial value')}</T>
-  {f.quote?<>
-   {f.quote.items.filter(i=>i.kind==='service_fee').map((i,k)=><View key={k} style={[s.between,{flexDirection:row}]}><T lang={lang} style={{flex:1}}>{kind[i.kind]?.[ar?0:1]}: {i[lang]}</T><T lang="en" bold>{aed(i.amount)}</T></View>)}
-   <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('إجمالي أتعاب الشركة','Company fee total')} ({f.invoice?.number??''})</T><T lang="en" bold>{aed(f.quote.total)}</T></View>
-   <T lang={lang} style={s.small}>{tx('الضريبة غير مهيأة ولم تُحتسب. هذه المستندات ليست فواتير ضريبية.','Tax is not configured and was not calculated. These are not tax invoices.')}</T>
-  </>:<T lang={lang}>{tx('بانتظار إصدار الفاتورة من الفريق','Waiting for the team to issue your invoice')}</T>}
-  {(f.credit??0)>0&&<T lang={lang} style={s.notice}>{tx('رصيدك الدائن لدينا (مبلغ زائد لم يُخصص لمعاملة): ','Your credit with us (excess not allocated to a transaction): ')}{aed(f.credit!)}</T>}
-  {f.gov&&f.invoice&&<View style={{backgroundColor:'#F6EACD',borderRadius:10,padding:10,gap:4}}>
-   <T lang={lang} bold>{tx('التكلفة الكاملة لمعاملتك','Full cost of your transaction')}</T>
-   <View style={[s.between,{flexDirection:row}]}><T lang={lang}>{tx('أتعاب الشركة','Company fee')}</T><T lang="en" bold>{aed(f.totals.total)}</T></View>
-   <View style={[s.between,{flexDirection:row}]}><T lang={lang}>{tx('الرسوم الحكومية (للجهة مباشرة)','Government fees (to the authority)')}</T><T lang="en" bold>{aed(f.gov.total)}</T></View>
-   <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('الإجمالي','Total')}</T><T lang="en" bold>{aed(f.totals.total+f.gov.total)}</T></View>
-  </View>}
-  {f.gov&&<GovSection lang={lang} r={r} gov={f.gov} act={act} onChanged={onChanged} setMessage={setMessage}/>}
-  {f.invoice&&<>
-   <View style={[s.between,{flexDirection:row}]}><T lang={lang} bold>{tx('حالة الدفع','Payment status')}</T><T lang={lang} style={s.badge}>{state[f.totals.state]?.[ar?0:1]}</T></View>
-   {[[tx('الإجمالي','Total'),f.totals.total],[tx('المدفوع','Paid'),f.totals.paid],[tx('بانتظار التحقق','Awaiting verification'),f.totals.pending],[tx('المسترد','Refunded'),f.totals.refunded],[tx('المتبقي','Remaining'),f.totals.remaining]].map(([l,v])=><View key={String(l)} style={[s.between,{flexDirection:row}]}><T lang={lang}>{l}</T><T lang="en" bold>{aed(v as number)}</T></View>)}
-   {f.payments.map(p=><View key={p.id}><T lang={lang} style={s.small}>{p.kind==='refund'?tx('استرداد','Refund'):tx('دفعة','Payment')} {aed(p.amount)} · {pst[p.status]?.[ar?0:1]}{p.note?' · '+p.note:''}</T></View>)}
-   {room>0&&!open&&<Button lang={lang} icon="upload" label={tx('إبلاغ عن دفعة (تحويل بنكي)','Report a payment (bank transfer)')} onPress={()=>setOpen(true)}/>}
-   {open&&<>
-    <T lang={lang}>{tx('المبلغ بالدرهم (حتى '+aed(room)+')','Amount in AED (up to '+aed(room)+')')}</T>
-    <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" accessibilityLabel={tx('المبلغ','Amount')} keyboardType="decimal-pad" value={amount} onChangeText={setAmount} style={[s.input,font(lang)]}/>
-    <T lang={lang}>{tx('مرجع التحويل','Transfer reference')}</T>
-    <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" accessibilityLabel={tx('مرجع التحويل','Transfer reference')} autoCapitalize="characters" value={reference} onChangeText={setReference} style={[s.input,font(lang)]}/>
-    <Button lang={lang} icon="upload" label={proof?proof.name:tx('اختيار إثبات التحويل','Choose transfer proof')} onPress={()=>act(async()=>{const x=await pickClientFile({ar:'إثبات دفع',en:'Payment proof'});if(x)setProof(x)})}/>
-    <Button lang={lang} primary disabled={!fils||!refOk||!proof||(fils??0)>room} label={tx('إرسال للتحقق','Send for verification')} onPress={send}/>
-    <Button lang={lang} label={tx('إلغاء','Cancel')} onPress={()=>setOpen(false)}/>
-   </>}
-  </>}
-  {f.documents.length>0&&<>
-   <T lang={lang} bold>{tx('المستندات المالية','Financial documents')}</T>
-   {f.documents.map(d=><View key={d.id} style={[s.between,{flexDirection:row}]}><T lang={lang} style={{flex:1}}>{dtype[d.type]?.[ar?0:1]} · {d.number}{d.status==='void'?' ('+tx('ملغى','void')+')':''}</T><Button lang={lang} label={tx('عرض','View')} onPress={()=>act(async()=>{await openHtmlDocument(d.number,await fetchDocumentHtml(d.id))})}/></View>)}
-  </>}
- </View>;
-}

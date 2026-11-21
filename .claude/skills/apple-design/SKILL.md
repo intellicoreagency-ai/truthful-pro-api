@@ -12,7 +12,7 @@ Apple's Human Interface Guidelines (HIG) are the **base for the brand identity**
 
 ## Typography
 - Use a clear hierarchy, roughly the HIG text styles: Large Title 34, Title 28, Title 2 22, Headline 17 (semibold), Body 17, Callout 16, Subheadline 15, Footnote 13, Caption 12. Do not go below 11 pt for anything a user must read.
-- Brand fonts remain those already approved (Noto Sans Arabic for Arabic, Open Sans for Latin). Never mix more than two weights on one screen; prefer regular, semibold and bold.
+- Fonts (owner decision, Nov 2026): **Cairo** for Arabic (`CairoRegular`, `CairoSemiBold`, `CairoBold`, loaded in `App.tsx`) and the **platform system font** for English/Latin (SF Pro on iOS, Roboto on Android). Use `Txt` from `mobile/src/ui/Txt.tsx`, which applies this automatically. Every redesigned screen follows this; older fonts (IBM Plex Sans Arabic, Plus Jakarta Sans, Noto Sans Arabic, Open Sans) remain only on legacy screens until they are refactored, and on approved banner artwork. Never mix more than two weights on one screen; prefer regular, semibold and bold.
 - Respect Dynamic Type / font scale on both platforms; every `Text` and `TextInput` is capped with `maxFontSizeMultiplier={1.35}` so layouts survive large system fonts.
 - Arabic is first-class: right-aligned, `writingDirection: 'rtl'`, generous line height (≥ 1.4× size). Numbers and references (`#`, AED amounts, phone numbers) are isolated as LTR.
 

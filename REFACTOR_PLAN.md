@@ -22,8 +22,10 @@ redesigned screens working and unchanged:
   Screens are components with props; there are no URL routes or deep links to preserve yet.
 - API: `mobile/src/api.ts` (`call()` adds the bearer token, refreshes it, handles session expiry).
   Server → app mapping: `mobile/src/syncMap.ts`. Model and formatters: `mobile/src/clientModel.ts`.
-- Text: `mobile/src/ui/Txt.tsx` (Cairo for Arabic, system font for English). Legacy screens still use
-  IBM Plex Sans Arabic / Plus Jakarta Sans via `AppText` (App.tsx) and `RefText` (ReferenceUI.tsx).
+- Text: `mobile/src/ui/Txt.tsx` — **decided: Cairo for Arabic, system font for English on every refactored screen**
+  (recorded in `.claude/skills/apple-design/SKILL.md`). Legacy screens still use IBM Plex Sans Arabic / Plus Jakarta Sans
+  via `AppText` (App.tsx) and `RefText` (ReferenceUI.tsx) until refactored.
+- Glass building blocks: `mobile/src/ui/Glass.tsx` (`GlassCard`, `GlassButton`, `IconButton`, `GlassField`, `ValueRow`, `Note`, `SectionTitle`, `useReduceTransparency`, `ltr`).
 - Tokens: `mobile/src/theme.ts`. Touch: `Pressable` from `mobile/src/Touch.tsx`. Icons: `mobile/src/Icons.tsx` (SVG).
 - Not installed: `expo-router`, `@expo/vector-icons`, `react-native-reanimated`. Don't add them without a decision.
 - Safe areas are applied once in App.tsx (`SafeAreaView`); screens must not add insets again.
@@ -33,17 +35,17 @@ redesigned screens working and unchanged:
 - [x] Audit existing routes and identify legacy components (see below).
 - [x] Reuse the existing Cairo font loader at the app root (`useFonts` in App.tsx).
 - [x] Shared color, spacing, radius and type tokens exist: `theme.ts` (`colors`, `space`, `radius`, `type`, `layout`, `glass`, `onGlass`).
-- [ ] Extract a reusable light `GlassCard` (now local to `TransactionDetailsScreen.tsx`) into `mobile/src/ui/`.
-      Note: `auth/AuthKit.tsx` already exports a `GlassCard` for the dark photo-backed auth screens — keep both variants, one module.
+- [x] Reusable light `GlassCard` in `mobile/src/ui/Glass.tsx`.
+      Note: `auth/AuthKit.tsx` keeps its own dark `GlassCard` for the photo-backed sign-in screens.
 - [x] Glass cards: translucent white surface, subtle white border, shadow on an outer View.
 - [x] Readable translucent fallback when blur is unavailable (Android uses `dimezisBlurView`, denser fill elsewhere).
-- [ ] Shared buttons, status badges, headers and inputs in `mobile/src/ui/` (badge + header now local to Step 5).
+- [x] Shared buttons, inputs, value rows and notes in `mobile/src/ui/Glass.tsx`.
+- [ ] Move the status badge and screen header (local to Request details) into `mobile/src/ui/` when the next screen needs them.
 - [x] StyleSheet only; no HTML, CSS or NativeWind.
 - [ ] RTL/LTR, screen readers and enlarged text checked on each screen (`maxFontSizeMultiplier` via `Txt`).
 - [ ] Text contrast readable over every glass background.
 - [x] Reduced-transparency preference respected with an opaque fallback (Step 5 pattern).
-- [ ] Decision: `.claude/skills/apple-design/SKILL.md` names Noto Sans Arabic / Open Sans as brand fonts,
-      while `Txt` and PROGRESS.md use Cairo + system font. Confirm which is final before more screens.
+- [x] Font decision: Cairo (Arabic) + system font (English); design rules updated.
 
 ## Legacy screens (real names in the repo)
 
@@ -51,7 +53,7 @@ Refactor only these. Preserve page names and the Android back order in App.tsx (
 
 | # | Screen | Where | What it contains |
 |---|--------|-------|------------------|
-| 5 | **Request details** | `DetailDesign` in `src/ClientDesign.tsx`, shown by `ClientWorkspace` (page `requests`, `selected` set) | status, progress, dates, files, receipt confirmation, share, export, delivery-problem report, `FinancePanel` + `GovSection` (in `ClientWorkspace.tsx`) |
+| 5 | **Request details** ✅ | `DetailDesign` in `src/ClientDesign.tsx`, shown by `ClientWorkspace` (page `requests`, `selected` set) | status, progress, dates, files, receipt confirmation, share, export, delivery-problem report, `FinancePanel` + `GovSection` (in `ClientWorkspace.tsx`) |
 | 6 | Missing documents | `MissingDesign` in `src/ClientDesign.tsx` (`tab==='missing'`) | requested documents, pick replacement, send to team |
 | 7 | Request files | files tab inside `ClientWorkspace` (`tab==='files'`, `RefHeader` + `fileRow`) | view / save each file |
 | 8 | Share sheet | `ShareDesign` in `src/ClientDesign.tsx`, in a `Modal` in `ClientWorkspace` | summary, financial toggle, files, invoice, email / WhatsApp / system share |
@@ -67,16 +69,23 @@ Not present as separate screens (don't invent them): Notifications (the bell ope
 Payments (lives in `FinancePanel` inside Request details), Settings (inside Account),
 Support (WhatsApp/phone buttons on Home; Step 5 adds a WhatsApp button on Request details).
 
-## Step 5 — Request details (in progress)
+## Step 5 — Request details (done)
 
-- [x] `mobile/src/details/TransactionDetailsScreen.tsx` built: glass cards, status badge, "what happens now",
-      dates, total (fils), documents, request history, WhatsApp support, pull-to-refresh, Android back, reduced transparency.
-- [x] `fetchRequest(remoteId)` in `api.ts` (`GET /v1/requests/:id`; server checks ownership).
-- [ ] Wire it into `ClientWorkspace` in place of `DetailDesign`, passing `renderFile={f=>fileRow(f,current)}`,
-      `onMissing={()=>setTab('missing')}` and `onUpdated` (save through `update`).
-- [ ] Carry over every `DetailDesign` action before removing it: progress stages, files tab, share,
-      confirm receipt, export summary, delivery-problem report, `FinancePanel`.
-- [ ] Before/after screenshots in Arabic and English; then remove `DetailDesign` only after checking every reference.
+- [x] `mobile/src/details/TransactionDetailsScreen.tsx` replaces `DetailDesign` (removed from `ClientDesign.tsx`).
+- [x] All actions kept: progress stages, "where am I / action needed", dates, financial details, final files
+      (view / save), all request files, share sheet, export summary, receipt confirmation, problem report,
+      complete missing documents, and the invoice & payment panel.
+- [x] Payments panel moved to `mobile/src/details/FinancePanel.tsx` with its logic unchanged (glass presentation only).
+- [x] Fixed on the way: "Complete documents" and the problem-report form only appeared for completed requests;
+      the "All request files" action was never shown.
+- [x] Added: fresh server copy on open (`fetchRequest`, skipped while local changes wait to upload),
+      pull-to-refresh (full sync), WhatsApp support button.
+- [x] Android back: unchanged, owned by `ClientWorkspace` (share sheet → files/missing → details → list).
+- [x] Checked in the web preview (390 pt wide, Arabic and English): renders without errors; receipt, files,
+      back and share work on the sample requests.
+- [ ] Check on physical iOS and Android devices (blur, ripple, font scale, VoiceOver/TalkBack).
+
+Next screen: **6 — Missing documents** (`MissingDesign`), then 7 — Request files, 8 — Share sheet.
 
 ## Per-screen checklist
 
