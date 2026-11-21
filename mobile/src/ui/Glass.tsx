@@ -63,7 +63,7 @@ export function GlassButton({lang,label,onPress,icon,primary,disabled,busy,acces
 }){
   const off=!!disabled||!!busy,fg=primary?lux.onAction:colors.brand;
   return <ScalePressable accessibilityRole="button" accessibilityLabel={accessibilityLabel??label} accessibilityState={{disabled:off,busy:!!busy}}
-    disabled={off} onPress={onPress} rippleColor={primary?'rgba(11,31,58,0.18)':undefined}
+    disabled={off} onPress={onPress} rippleColor={primary?'rgba(14,21,38,0.18)':undefined}
     style={[g.button,compact&&g.buttonCompact,fill&&g.fill,primary?g.primary:g.secondary,off&&g.disabled]}>
     {primary&&<LinearGradient pointerEvents="none" colors={lux.orange} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>}
     <View pointerEvents="none" style={[g.buttonInner,{flexDirection:rowFor(lang)}]}>
@@ -197,13 +197,13 @@ const shadow=Platform.select({
 export const g=StyleSheet.create({
   flex1:{flex:1},
   luxContent:{padding:space.xl,gap:space.lg},
-  warningTint:{backgroundColor:'rgba(243,234,214,0.55)'},
+  warningTint:{backgroundColor:'rgba(246,237,214,0.55)'},
   successTint:{backgroundColor:'rgba(222,240,208,0.55)'},
   between:{alignItems:'center',justifyContent:'space-between',gap:space.md},
   screen:{flex:1,backgroundColor:lux.ivory},
   backdrop:{position:'absolute',top:0,right:0,bottom:0,left:0,overflow:'hidden'},
   orb:{position:'absolute',width:320,height:320,borderRadius:160},
-  orbWarm:{backgroundColor:'#C9D3E6',opacity:0.22,top:60,left:-140},
+  orbWarm:{backgroundColor:'#AFC0F2',opacity:0.22,top:60,left:-140},
   orbSand:{backgroundColor:lux.sand,opacity:0.9,top:440,right:-160},
   content:{flexGrow:1,paddingHorizontal:space.lg,paddingTop:space.md,paddingBottom:space.xxl+space.sm},
   page:{width:'100%',maxWidth:600,alignSelf:'center',gap:space.lg},
@@ -214,9 +214,9 @@ export const g=StyleSheet.create({
   headerSubtitle:{fontSize:type.subhead,lineHeight:22,color:colors.muted},
   badge:{alignItems:'center',gap:6,borderRadius:radius.pill,paddingHorizontal:space.md,paddingVertical:5,alignSelf:'flex-start'},
   badgeText:{fontSize:type.footnote,lineHeight:20},
-  tag:{borderRadius:radius.pill,paddingHorizontal:space.md,paddingVertical:5,backgroundColor:'#F3EAD6'},
+  tag:{borderRadius:radius.pill,paddingHorizontal:space.md,paddingVertical:5,backgroundColor:'#F6EDD6'},
   tagBrand:{backgroundColor:colors.brandTint},
-  tagText:{fontSize:type.footnote,lineHeight:20,color:'#6E5426'},
+  tagText:{fontSize:type.footnote,lineHeight:20,color:'#76592A'},
   stages:{gap:space.lg},
   stageCount:{fontSize:type.footnote,lineHeight:20,color:colors.brand},
   step:{flex:1,alignItems:'center',gap:space.sm},
@@ -224,12 +224,12 @@ export const g=StyleSheet.create({
   connectorDone:{backgroundColor:colors.orange},
   dot:{width:28,height:28,borderRadius:14,borderWidth:2,borderColor:colors.line,backgroundColor:colors.white,alignItems:'center',justifyContent:'center'},
   dotDone:{backgroundColor:colors.orange,borderColor:colors.orange},
-  dotNow:{borderColor:colors.orange,borderWidth:4,backgroundColor:'#E6EAF2'},
+  dotNow:{borderColor:colors.orange,borderWidth:4,backgroundColor:'#E8EDFB'},
   stepText:{fontSize:type.caption,lineHeight:18,textAlign:'center',color:colors.muted},
   checkInner:{alignItems:'center',gap:space.md,paddingHorizontal:space.md,paddingVertical:space.sm},
   check:{minHeight:layout.minTouch+4,justifyContent:'center',borderRadius:radius.control,
     borderWidth:1,borderColor:colors.line,backgroundColor:'rgba(255,255,255,0.9)',overflow:'hidden'},
-  checkOn:{borderColor:'#C9A45C',backgroundColor:'#E6EAF2'},
+  checkOn:{borderColor:'#D9BC7E',backgroundColor:'#E8EDFB'},
   checkBox:{width:24,height:24,borderRadius:6,borderWidth:1.5,borderColor:colors.muted,alignItems:'center',justifyContent:'center'},
   checkBoxOn:{backgroundColor:colors.orange,borderColor:colors.orange},
   body:{fontSize:type.subhead,lineHeight:24,color:onGlass.soft},
@@ -237,10 +237,10 @@ export const g=StyleSheet.create({
   fill:{flex:1,alignSelf:'stretch'},
   cardShadow:{borderRadius:radius.card+8,...shadow},
   card:{borderRadius:radius.card+8,overflow:'hidden',borderWidth:1,borderColor:onGlass.border},
-  cardWarning:{borderColor:'#C9A45C'},
+  cardWarning:{borderColor:'#D9BC7E'},
   cardContent:{padding:space.xl,gap:space.lg,backgroundColor:Platform.select({ios:onGlass.field,default:'rgba(255,255,255,0.86)'})},
   opaque:{backgroundColor:colors.white},
-  warningFill:{backgroundColor:'rgba(243,234,214,0.82)'},
+  warningFill:{backgroundColor:'rgba(246,237,214,0.82)'},
   successFill:{backgroundColor:'rgba(229,242,217,0.82)'},
 
   sectionTitle:{fontSize:type.headline,lineHeight:26},
@@ -252,7 +252,7 @@ export const g=StyleSheet.create({
   valueText:{fontSize:type.subhead,lineHeight:22},
 
   note:{padding:space.md,borderRadius:radius.control,backgroundColor:'rgba(255,255,255,0.9)'},
-  noteWarning:{backgroundColor:'#F3EAD6'},
+  noteWarning:{backgroundColor:'#F6EDD6'},
   noteDanger:{backgroundColor:'#FBE6E3'},
   noteSuccess:{backgroundColor:'#E5F2D9'},
   noteText:{fontSize:type.footnote+1,lineHeight:22,color:onGlass.soft},
@@ -260,12 +260,12 @@ export const g=StyleSheet.create({
   button:{minHeight:52,borderRadius:18,justifyContent:'center',overflow:'hidden'},
   buttonInner:{alignItems:'center',justifyContent:'center',gap:space.sm+2,paddingHorizontal:space.lg,paddingVertical:space.md,flexWrap:'nowrap'},
   buttonCompact:{minHeight:layout.minTouch},
-  primary:{backgroundColor:colors.orange,borderWidth:1,borderColor:colors.gold},
-  secondary:{backgroundColor:'rgba(255,255,255,0.9)',borderWidth:1,borderColor:'rgba(201,164,92,0.55)'},
+  primary:{backgroundColor:colors.orange,borderWidth:0},
+  secondary:{backgroundColor:'rgba(255,255,255,0.9)',borderWidth:1,borderColor:'rgba(217,188,126,0.55)'},
   buttonText:{fontSize:type.subhead,textAlign:'center',flexShrink:1},
   disabled:{opacity:0.45},
   iconButton:{width:layout.minTouch,height:layout.minTouch,borderRadius:radius.pill,alignItems:'center',justifyContent:'center',
-    backgroundColor:'rgba(255,255,255,0.9)',borderWidth:1,borderColor:'rgba(201,164,92,0.55)',overflow:'hidden'},
+    backgroundColor:'rgba(255,255,255,0.9)',borderWidth:1,borderColor:'rgba(217,188,126,0.55)',overflow:'hidden'},
 
   field:{gap:space.xs+2},
   fieldLabel:{fontSize:type.footnote+1,lineHeight:20,color:onGlass.soft},

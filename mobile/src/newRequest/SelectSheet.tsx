@@ -31,8 +31,8 @@ export function SelectSheet({visible,lang,title,sections,selectedId,searchPlaceh
       <View style={s.sheet} accessibilityViewIsModal>
         {/* glass material: blur + ivory sheen; gold hairline along the top edge */}
         {!reduce&&<BlurView pointerEvents="none" tint="light" intensity={70} experimentalBlurMethod={Platform.OS==='android'?'dimezisBlurView':undefined} style={StyleSheet.absoluteFill}/>}
-        <LinearGradient pointerEvents="none" colors={reduce?[lux.ivory,lux.ivory]:['rgba(244,245,247,0.9)','rgba(244,245,247,0.97)']} style={StyleSheet.absoluteFill}/>
-        <LinearGradient pointerEvents="none" colors={['rgba(201,164,92,0)','rgba(201,164,92,0.85)','rgba(201,164,92,0)']} start={{x:0,y:0}} end={{x:1,y:0}} style={s.topLine}/>
+        <LinearGradient pointerEvents="none" colors={reduce?[lux.ivory,lux.ivory]:['rgba(243,245,248,0.9)','rgba(243,245,248,0.97)']} style={StyleSheet.absoluteFill}/>
+        <LinearGradient pointerEvents="none" colors={['rgba(217,188,126,0)','rgba(217,188,126,0.85)','rgba(217,188,126,0)']} start={{x:0,y:0}} end={{x:1,y:0}} style={s.topLine}/>
         <View style={s.grabber}/>
         <View style={[s.head,{flexDirection:ar?'row-reverse':'row'}]}>
           <Txt lang={lang} style={s.title}>{title}</Txt>
@@ -61,21 +61,21 @@ export function SelectSheet({visible,lang,title,sections,selectedId,searchPlaceh
   </Modal>;
 }
 const s=StyleSheet.create({
-  backdrop:{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(11,31,58,0.38)'},
+  backdrop:{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(10,20,48,0.38)'},
   dismiss:{flex:1},
   sheet:{maxHeight:'82%',width:'100%',maxWidth:600,alignSelf:'center',overflow:'hidden',backgroundColor:lux.ivory,borderTopLeftRadius:30,borderTopRightRadius:30,paddingTop:space.sm,...Platform.select({web:{boxShadow:'0 -8px 30px rgba(0,0,0,0.2)'} as object,default:{elevation:16}})},
   topLine:{position:'absolute',top:0,left:0,right:0,height:1.5},
-  grabber:{alignSelf:'center',width:40,height:5,borderRadius:3,backgroundColor:'rgba(168,132,63,0.55)',marginBottom:space.sm},
+  grabber:{alignSelf:'center',width:40,height:5,borderRadius:3,backgroundColor:'rgba(184,137,63,0.55)',marginBottom:space.sm},
   head:{alignItems:'center',justifyContent:'space-between',paddingHorizontal:space.lg,paddingBottom:space.sm},
-  title:{fontSize:type.title2,fontWeight:'700',color:'#0B1F3A'},
-  close:{width:layout.minTouch,height:layout.minTouch,borderRadius:layout.minTouch/2,backgroundColor:'rgba(255,255,255,0.9)',borderWidth:1,borderColor:'rgba(201,164,92,0.55)',alignItems:'center',justifyContent:'center',overflow:'hidden'},
-  search:{marginHorizontal:space.lg,marginBottom:space.sm,minHeight:48,alignItems:'center',gap:space.sm,paddingHorizontal:space.md,borderRadius:16,backgroundColor:'rgba(255,255,255,0.7)',borderWidth:1,borderColor:'rgba(201,164,92,0.55)'},
+  title:{fontSize:type.title2,fontWeight:'700',color:'#0E1526'},
+  close:{width:layout.minTouch,height:layout.minTouch,borderRadius:layout.minTouch/2,backgroundColor:'rgba(255,255,255,0.9)',borderWidth:1,borderColor:'rgba(217,188,126,0.55)',alignItems:'center',justifyContent:'center',overflow:'hidden'},
+  search:{marginHorizontal:space.lg,marginBottom:space.sm,minHeight:48,alignItems:'center',gap:space.sm,paddingHorizontal:space.md,borderRadius:16,backgroundColor:'rgba(255,255,255,0.7)',borderWidth:1,borderColor:'rgba(217,188,126,0.55)'},
   searchInput:{flex:1,minWidth:0,minHeight:layout.minTouch-4,fontSize:type.callout,color:colors.ink},
   list:{paddingHorizontal:space.lg,paddingBottom:space.xxl*1.5,gap:space.lg},
   section:{gap:space.sm},sectionTitle:{fontSize:type.subhead,fontWeight:'700',color:colors.brand,paddingHorizontal:space.xs},
   row:{alignItems:'center',gap:space.md,minHeight:layout.minTouch+8,paddingHorizontal:space.lg,paddingVertical:space.sm},
-  rowLine:{borderBottomWidth:1,borderColor:'rgba(201,164,92,0.28)'},
-  rowOn:{backgroundColor:'rgba(230,234,242,0.55)'},
+  rowLine:{borderBottomWidth:1,borderColor:'rgba(217,188,126,0.28)'},
+  rowOn:{backgroundColor:'rgba(232,237,251,0.55)'},
   rowText:{flex:1,gap:2},rowTitle:{fontSize:type.body,fontWeight:'600'},rowSub:{fontSize:type.footnote,color:colors.muted},
   none:{textAlign:'center',color:colors.muted,paddingVertical:space.xxl},
 });

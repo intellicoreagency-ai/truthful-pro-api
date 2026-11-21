@@ -60,7 +60,7 @@ export function ServicesScreen({lang,business,onAudience,query,onQuery,services,
     <ScalePressable accessibilityRole="button" accessibilityLabel={t.allServices} onPress={()=>setOpenId(null)} style={[styles.backRow,{flexDirection:row,alignSelf:ar?'flex-end':'flex-start'}]}>
       <Icon name={ar?'next':'back'} size={18} color={colors.brand}/><Txt lang={lang} bold style={styles.backText}>{t.allServices}</Txt>
     </ScalePressable>
-    <CategoryBanner lang={lang} id={open.c.id} title={open.c.title[lang]} subtitle={open.c.desc[lang]} count={open.branches.reduce((n,br)=>n+actionsIn(br),0)} chevron={false} tall/>
+    <CategoryBanner lang={lang} id={open.c.id} photoId={open.branches[0]!.serviceId} title={open.c.title[lang]} subtitle={open.c.desc[lang]} count={open.branches.reduce((n,br)=>n+actionsIn(br),0)} tall/>
     <SectionTitle lang={lang}>{t.chooseBranch}</SectionTitle>
     {open.branches.map((br,i)=>{const svc=serviceForBranch(br);if(!svc)return null;
       return <Entrance key={br.serviceId} index={i}>
@@ -117,7 +117,7 @@ export function ServicesScreen({lang,business,onAudience,query,onQuery,services,
 
     {visible.map(({c,branches},i)=><Entrance key={c.id} index={i}>
       <ScalePressable accessibilityRole="button" accessibilityLabel={`${c.title[lang]}. ${c.desc[lang]}`} onPress={()=>choose(c,branches)} style={styles.tile}>
-        <CategoryBanner lang={lang} id={c.id} title={c.title[lang]}
+        <CategoryBanner lang={lang} id={c.id} photoId={branches[0]!.serviceId} title={c.title[lang]}
           subtitle={branches.length>1?branches.map(br=>br.title[lang]).join(ar?' · ':' · '):c.desc[lang]}
           count={branches.reduce((n,br)=>n+actionsIn(br),0)}/>
       </ScalePressable>

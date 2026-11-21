@@ -54,7 +54,7 @@ export function MissingDocumentsScreen({lang,r,onBack,onPick,onSend,busy,message
 
     <GlassCard reduce={reduce} tone="warning">
       <View style={[styles.alert,{flexDirection:row}]}>
-        <View style={styles.alertIcon}><Icon name="file" size={28} color="#6E5426"/></View>
+        <View style={styles.alertIcon}><Icon name="file" size={28} color="#76592A"/></View>
         <View style={g.flex1}>
           <Txt lang={lang} bold style={styles.alertTitle}>{t.required}</Txt>
           <Txt lang={lang} style={g.body}>{t.requiredBody}</Txt>
@@ -115,8 +115,8 @@ export function MissingDocumentsScreen({lang,r,onBack,onPick,onSend,busy,message
 const styles=StyleSheet.create({
   refRow:{alignItems:'center',justifyContent:'space-between',gap:space.sm,flexWrap:'wrap'},
   alert:{alignItems:'center',gap:space.md},
-  alertIcon:{width:52,height:52,borderRadius:16,alignItems:'center',justifyContent:'center',backgroundColor:'#EBDDBB'},
-  alertTitle:{fontSize:type.headline,lineHeight:26,color:'#6E5426'},
+  alertIcon:{width:52,height:52,borderRadius:16,alignItems:'center',justifyContent:'center',backgroundColor:'#F1E3C2'},
+  alertTitle:{fontSize:type.headline,lineHeight:26,color:'#76592A'},
   docHead:{alignItems:'center',gap:space.sm+2},
   docTitle:{fontSize:type.callout,lineHeight:24},
   staffNote:{gap:2,padding:space.md,borderRadius:radius.control,backgroundColor:'#F4F0E6'},
@@ -126,7 +126,7 @@ const styles=StyleSheet.create({
   fileName:{fontSize:type.subhead,lineHeight:22},
   drop:{alignItems:'center',gap:space.xs,minHeight:layout.minTouch*2,padding:space.lg,borderRadius:radius.control,borderWidth:1.5,borderStyle:'dashed',
     borderColor:colors.orange,backgroundColor:'rgba(255,255,255,0.7)',overflow:'hidden'},
-  dropTitle:{fontSize:type.callout,lineHeight:24,color:'#80622C'},
+  dropTitle:{fontSize:type.callout,lineHeight:24,color:'#8A6A2F'},
   kept:{alignItems:'center',gap:space.sm,paddingHorizontal:space.xs},
   sendBlock:{gap:space.sm},
 });

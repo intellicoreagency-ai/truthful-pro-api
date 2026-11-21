@@ -71,16 +71,16 @@ export function CategoryMedallion({id,size=64,lang}:{id:CategoryId;size?:number;
   return <Svg width={size} height={size} viewBox="0 0 64 64" accessible={false}>
     <Defs>
       <SvgGradient id="ring" x1="0" y1="0" x2="1" y2="1">
-        <Stop offset="0" stopColor="#E9D5A6"/><Stop offset="0.55" stopColor="#C9A45C"/><Stop offset="1" stopColor="#8F6E34"/>
+        <Stop offset="0" stopColor="#F1DDAA"/><Stop offset="0.55" stopColor="#D9BC7E"/><Stop offset="1" stopColor="#B8893F"/>
       </SvgGradient>
     </Defs>
     <Circle cx={32} cy={32} r={30} fill="rgba(255,255,255,0.06)" stroke="url(#ring)" strokeWidth={1.6}/>
-    <Circle cx={32} cy={32} r={25.5} fill="none" stroke="rgba(201,164,92,0.35)" strokeWidth={0.8}/>
+    <Circle cx={32} cy={32} r={25.5} fill="none" stroke="rgba(217,188,126,0.35)" strokeWidth={0.8}/>
     <G transform="translate(8 8)" fill="none" stroke="url(#ring)" strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round">
       {ICON[id]}
       {id==='translation'&&<>
-        <SvgText x={16.5} y={19.5} fill="#E9D5A6" stroke="none" fontSize={10} fontWeight="700" textAnchor="middle">{lang==='ar'?'ع':'A'}</SvgText>
-        <SvgText x={31.5} y={33} fill="#E9D5A6" stroke="none" fontSize={10} fontWeight="700" textAnchor="middle">{lang==='ar'?'A':'ع'}</SvgText>
+        <SvgText x={16.5} y={19.5} fill="#F1DDAA" stroke="none" fontSize={10} fontWeight="700" textAnchor="middle">{lang==='ar'?'ع':'A'}</SvgText>
+        <SvgText x={31.5} y={33} fill="#F1DDAA" stroke="none" fontSize={10} fontWeight="700" textAnchor="middle">{lang==='ar'?'A':'ع'}</SvgText>
       </>}
     </G>
   </Svg>;
@@ -93,12 +93,12 @@ export function CategoryMedallion({id,size=64,lang}:{id:CategoryId;size?:number;
 export function BannerBackdrop({flip}:{flip:boolean}){
   return <Svg width="100%" height="100%" viewBox="0 0 400 150" preserveAspectRatio="xMidYMid slice" accessible={false}>
     <G transform={flip?'translate(400 0) scale(-1 1)':undefined}>
-      <G opacity={0.09} fill="none" stroke="#E9D5A6" strokeWidth={0.8}>
+      <G opacity={0.09} fill="none" stroke="#F1DDAA" strokeWidth={0.8}>
         {[0,1,2,3].flatMap(r=>[0,1,2,3,4].map(c=>{const x=250+c*34+(r%2)*17,y=8+r*34;
           return <Path key={`${r}-${c}`} d={`M${x} ${y-11}L${x+4} ${y-4}L${x+11} ${y}L${x+4} ${y+4}L${x} ${y+11}L${x-4} ${y+4}L${x-11} ${y}L${x-4} ${y-4}Z`}/>;}))}
       </G>
-      <Path d="M210 160C250 90 320 40 420 30" fill="none" stroke="#C9A45C" strokeOpacity={0.55} strokeWidth={1.3}/>
-      <Path d="M228 160C268 100 330 58 420 50" fill="none" stroke="#C9A45C" strokeOpacity={0.22} strokeWidth={0.9}/>
+      <Path d="M210 160C250 90 320 40 420 30" fill="none" stroke="#D9BC7E" strokeOpacity={0.55} strokeWidth={1.3}/>
+      <Path d="M228 160C268 100 330 58 420 50" fill="none" stroke="#D9BC7E" strokeOpacity={0.22} strokeWidth={0.9}/>
       <Path fill="rgba(255,255,255,0.07)" d="M262 150V118h8v-14h6v14h6V96h10v22h5V82l3-9 3 9v6l1.5-40 1.5 40v10h5v30h7v-24h9v24h6v-16h11v16h6V108h9v42z"/>
     </G>
   </Svg>;
