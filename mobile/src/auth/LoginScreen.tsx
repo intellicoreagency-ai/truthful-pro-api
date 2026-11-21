@@ -5,7 +5,7 @@ import {toE164} from './phone';
 import {AuthScaffold,PrimaryButton,RoundedField,SecondaryButton,StepTransition,TextLink,type AuthText,AText} from './AuthKit';
 import {WaitingStep} from './WaitingStep';
 import {useWaVerification} from './useWaVerification';
-import {glass,space,type} from '../theme';
+import {glass,onGlass,space,type} from '../theme';
 
 type Props={
   lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text?:AuthText;inputFont?:string;
@@ -23,8 +23,8 @@ export function LoginScreen({lang,onLanguage,logo,inputFont,onVerified,onRegiste
   const waiting=!!wa.challenge;
   return <AuthScaffold lang={lang} onLanguage={onLanguage} logo={logo} title={waiting?t.waitTitle:t.loginTitle} subtitle={waiting?t.waitSub:t.loginSub}
     footer={waiting?null:<>
-      <View style={[s.row,{flexDirection:lang==='ar'?'row-reverse':'row'}]}><T lang={lang} style={s.muted}>{t.noAccount}</T><TextLink lang={lang} Text={T} label={t.toRegister} onPress={onRegister}/></View>
-      <TextLink lang={lang} Text={T} label={t.guest} onPress={onGuest}/>
+      <View style={[s.row,{flexDirection:lang==='ar'?'row-reverse':'row'}]}><T lang={lang} style={s.muted}>{t.noAccount}</T><TextLink tone="photo" lang={lang} Text={T} label={t.toRegister} onPress={onRegister}/></View>
+      <TextLink tone="photo" lang={lang} Text={T} label={t.guest} onPress={onGuest}/>
     </>}>
     <StepTransition stepKey={waiting?'wait':'form'}>
       {waiting
@@ -47,6 +47,6 @@ const s=StyleSheet.create({
   form:{gap:space.lg},
   row:{alignItems:'center',gap:space.xs},
   muted:{fontSize:type.callout,color:glass.textSoft},
-  notice:{fontSize:type.footnote,color:glass.textSoft,lineHeight:type.footnote*1.5},
+  notice:{fontSize:type.footnote,color:onGlass.soft,lineHeight:type.footnote*1.5},
   legalRow:{gap:space.sm},
 });

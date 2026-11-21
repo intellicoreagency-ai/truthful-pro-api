@@ -4,7 +4,7 @@ import {BlurTargetView,BlurView} from 'expo-blur';
 import Svg,{Defs,LinearGradient,Rect,Stop} from 'react-native-svg';
 import {Pressable} from '../Touch';
 import {Icon,type IconName} from '../Icons';
-import {colors,glass,layout,radius,space,type} from '../theme';
+import {colors,glass,layout,onGlass,radius,space,type} from '../theme';
 import type {Lang} from './copy';
 
 const cover=require('../../assets/brand/cover-dubai.jpg'); // the approved Dubai cover, full screen behind the glass
@@ -47,7 +47,6 @@ export function GlassCard({children,style}:{children:React.ReactNode;style?:obje
   const target=useContext(BlurCtx);
   return <View style={[s.card,style]}>
     <BlurView style={StyleSheet.absoluteFill} tint="light" intensity={50} blurTarget={Platform.OS==='android'?target:undefined} blurMethod="dimezisBlurViewSdk31Plus"/>
-    <View style={[StyleSheet.absoluteFill,{backgroundColor:glass.depth}]} pointerEvents="none"/>{/* soft shade so white text stays readable over bright sky */}
     <View style={[StyleSheet.absoluteFill,{backgroundColor:glass.fill}]} pointerEvents="none"/>
     <View style={s.cardInner}>{children}</View>
   </View>;
@@ -73,8 +72,8 @@ export function AuthScaffold({lang,onLanguage,logo,title,subtitle,children,foote
         <Image source={cover} resizeMode="cover" style={{position:'absolute',top:0,left:0,width,height}} accessible={false}/>
         <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} accessible={false}>
           <Defs><LinearGradient id="authShade" x1="0%" y1="0%" x2="0%" y2="100%">
-            <Stop offset="0%" stopColor={glass.scrim} stopOpacity={0.45}/><Stop offset="28%" stopColor={glass.scrim} stopOpacity={0}/>
-            <Stop offset="48%" stopColor={glass.scrim} stopOpacity={0.4}/><Stop offset="65%" stopColor={glass.scrim} stopOpacity={0.62}/><Stop offset="100%" stopColor={glass.scrim} stopOpacity={0.85}/>
+            <Stop offset="0%" stopColor={glass.scrim} stopOpacity={0.4}/><Stop offset="28%" stopColor={glass.scrim} stopOpacity={0}/>
+            <Stop offset="70%" stopColor={glass.scrim} stopOpacity={0.08}/><Stop offset="100%" stopColor={glass.scrim} stopOpacity={0.5}/>
           </LinearGradient></Defs>
           <Rect width="100%" height="100%" fill="url(#authShade)"/>
         </Svg>
@@ -110,9 +109,9 @@ export function RoundedField({lang,label,icon,error,hint,inputFont,onFocus,onBlu
   return <View style={s.fieldWrap}>
     <T lang={lang} style={[s.label,{textAlign:ar?'right':'left'}]}>{label}</T>
     <View style={[s.field,{flexDirection:ar?'row-reverse':'row'},focused&&s.fieldFocus,!!error&&s.fieldError]}>
-      {icon?<Icon name={icon} size={20} color={focused?glass.text:glass.textSoft}/>:null}
+      {icon?<Icon name={icon} size={20} color={focused?onGlass.text:onGlass.soft}/>:null}
       <TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" accessibilityLabel={label}
-        placeholderTextColor={glass.placeholder} selectionColor={glass.link} keyboardAppearance="dark"
+        placeholderTextColor={onGlass.placeholder} selectionColor={onGlass.link} keyboardAppearance="light"
         onFocus={e=>{setFocused(true);onFocus?.(e);}} onBlur={e=>{setFocused(false);onBlur?.(e);}}
         {...input} style={[s.input,inputFont?{fontFamily:inputFont}:null,{textAlign:ar?'right':'left',writingDirection:ar?'rtl':'ltr'}]}/>
     </View>
@@ -129,20 +128,20 @@ export function PrimaryButton({lang,label,onPress,busy=false,disabled=false}:{la
 }
 export function SecondaryButton({lang,label,onPress}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void}){
   const T=AText;
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.secondary} rippleColor="rgba(255,255,255,0.3)">
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.secondary} rippleColor="rgba(48,37,31,0.12)">
     <T lang={lang} style={s.secondaryText}>{label}</T>
   </Pressable>;
 }
 /** Inline text link ("Create account"). */
-export function TextLink({lang,label,onPress}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void}){
+export function TextLink({lang,label,onPress,tone='glass'}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void;tone?:'glass'|'photo'}){
   const T=AText;
-  return <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress} style={s.link} rippleColor="rgba(255,255,255,0.3)"><T lang={lang} style={s.linkText}>{label}</T></Pressable>;
+  return <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress} style={s.link} rippleColor={tone==='photo'?'rgba(255,255,255,0.3)':'rgba(152,80,12,0.15)'}><T lang={lang} style={[s.linkText,tone==='glass'&&{color:onGlass.link}]}>{label}</T></Pressable>;
 }
 
 /** Consent row: rounded checkbox + text. */
 export function ConsentRow({lang,checked,onToggle,children,label}:{lang:Lang;Text?:AuthText;checked:boolean;onToggle:()=>void;children:React.ReactNode;label:string}){
   const ar=lang==='ar';
-  return <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked}} onPress={onToggle} style={[s.consent,{flexDirection:ar?'row-reverse':'row'}]} rippleColor="rgba(255,255,255,0.25)">
+  return <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked}} onPress={onToggle} style={[s.consent,{flexDirection:ar?'row-reverse':'row'}]} rippleColor="rgba(48,37,31,0.1)">
     <View style={[s.box,checked&&s.boxOn]}>{checked?<Icon name="check" size={14} color={colors.ink}/>:null}</View>
     <View style={s.consentText}>{children}</View>
   </Pressable>;
@@ -167,22 +166,22 @@ const s=StyleSheet.create({
   cardInner:{padding:space.xl,gap:space.lg},
   footer:{marginTop:space.sm,alignItems:'center',gap:space.xs},
   fieldWrap:{gap:space.sm-2},
-  label:{fontSize:type.footnote,fontWeight:'600',color:glass.text},
-  field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control+2,backgroundColor:glass.field,borderWidth:1,borderColor:glass.border},
-  fieldFocus:{borderColor:'#FFFFFF',borderWidth:2,paddingHorizontal:space.lg-1},
-  fieldError:{borderColor:glass.error,borderWidth:2,paddingHorizontal:space.lg-1},
-  input:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.body,color:glass.text},
-  error:{fontSize:type.footnote,color:glass.error},
-  hint:{fontSize:type.footnote,color:glass.text},
+  label:{fontSize:type.footnote,fontWeight:'600',color:onGlass.soft},
+  field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control+2,backgroundColor:onGlass.field,borderWidth:1,borderColor:onGlass.border},
+  fieldFocus:{borderColor:colors.brand,borderWidth:2,paddingHorizontal:space.lg-1},
+  fieldError:{borderColor:onGlass.error,borderWidth:2,paddingHorizontal:space.lg-1},
+  input:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.body,color:onGlass.text},
+  error:{fontSize:type.footnote,color:onGlass.error,fontWeight:'600'},
+  hint:{fontSize:type.footnote,color:onGlass.soft},
   primary:{minHeight:52,borderRadius:14,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl},
   primaryOff:{opacity:0.55},
   primaryText:{fontSize:type.headline,fontWeight:'700',color:colors.ink},
-  secondary:{flex:1,minHeight:48,borderRadius:14,backgroundColor:'rgba(255,255,255,0.18)',borderWidth:1,borderColor:glass.border,alignItems:'center',justifyContent:'center',paddingHorizontal:space.sm},
-  secondaryText:{fontSize:type.subhead,fontWeight:'600',color:glass.text,textAlign:'center'},
+  secondary:{flex:1,minHeight:48,borderRadius:14,backgroundColor:onGlass.field,borderWidth:1,borderColor:onGlass.border,alignItems:'center',justifyContent:'center',paddingHorizontal:space.sm},
+  secondaryText:{fontSize:type.subhead,fontWeight:'600',color:onGlass.text,textAlign:'center'},
   link:{minHeight:layout.minTouch,justifyContent:'center',paddingHorizontal:space.sm},
   linkText:{fontSize:type.callout,fontWeight:'700',color:glass.link},
   consent:{alignItems:'flex-start',gap:space.md,minHeight:layout.minTouch,paddingVertical:space.xs},
-  box:{width:24,height:24,borderRadius:7,borderWidth:1.5,borderColor:'rgba(255,255,255,0.85)',alignItems:'center',justifyContent:'center',marginTop:1},
+  box:{width:24,height:24,borderRadius:7,borderWidth:1.5,borderColor:onGlass.box,alignItems:'center',justifyContent:'center',marginTop:1},
   boxOn:{backgroundColor:colors.orange,borderColor:colors.orange},
   consentText:{flex:1},
 });

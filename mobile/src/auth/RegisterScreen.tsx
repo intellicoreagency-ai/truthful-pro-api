@@ -7,7 +7,7 @@ import {isEmail,toE164} from './phone';
 import {AuthScaffold,ConsentRow,PrimaryButton,RoundedField,StepTransition,TextLink,type AuthText,AText} from './AuthKit';
 import {WaitingStep} from './WaitingStep';
 import {useWaVerification} from './useWaVerification';
-import {glass,space,type} from '../theme';
+import {glass,onGlass,space,type} from '../theme';
 
 type Props={
   lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text?:AuthText;inputFont?:string;
@@ -58,7 +58,7 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
   return <AuthScaffold lang={lang} onLanguage={onLanguage} logo={logo} Text={T}
     title={waiting?(verified?t.completeTitle:t.waitTitle):mode==='complete'?t.completeTitle:t.registerTitle}
     subtitle={waiting?(verified?'':t.waitSub):mode==='complete'?t.completeSub:t.registerSub}
-    footer={waiting?null:mode==='register'?<View style={[s.row,{flexDirection:lang==='ar'?'row-reverse':'row'}]}><T lang={lang} style={s.muted}>{t.haveAccount}</T><TextLink lang={lang} Text={T} label={t.toLogin} onPress={onLogin}/></View>:null}>
+    footer={waiting?null:mode==='register'?<View style={[s.row,{flexDirection:lang==='ar'?'row-reverse':'row'}]}><T lang={lang} style={s.muted}>{t.haveAccount}</T><TextLink tone="photo" lang={lang} Text={T} label={t.toLogin} onPress={onLogin}/></View>:null}>
     <StepTransition stepKey={waiting?'wait':'form'}>
       {waiting
         ?<WaitingStep lang={lang} Text={T} error={saveError||wa.error} onOpen={wa.openWhatsApp} onCancel={()=>{wa.cancel();setVerified(false);setSaveError('');}} onRetry={verified&&!saving?()=>void finish():undefined}/>
@@ -89,6 +89,6 @@ const s=StyleSheet.create({
   row:{alignItems:'center',gap:space.xs,flexWrap:'wrap'},
   muted:{fontSize:type.callout,color:glass.textSoft},
   consents:{gap:space.xs},
-  consentText:{fontSize:type.subhead,lineHeight:type.subhead*1.5,color:glass.text},
-  error:{fontSize:type.footnote,color:glass.error},
+  consentText:{fontSize:type.subhead,lineHeight:type.subhead*1.5,color:onGlass.text},
+  error:{fontSize:type.footnote,color:onGlass.error,fontWeight:'600'},
 });

@@ -45,7 +45,7 @@
 - The email is stored encrypted; invoices are emailed only after the customer confirms it from the welcome email.
 
 ### Login screen (main entry)
-The chosen Dubai photo (`assets/brand/cover-dubai.jpg`, the owner's selection) fills the screen behind every auth screen. The form lives in a frosted-glass card (`GlassCard`: `expo-blur` BlurView `tint="light"` `intensity=50` over a 20 % white tint, light edge), so the photo shows through. Arabic uses Cairo; English uses the platform system font (SF Pro on iOS, Roboto on Android) because Apple's font cannot be bundled.
+The chosen Dubai photo (`assets/brand/cover-dubai.jpg`, the owner's selection) fills the screen behind every auth screen. The form lives in a frosted-glass card (`GlassCard`: `expo-blur` BlurView `tint="light"` `intensity=50` over a 20 % white tint, light edge), so the photo shows through. The glass is the LIGHT frosted kind: dark text and fields inside the card (`onGlass` tokens in `src/theme.ts`), white text only on the photo. Arabic uses Cairo; English uses the platform system font (SF Pro on iOS, Roboto on Android) because Apple's font cannot be bundled.
 
 ### Database rule for the email
 `users.email_enc` stays nullable (the account row is created at WhatsApp verification, before the email is entered, and older accounts exist), so the rule is enforced by migration `0015_email_required.sql` triggers: a request cannot leave *draft* for a customer without an email, and a live account cannot lose its email. The API also answers `409 email_required`.

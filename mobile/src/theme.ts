@@ -31,7 +31,6 @@ export const layout={
 /** Glass (frosted) material used on the photo-backed auth screens: translucent white over a blur, white text. */
 export const glass={
   fill:'rgba(255,255,255,0.20)',     // card tint over the blur
-  depth:'rgba(8,14,28,0.30)',        // faint shade under the tint (legibility over bright areas of the photo)
   field:'rgba(255,255,255,0.16)',    // inputs inside the card
   border:'rgba(255,255,255,0.38)',
   text:'#FFFFFF',
@@ -40,4 +39,16 @@ export const glass={
   error:'#FFB4A8',
   link:'#FFE1AC',
   scrim:'#080E1C',
+} as const;
+
+/** Colours INSIDE the light frosted card: dark text on light glass (Apple "light material"). */
+export const onGlass={
+  text:'#30251F',
+  soft:'#5A4A3F',
+  placeholder:'rgba(48,37,31,0.50)',
+  field:'rgba(255,255,255,0.42)',
+  border:'rgba(255,255,255,0.75)',
+  link:'#98500C',
+  error:'#A3261A',
+  box:'#5A4A3F',
 } as const;
