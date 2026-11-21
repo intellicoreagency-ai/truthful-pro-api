@@ -108,3 +108,10 @@ input.otp { font-size: 24px; letter-spacing: 8px; text-align: center; font-famil
 .quick { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: #fff0d6; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; margin: 12px 0; }
 .search-top { flex: 0 1 220px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px; min-height: 36px; }
 .override { border-color: #e5b8b0; background: #fffaf9; }
+/* Phone widths: the nav wraps onto its own scrollable row so the top bar never widens the page. */
+@media (max-width: 760px) {
+  .topbar-in { flex-wrap: wrap; gap: 8px 10px; }
+  .nav { order: 5; flex: 1 1 100%; margin-inline-start: 0; }
+  .search-top { flex: 1 1 120px; min-width: 0; }
+  .brand small { display: none; }
+}

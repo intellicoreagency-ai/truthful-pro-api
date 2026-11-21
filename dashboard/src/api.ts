@@ -123,8 +123,8 @@ export const api = {
   me: async () => j<{ staff: { id: string; name: string; role: Role } }>(await call('GET', '/staff/v1/me')),
   logout: async () => { try { await call('POST', '/staff/v1/auth/logout') } catch { /* */ } signOutLocal() },
   stats: async () => j<Stats>(await call('GET', '/staff/v1/stats')),
-  requests: async (q: { status?: string; assignee?: string; q?: string }) => {
-    const p = new URLSearchParams(); for (const [k, v] of Object.entries(q)) if (v) p.set(k, v)
+  requests: async (q: { status?: string; assignee?: string; q?: string; limit?: number }) => {
+    const p = new URLSearchParams(); for (const [k, v] of Object.entries(q)) if (v) p.set(k, String(v))
     return (await j<{ requests: ListItem[] }>(await call('GET', '/staff/v1/requests?' + p))).requests
   },
   overview: async () => j<Overview>(await call('GET', '/staff/v1/overview')),
@@ -134,7 +134,8 @@ export const api = {
   request: async (id: string) => j<Detail>(await call('GET', `/staff/v1/requests/${id}`)),
   assign: (id: string, staffId: string | null, expectedVersion?: number) => call('POST', `/staff/v1/requests/${id}/assign`, { body: { staffId, expectedVersion } }),
   setStatus: (id: string, status: Status, extra: { note?: string; expectedAt?: string; reason?: string; reference?: string; overrideReason?: string; expectedVersion?: number }) => call('POST', `/staff/v1/requests/${id}/status`, { body: { status, ...extra } }),
-  missing: (id: string, items: { labelAr: string; labelEn: string; noteAr?: string; noteEn?: string }[], expectedVersion?: number) => call('POST', `/staff/v1/requests/${id}/missing`, { body: { items, expectedVersion } }),
+  /** `reason` is required by the server when the authority sent the request back (status authority/decision). */
+  missing: (id: string, items: { labelAr: string; labelEn: string; noteAr?: string; noteEn?: string }[], expectedVersion?: number, reason?: string) => call('POST', `/staff/v1/requests/${id}/missing`, { body: { items, expectedVersion, reason } }),
   note: (id: string, text: string) => call('POST', `/staff/v1/requests/${id}/notes`, { body: { text } }),
   upload: (id: string, file: File, kind: 'final' | 'invoice', label: string) =>
     call('PUT', `/staff/v1/requests/${id}/files?kind=${kind}`, { raw: file, headers: { 'x-file-name': encodeURIComponent(file.name), 'x-file-label': encodeURIComponent(label) } }),

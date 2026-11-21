@@ -71,7 +71,7 @@ export default function App() {
       <main className="main">
         {section === 'customers' && canTeam ? (parts[1] ? <CustomerDetail key={parts[1]} id={parts[1]} go={go} /> : <Customers go={go} />)
           : section === 'requests' && parts[1] ? <RequestDetail key={parts[1]} id={parts[1]} me={me} back={() => go('#/requests')} />
-          : section === 'requests' ? <Requests params={params} go={go} />
+          : section === 'requests' ? <Requests params={params} go={go} role={me.role} />
           : section === 'reconciliation' && canFin ? <Reconciliation />
           : section === 'fees' && canFin ? <Fees canEdit={canTeam} />
           : section === 'team' && canTeam ? <Team meId={me.id} />
