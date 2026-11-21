@@ -20,10 +20,10 @@ export const Pressable=React.forwardRef<React.ElementRef<typeof RNPressable>,Pro
     {...rest}
     disabled={disabled}
     hitSlop={hitSlop??DEFAULT_SLOP}
-    android_ripple={android_ripple??(Platform.OS==='android'&&!disabled?{color:rippleColor??'rgba(10,20,48,0.16)',foreground:true}:undefined)}
+    android_ripple={android_ripple??(Platform.OS==='android'&&!disabled?{color:rippleColor??'rgba(11,31,58,0.16)',foreground:true}:undefined)}
     style={composed}
   />;
 });
 
 /** Same ripple/highlight rules for places that need only the props (e.g. custom wrappers). */
-export const nativeFeedback=(rippleColor='rgba(10,20,48,0.16)')=>Platform.OS==='android'?{android_ripple:{color:rippleColor,foreground:true}}:{};
+export const nativeFeedback=(rippleColor='rgba(11,31,58,0.16)')=>Platform.OS==='android'?{android_ripple:{color:rippleColor,foreground:true}}:{};
