@@ -1,15 +1,42 @@
-# Repositories: what lives where (read-only check, 20 Nov 2026)
+# Repositories: single source of truth
 
-Nothing has been moved, merged or pushed anywhere except the branch below. Decide before any merge.
+Updated 22 Nov 2026. Nothing has been merged, mirrored or pushed between the two repositories. Nothing will be, except by a deliberate decision of the owner.
 
-| Repository | What it contains (as read from GitHub) | Touched by this work? |
+## Decision
+
+**The single source of truth for the Truthful Pro platform is `intellicoreagency-ai/truthful-pro-api`.** The platform is:
+
+- `mobile/`: the customer app
+- `api/`: the Worker `truthful-pro-api-v2`
+- `dashboard/`: the staff web app
+- `docs/` and `scripts/`
+
+Within that repository, the **current line of work is branch `claude/glass-step5-transaction-details`**. All work from 20–22 Nov 2026 is on that branch, including the quotation approval and the test suites.
+
+| Repository / branch | Role | Rule |
 |---|---|---|
-| `mrkmallah-cmd/truthful-pro-api` | The owner's original repo: `main` (commit `821c803`, "trigger initial Cloudflare deployment": `worker.js`, `wrangler.jsonc`, `README.md`, `BUILD_TRIGGER.md`), `staging-v1`, `feature/truthful-pro-expo-dubai-v1`, `feature/truthful-pro-dubai-elegance-v1`, `feature/truthful-pro-flutter-ui-phase1`, `review/expo-mobile-service-design`. | **No.** Only listed branches and read the top level of `main`. |
-| `intellicoreagency-ai/truthful-pro-api` | A near-empty repo (an initial `ccr-…` branch with only `.claude/settings.json`). **All code from this session is here**, on `claude/dubai-clearance-app-o1mje9`: `mobile/` (Expo app), `api/` (Cloudflare Worker `truthful-pro-api-v2`), `dashboard/` (staff web app), `docs/`, `scripts/`. | Yes: the only place anything was pushed. |
+| `intellicoreagency-ai/truthful-pro-api` @ `claude/glass-step5-transaction-details` | **Source of truth.** Latest code, tests and docs. | All new work starts from here. Staging and the APK build from here. |
+| `intellicoreagency-ai/truthful-pro-api` @ `claude/dubai-clearance-app-o1mje9` | Older branch (`c875509`). It is an ancestor of the current one, so nothing on it is missing from the current branch. | Stale. Do not build from it. It can be deleted once the owner agrees. |
+| `intellicoreagency-ai/truthful-pro-api` @ `ccr-…` branches | Session scaffolding (`.claude/settings.json` only). | Ignore. |
+| `mrkmallah-cmd/truthful-pro-api` (all branches) | The owner's **earlier** project: `main` has `worker.js` / `wrangler.jsonc` ("trigger initial Cloudflare deployment"), plus `staging-v1` and earlier Expo/Flutter experiments. As listed on 20 Nov 2026. | **Legacy, read-only reference.** No pushes, merges or mirrors from this work. |
 
-Why this happened: the session was attached to both repositories; the working checkout was the `intellicoreagency-ai` one, so every push went there.
+## Why there are two repositories
 
-Cautions
-- `mrkmallah-cmd/truthful-pro-api` `main` looks wired to a Cloudflare deployment ("trigger initial Cloudflare deployment"). **Do not merge or push into `main` without a deliberate decision**: it may deploy.
-- The Cloudflare account already has a Worker named `truthful-pro-api` (and `-staging`). This work uses a different name (`truthful-pro-api-v2`) so it cannot overwrite them.
-- Options (owner's call, none done): (a) keep this repo as the home of the new code; (b) open a PR from this branch into `mrkmallah-cmd/truthful-pro-api` (e.g. into a new branch, not `main`); (c) mirror the branch there. I recommend (b) targeting a new integration branch, reviewed before anything touches `main` or `staging-v1`.
+The earlier session was attached to both repositories. The working copy was the `intellicoreagency-ai` one, so every push went there.
+
+This session cannot read `mrkmallah-cmd/truthful-pro-api`: two repositories with the same name cannot be attached to one session. Its state above is therefore **as checked on 20 Nov 2026**. Re-check it before any decision that depends on it.
+
+## Cautions
+
+- `mrkmallah-cmd/truthful-pro-api` `main` looks wired to a Cloudflare deployment. Pushing to it may deploy the **old** worker.
+- The Cloudflare account already has Workers named `truthful-pro-api` and `truthful-pro-api-staging` from the earlier project. This platform deliberately uses different names, so it cannot overwrite them:
+  - `truthful-pro-api-v2`
+  - `truthful-pro-api-v2-staging` (see `STAGING.md`)
+
+## If the owner later wants one repository only (owner's call; none of this is done)
+
+1. Make sure the earlier repository has nothing worth keeping that this one lacks: compare its `worker.js` routes and Cloudflare settings with `api/`.
+2. Then choose one:
+   - **(a)** Archive `mrkmallah-cmd/truthful-pro-api` (read-only on GitHub) and keep this repository.
+   - **(b)** Open a pull request from this branch into a **new** branch there (never `main` or `staging-v1`), review it, and only then decide about `main`.
+3. Before either, protect the chosen default branch: reviews required, no force-push.
