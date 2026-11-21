@@ -86,7 +86,7 @@ type Props={
 type Sync={kind:'idle'}|{kind:'loading'}|{kind:'error';notFound:boolean};
 
 export function TransactionDetailsScreen({lang,request,onBack,actions,busy=false,message,financePanel,onRefresh,onUpdated}:Props){
-  const t=COPY[lang],ar=lang==='ar',row=rowFor(lang);
+  const t=COPY[lang],row=rowFor(lang);
   const reduce=useReduceTransparency();
   const [sync,setSync]=useState<Sync>({kind:'idle'});
   const [refreshing,setRefreshing]=useState(false);
