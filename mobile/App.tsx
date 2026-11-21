@@ -1,6 +1,5 @@
 import React, {useMemo, useState} from 'react';
-import {Alert, AppState, BackHandler, Image, ImageBackground, Keyboard, Platform, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View} from 'react-native';
-import {Pressable} from './src/Touch';
+import {Alert, AppState, BackHandler, Image, ImageBackground, Keyboard, Platform, StatusBar, StyleSheet, Text, useWindowDimensions, View} from 'react-native';
 import {colors as C} from './src/theme';
 import {BlurTargetView} from 'expo-blur';
 import {TabBar} from './src/navigation/TabBar';
@@ -13,16 +12,18 @@ import {IBMPlexSansArabic_500Medium} from '@expo-google-fonts/ibm-plex-sans-arab
 import {IBMPlexSansArabic_700Bold} from '@expo-google-fonts/ibm-plex-sans-arabic/700Bold';
 import {PlusJakartaSans_500Medium} from '@expo-google-fonts/plus-jakarta-sans/500Medium';
 import {PlusJakartaSans_700Bold} from '@expo-google-fonts/plus-jakarta-sans/700Bold';
-import * as DocumentPicker from 'expo-document-picker';
 import {SERVICES, catalogueServices, Service, serviceLabel, serviceDescription} from './src/services';
-import {structureFor, tradeLicenceSectionTitles, wording} from './src/serviceDetails';
-import {Icon, serviceIcon, transactionIcon} from './src/Icons';
+import {structureFor, wording} from './src/serviceDetails';
+import {Icon, serviceIcon} from './src/Icons';
 import {bannerFrameFor, individualCatalogueBannerFor} from './src/approvedBanners';
 import {CompanyBanner, companyBannerFonts} from './src/CompanyBanner';
 import {ClientWorkspace,RequestWizard} from './src/ClientWorkspace';
 import {pickClientFile,pruneOrphanFiles,readRequests,writeRequests,getBytes,saveDataExport} from './src/clientStorage';
 import {makeId,type ClientRequest,type ClientFile} from './src/clientModel';
 import {HomeScreen} from './src/HomeScreen';
+import {ServicesScreen} from './src/services/ServicesScreen';
+import {ServiceDetailsScreen,StartRequestBar} from './src/services/ServiceDetailsScreen';
+import {FallbackScreen} from './src/FallbackScreen';
 import {AuthFlow} from './src/auth/AuthFlow';
 import {NewRequestScreen} from './src/newRequest/NewRequestScreen';
 import type {SyncStatus} from './src/dashboard/DashboardScreen';
@@ -35,7 +36,7 @@ import {apiEnabled,hasSession,loadTokens,logout,me,pullRequests,pushRequest,need
 
 type Language='ar'|'en';
 type Page='welcome'|'home'|'services'|'detail'|'requests'|'profile'|'request'|'newrequest';
-type DetailTab='about'|'documents'|'fees';
+type DetailTab=import('./src/services/ServiceDetailsScreen').DetailTab;
 type LocalFile={name:string;size?:number;uri:string;clientFile?:ClientFile};
 type RequestDraft={
   name:string;
@@ -59,8 +60,6 @@ const font=(lang:Language,bold:boolean)=>({
 });
 const emptyDraft:RequestDraft={name:'',phone:'',files:{},fields:{}};
 const keyFor=(serviceId:string,actionId:string)=>serviceId+'/'+actionId;
-const documentTypes:Record<string,string>={pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png'};
-const maxFileBytes=5*1024*1024;
 const hero=require('./assets/brand/dubai_hero.webp');
 const officialLogo=require('./assets/brand/truthful_official_logo.jpg');
 // REJECTED_ASSET_QUARANTINE: no legacy service banner image is approved.
@@ -89,13 +88,6 @@ const copy={
 function AppText({children,lang,style,numberOfLines}: {children:React.ReactNode,lang:Language,style?:any,numberOfLines?:number}) {
  const weight=StyleSheet.flatten(style)?.fontWeight;
  return <Text maxFontSizeMultiplier={1.35} numberOfLines={numberOfLines} style={[{textAlign:lang==='ar'?'right':'left',writingDirection:lang==='ar'?'rtl':'ltr',color:C.ink},style,font(lang,!!weight)]}>{children}</Text>;
-}
-function SoftButton({onPress,children,selected=false,style,label,tab=false}: {
- onPress:()=>void; children:React.ReactNode; selected?:boolean; style?:any; label?:string; tab?:boolean;
-}) {
- return <Pressable accessibilityRole={tab?'tab':'button'} accessibilityLabel={label}
-   accessibilityState={tab?{selected}:undefined} onPress={onPress}
-   style={({pressed})=>[styles.softButton,selected&&styles.selected,style,pressed&&{opacity:.8}]}>{children}</Pressable>;
 }
 function useWebViewportHeight() {
  const [height,setHeight]=useState<number>();
@@ -127,7 +119,7 @@ const catalogueBannerRatio=750/219;
 
 export default function App() {
  const {width:viewportWidth}=useWindowDimensions();
- const bannerWidth=Math.min(viewportWidth,maxAppWidth)-34;
+ const bannerWidth=Math.min(viewportWidth,maxAppWidth)-32; // glass screens: 16 pt margins
  const [fontsLoaded,fontError]=useFonts(fonts);
  const webViewportHeight=useWebViewportHeight();
  const [lang,setLangState]=useState<Language>(()=>readAccount().language??'ar');
@@ -229,7 +221,7 @@ export default function App() {
  const pilotService=chosen.id==='immigration-visas';
  const [detailOrigin,setDetailOrigin]=useState<'home'|'services'>('services');
  const allowRealSubmission=false; // release gate; never send customer data in a prototype
- const ar=lang==='ar';const t=copy[lang];const row: 'row'|'row-reverse'=ar?'row-reverse':'row';
+ const ar=lang==='ar';const t=copy[lang];
  const allServices=useMemo(()=>{
    const search=query.trim().toLowerCase();
    return catalogueServices.filter(service=>{
@@ -291,29 +283,9 @@ export default function App() {
    setNeedsAction(true);
  };
  const title=(s:Service)=>serviceLabel(s,lang);
- const subtitle=(s:Service)=>serviceDescription(s,lang);
- const arrow=ar?'‹':'›';
- const label=(key:keyof typeof copy.ar)=>t[key];
- const header=()=> <View style={[styles.header,{flexDirection:row}]}>
-   <Image source={officialLogo} style={styles.logo}/>
-   <View style={{flex:1}}><AppText lang={lang} style={styles.brand}>{label('brand')}</AppText><AppText lang={lang} style={styles.brandSub}>{ar?'خدمات تخليص المعاملات':'DOCUMENT CLEARANCE SERVICES'}</AppText></View>
-   <SoftButton onPress={switchLang} style={styles.headRound}><Text maxFontSizeMultiplier={1.35} style={{fontWeight:'800',color:C.orange}}>{ar?'EN':'ع'}</Text></SoftButton>
-   <SoftButton onPress={()=>go('profile')} label={t.profile} style={styles.headRound}><Icon name="user" color={C.ink}/></SoftButton>
- </View>;
  const selectNav=(key:TabKey)=>key==='request'?(page==='detail'?(setClientDraft(null),startRequest()):page==='request'||page==='newrequest'?undefined:(setClientDraft(null),go('newrequest'))):key==='services'?openCatalogue():go(key);
  const tabLabels:Record<TabKey,string>={home:t.home,services:t.services,request:t.request,requests:t.requests,profile:t.profile};
  const blurTarget=React.useRef<React.ComponentRef<typeof View>>(null);
- const sectionHeader=(s:string)=><View style={[styles.sectionHead,{flexDirection:row}]}>
-   <View style={styles.sectionMark}/><AppText lang={lang} style={styles.sectionTitle}>{s}</AppText>
- </View>;
- const audience=()=> <View style={[styles.segment,{flexDirection:row}]}>
-   {([[false,t.individual],[true,t.company]] as const).map(([isBusiness,text])=>
-     <SoftButton key={text} tab selected={business===isBusiness} onPress={()=>setBusiness(isBusiness)} style={{flex:1,minHeight:49}}>
-       <Text maxFontSizeMultiplier={1.35} style={[styles.segmentText,font(lang,true)]}>{text}</Text>
-     </SoftButton>
-   )}
- </View>;
- const nextIcon=ar?'back':'next';
  const bannerFor=(service:Service,inCatalogue=false)=>{
    if(service.business && service.id!=='complete-business') return <CompanyBanner id={service.id} language={lang} width={bannerWidth}/>;
    const reference=inCatalogue?individualCatalogueBannerFor(service.id,lang):undefined;
@@ -332,181 +304,11 @@ export default function App() {
 
    </View>;
  };
- const serviceTile=(service:Service)=> <Pressable key={service.id}
-   accessibilityRole="button" accessibilityLabel={title(service)} onPress={()=>open(service)}
-   style={({pressed})=>[styles.serviceCard,pressed&&{opacity:.82}]}>
-   {bannerFor(service,true)}
- </Pressable>;
- const searchBar=()=> <View style={[styles.search,{flexDirection:row}]}>
-   <Icon name="search" size={20}/>
-   <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" value={query} onChangeText={setQuery} accessibilityLabel={t.search}
-     placeholder={t.search} placeholderTextColor={C.muted}
-     style={[styles.input,font(lang,false),{textAlign:ar?'right':'left'}]}/>
- </View>;
- const cataloguePage=(isHome:boolean)=> <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets contentContainerStyle={styles.catalogueContent}>
-   <View style={styles.catalogueHeader}>{header()}</View>
-   {isHome&&<View style={styles.homeIntro}>
-     <View style={styles.homePhotoFrame}>
-       <Image source={hero} resizeMode="cover" style={styles.homePhoto}
-         accessibilityLabel={ar?'متحف المستقبل وأفق دبي':'Museum of the Future and Dubai skyline'}/>
-     </View>
-     <AppText lang={lang} style={styles.heroTitle}>{t.welcome} {t.brand}</AppText>
-     <AppText lang={lang} style={styles.heroIntro}>{t.intro}</AppText>
-   </View>}
-   <View style={styles.body}>
-     {audience()}
-     {searchBar()}
-     {sectionHeader(!isHome&&choosingService?t.choose:business?t.title:t.individualTitle)}
-     {allServices.map(serviceTile)}
-     {allServices.length===0&&<AppText lang={lang} style={styles.paragraph}>
-       {ar?'لم نجد خدمة مطابقة.':'No matching services.'}
-     </AppText>}
-   </View>
- </ScrollView>;
- const chooseActionHint=ar?'اختر المعاملة أولاً لعرض مستنداتها.':'Choose a transaction to see its documents.';
- const docPanel=()=> <View style={styles.panel}>
-   {sectionHeader(t.docs)}
-   {action&&<AppText lang={lang} style={styles.contextText}>{wording(action,lang)}</AppText>}
-   {!action
-     ? <AppText lang={lang} style={styles.paragraph}>{chooseActionHint}</AppText>
-     : documents.length===0
-       ? <AppText lang={lang} style={styles.paragraph}>{ar?'يمكنك بدء الطلب دون إرفاق مستند في هذه الخطوة.':'You can start this request without attaching a document at this step.'}</AppText>
-       : documents.map(d=>{
-           const file=draft.files[d.id];
-           return <View key={d.id} style={[styles.docRow,{flexDirection:row}]}>
-             <View style={{flex:1}}>
-               <AppText lang={lang} style={styles.docTitle}>{wording(d,lang)}</AppText>
-               {file&&<AppText lang={lang} style={styles.fileName} numberOfLines={1}>{file.name}</AppText>}
-               {d.field==='text'&&<TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent"
-                 accessibilityLabel={wording(d,lang)}
-                 placeholder={wording(d,lang)}
-                 value={draft.fields[d.id]??''}
-                 onChangeText={value=>editDraft(current=>({...current,fields:{...current.fields,[d.id]:value}}))}
-                 style={[styles.formInput,font(lang,false),{textAlign:ar?'right':'left'}]}/>}
-             </View>
-             {!d.field&&<>
-               <SoftButton onPress={()=>pick(d.id)} label={(file?(ar?'استبدال ':'Replace '):t.upload+' ')+wording(d,lang)} style={styles.upload}>
-                 <View style={[styles.inlineIcon,{flexDirection:row}]}><Icon name="upload" size={15}/><Text maxFontSizeMultiplier={1.35} style={[styles.uploadText,font(lang,true)]}>{file?(ar?'استبدال':'Replace'):t.upload}</Text></View>
-               </SoftButton>
-               {file&&<SoftButton onPress={()=>removeFile(d.id)} label={(ar?'إزالة ':'Remove ')+wording(d,lang)} style={styles.remove}>
-                 <Icon name="close" size={17}/>
-               </SoftButton>}
-             </>}
-           </View>;
-         })}
-   {action&&documents.some(d=>!d.field)&&
-     <AppText lang={lang} style={styles.warning}>{ar?'PDF أو JPG أو PNG، بحد أقصى ٥ ميغابايت لكل ملف.':'PDF, JPG or PNG, up to 5 MB per file.'}</AppText>}
- </View>;
 
  const favorite=account.favorites.includes(chosen.id);
- const favoriteLabel=favorite?(ar?'إزالة من المفضلة':'Remove from Favorites'):(ar?'إضافة إلى المفضلة':'Add to Favorites');
  const toggleFavorite=()=>{
    const ids=accountRef.current.favorites;
    updateAccount({favorites:ids.includes(chosen.id)?ids.filter(id=>id!==chosen.id):[...ids,chosen.id]});
- };
- const detailPage=()=> <ScrollView ref={detailScroll} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets contentContainerStyle={{paddingBottom:16}}>
-   <View style={[styles.detailTop,{flexDirection:row}]}>
-     <SoftButton onPress={()=>go(detailOrigin)} label={ar?'رجوع':'Back'} style={styles.back}><Icon name={ar?'next':'back'} color={C.ink}/></SoftButton>
-     <View style={{flex:1}}>
-       <AppText lang={lang} style={styles.detailHeading}>{title(chosen)}</AppText>
-       <AppText lang={lang} style={styles.detailSubtitle}>{subtitle(chosen)}</AppText>
-     </View>
-     <SoftButton onPress={switchLang} style={styles.headRound}><Text maxFontSizeMultiplier={1.35} style={{fontWeight:'800',color:C.orange}}>{ar?'EN':'ع'}</Text></SoftButton>
-   </View>
-   <View style={styles.detailHero}>{bannerFor(chosen)}</View>
-   <View style={[styles.favoriteRow,{alignItems:ar?'flex-end':'flex-start'}]}>
-     <Pressable accessibilityRole="button" accessibilityState={{selected:favorite}} onPress={toggleFavorite}
-       style={[styles.favoriteAction,{flexDirection:row},favorite&&{backgroundColor:'#F8E7CE'}]}>
-       <Icon name="star" size={17}/>
-       <AppText lang={lang} style={styles.uploadText}>{favoriteLabel}</AppText>
-     </Pressable>
-   </View>
-   <View style={styles.body}>
-     <View accessibilityRole="tablist" style={[styles.tabRow,{flexDirection:row}]}>
-       {([['about',t.details,'info'],['documents',t.docs,'file'],['fees',t.fees,'clock']] as const).map(([key,text,icon])=>
-         <SoftButton key={key} tab onPress={()=>selectTab(key)} selected={tab===key} style={styles.tabButton}>
-           <Icon name={icon} size={16}/><Text maxFontSizeMultiplier={1.35} style={[styles.tabText,font(lang,true)]}>{text}</Text>
-         </SoftButton>)}
-     </View>
-     {tab==='about'&& <>
-       <View style={styles.panel}>
-         {sectionHeader(t.about)}
-         <AppText lang={lang} style={styles.paragraph}>{wording(detail.about,lang)}</AppText>
-       </View>
-       <View style={styles.panel}>
-         {sectionHeader(t.transactions)}
-         {needsAction&&<AppText lang={lang} style={styles.selectionHint}>{ar?'اختر المعاملة المطلوبة للمتابعة.':'Choose a transaction to continue.'}</AppText>}
-         <View style={[styles.actionGrid,{flexDirection:row}]}>
-           {detail.actions.map(item=>{
-             const selected=actionId===item.id;
-             const groupTitle=chosen.id==='trade-licenses'?tradeLicenceSectionTitles[item.id]:undefined;
-             return <React.Fragment key={item.id}>
-              {groupTitle&&<AppText lang={lang} style={styles.actionGroupTitle}>{wording(groupTitle,lang)}</AppText>}
-              <Pressable
-               accessibilityRole="button"
-               accessibilityState={{selected}}
-               onPress={()=>{
-                 setNeedsAction(false);
-                 setAction(item.id);
-                 if(!pilotService) selectTab('documents');
-               }}
-               style={({pressed})=>[styles.actionCard,{flexDirection:row},selected&&styles.actionSelected,pressed&&{opacity:.78}]}>
-                 <Icon name={transactionIcon(item.icon)} size={18}/>
-                 <AppText lang={lang} style={styles.actionText}>{wording(item,lang)}</AppText>
-                 <Icon name={selected?'check':nextIcon} size={15}/>
-             </Pressable>
-             </React.Fragment>;
-           })}
-         </View>
-       </View>
-       {pilotService&&docPanel()}
-       {!pilotService&&<View style={styles.panel}>
-         {sectionHeader(ar?'ملاحظات مهمة':'Important Notes')}
-         {detail.notes.map((note,i)=><View key={i} style={[styles.noteLine,{flexDirection:row}]}>
-             <Text maxFontSizeMultiplier={1.35} style={styles.noteBullet}>●</Text>
-             <View style={{flex:1}}><AppText lang={lang} style={styles.paragraph}>{wording(note,lang)}</AppText></View>
-           </View>)}
-         {detail.contentStatus==='review-required'&&
-           <AppText lang={lang} style={styles.warning}>{ar?'تُؤكد المستندات والإجراءات بحسب المعاملة قبل التقديم.':'Documents and procedures will be confirmed for the selected transaction before submission.'}</AppText>}
-       </View>}
-     </>}
-     {tab==='documents'&&<>
-       {docPanel()}
-       <SoftButton onPress={()=>selectTab('about')} style={styles.changeAction}>
-         <AppText lang={lang} style={styles.uploadText}>{action?(ar?'تغيير المعاملة':'Change Transaction'):(ar?'اختيار المعاملة':'Choose Transaction')}</AppText>
-       </SoftButton>
-     </>}
-     {tab==='fees'&&<View style={styles.panel}>
-       {sectionHeader(t.fees)}
-       <AppText lang={lang} style={styles.paragraph}>{t.notice}</AppText>
-       {action&&<AppText lang={lang} style={styles.contextText}>{wording(action,lang)}</AppText>}
-       <AppText lang={lang} style={styles.warning}>{ar?'الرسوم والمدة قيد التحقق لدى الجهة المختصة.':'Fees and timelines are pending confirmation from the relevant authority.'}</AppText>
-     </View>}
-   </View>
- </ScrollView>;
- const detailCTA=()=> <View style={styles.detailFooter}>
-   <SoftButton onPress={startRequest} selected style={styles.bigCTA}>
-     <View style={[styles.ctaRow,{flexDirection:row}]}>
-       <AppText lang={lang} style={styles.ctaText}>{t.start}</AppText>
-       <Icon name={nextIcon} size={19} color={C.ink}/>
-     </View>
-   </SoftButton>
- </View>;
- const saveDraft=()=>{
-   if(!draftKey||!action) return;
-   if(!draft.name.trim()||draft.phone.replace(/[^0-9٠-٩۰-۹]/g,'').length<7){
-     notify(ar?'البيانات ناقصة':'Missing Details',
-       ar?'أدخل الاسم ورقم هاتف صحيح.':'Enter a name and a valid phone number.');
-     return;
-   }
-   const incomplete=documents.find(item=>item.field==='text'&&!item.optional&&!draft.fields[item.id]?.trim());
-   if(incomplete){
-     notify(ar?'البيانات ناقصة':'Missing Details',wording(incomplete,lang));
-     go('detail');
-     setTab('documents');
-     return;
-   }
-   updateDraft(draftKey,current=>({...current,saved:true}));
  };
  const savedDrafts=Object.entries(drafts).flatMap(([key,item])=>{
    if(!item.saved) return [];
@@ -515,50 +317,6 @@ export default function App() {
    const savedAction=service&&structureFor(service.id).actions.find(entry=>entry.id===id);
    return service&&savedAction?[{key,service,action:savedAction}]:[];
  });
- const simplePage=()=> <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets contentContainerStyle={{padding:20,paddingBottom:35}}>
-   {header()}{sectionHeader(page==='requests'?t.requests:t.request)}
-   {page==='request'&&action?<>
-     <View style={styles.panel}>
-       <AppText lang={lang} style={styles.docTitle}>{title(chosen)}</AppText>
-       <AppText lang={lang} style={styles.contextText}>{wording(action,lang)}</AppText>
-       <SoftButton onPress={()=>{setTab('about');go('detail');}} style={styles.changeAction}>
-         <AppText lang={lang} style={styles.uploadText}>{ar?'تغيير المعاملة':'Change Transaction'}</AppText>
-       </SoftButton>
-     </View>
-     <View style={styles.panel}>
-       {sectionHeader(ar?'بيانات مقدم الطلب':'Applicant Details')}
-       <AppText lang={lang} style={styles.docTitle}>{t.name}</AppText>
-       <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" accessibilityLabel={t.name} value={draft.name} autoComplete="name"
-         onChangeText={name=>editDraft(current=>({...current,name}))}
-         style={[styles.formInput,font(lang,false),{textAlign:ar?'right':'left'}]}/>
-       <AppText lang={lang} style={styles.docTitle}>{t.phone}</AppText>
-       <TextInput maxFontSizeMultiplier={1.35} underlineColorAndroid="transparent" accessibilityLabel={t.phone} value={draft.phone} keyboardType="phone-pad" autoComplete="tel"
-         onChangeText={phone=>editDraft(current=>({...current,phone}))}
-         style={[styles.formInput,font(lang,false),{textAlign:ar?'right':'left'}]}/>
-       {documents.length>0&&<>
-         <AppText lang={lang} style={styles.warning}>
-           {ar?'الملفات المرفقة بالمسودة: ':'Files attached to this draft: '}{Object.keys(draft.files).length}
-         </AppText>
-         <SoftButton onPress={()=>{setTab('documents');go('detail');}} style={styles.changeAction}>
-           <AppText lang={lang} style={styles.uploadText}>{ar?'مراجعة المستندات':'Review Documents'} {arrow}</AppText>
-         </SoftButton>
-       </>}
-       <SoftButton selected onPress={saveDraft} style={styles.draftButton}>
-         <Text maxFontSizeMultiplier={1.35} style={[styles.ctaText,font(lang,true)]}>{t.saved}</Text>
-       </SoftButton>
-       {draft.saved&&<AppText lang={lang} style={styles.contextText}>
-         {ar?'حُفظت المسودة في طلباتي لهذه الجلسة.':'Draft saved under Requests for this session.'}
-       </AppText>}
-     </View>
-     {!allowRealSubmission&&<AppText lang={lang} style={styles.warning}>{t.notLive}</AppText>}
-   </>:page==='requests'&&savedDrafts.length>0?savedDrafts.map(item=>
-     <Pressable key={item.key} accessibilityRole="button" style={styles.panel}
-       onPress={()=>open(item.service,item.action.id)}>
-       <AppText lang={lang} style={styles.docTitle}>{title(item.service)}</AppText>
-       <AppText lang={lang} style={styles.contextText}>{wording(item.action,lang)}</AppText>
-     </Pressable>
-   ):<View style={styles.panel}><AppText lang={lang} style={styles.paragraph}>{page==='requests'?t.noRequests:t.notLive}</AppText></View>}
- </ScrollView>;
  const backRef=React.useRef<()=>boolean>(()=>false);
  backRef.current=()=>{
    if(legal){setLegal(null);return true}
@@ -578,7 +336,14 @@ export default function App() {
    <StatusBar barStyle="dark-content"/>
    <BlurTargetView ref={blurTarget} key={page==='detail'?'detail:'+chosen.id:page} style={styles.screen}>
      {page==='welcome'?<AuthFlow lang={lang} onLanguage={setLang} onGuest={()=>go('home')} onSignedIn={()=>{setSignedIn(true);go('home');void syncNow()}} onLegal={setLegal} logo={officialLogo}/>
-     :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents')}/>:page==='services'?cataloguePage(false):page==='detail'?detailPage():page==='profile'?
+     :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents')}/>:page==='services'?<ServicesScreen lang={lang} business={business} onAudience={setBusiness} query={query} onQuery={setQuery} services={allServices}
+         choosing={choosingService} onOpen={service=>open(service)} renderBanner={service=>bannerFor(service,true)} onLanguage={switchLang} onProfile={()=>go('profile')}/>
+     :page==='detail'?<ServiceDetailsScreen lang={lang} service={chosen} banner={bannerFor(chosen)} onBack={()=>go(detailOrigin)} onLanguage={switchLang} scrollRef={detailScroll}
+         favorite={favorite} onToggleFavorite={toggleFavorite} tab={tab} onTab={selectTab} actionId={actionId} needsAction={needsAction} showDocumentsOnAbout={pilotService}
+         onSelectAction={item=>{setNeedsAction(false);setAction(item.id);if(!pilotService)selectTab('documents')}}
+         files={draft.files} fields={draft.fields} onPick={id=>void pick(id)} onRemoveFile={removeFile}
+         onField={(id,value)=>editDraft(current=>({...current,fields:{...current.fields,[id]:value}}))}/>
+     :page==='profile'?
        <AccountScreen lang={lang} account={account} update={updateAccount} signedIn={signedIn} onEmail={setServerEmail} onLegal={setLegal} onExport={async()=>{await saveDataExport(await exportMyData());return true}} onDelete={async()=>{await deleteAccount();await wipeLocal();setSignedIn(false);go('welcome');return true}} onSignOut={async()=>{await logout();await wipeLocal();setSignedIn(false);go('welcome')}} requests={clientRecords.length+savedDrafts.length}
          documents={Object.entries(drafts).flatMap(([key,item])=>Object.entries(item.files).map(([id,file])=>({key:key+'/'+id,name:file.name})))}
          favorites={catalogueServices.filter(item=>account.favorites.includes(item.id)).map(item=>({id:item.id,label:title(item)}))}
@@ -586,10 +351,10 @@ export default function App() {
          onRequests={()=>go('requests')} onBrowse={()=>openCatalogue()} onLanguage={setLang}
          onLeave={()=>go('welcome')} logo={officialLogo} Text={AppText} inputFont={font(lang,false).fontFamily}/>
        :page==='newrequest'?<NewRequestScreen lang={lang} account={{name:account.name,phone:account.phone}} signedIn={signedIn} onSaved={r=>{saveClientRecords([...clientRecords.filter(v=>v.id!==r.id),r])}} onOpenDocuments={r=>resumeClient(r.serviceId,r.actionId,r.id)} onBack={()=>go('requests')} onSignIn={()=>go('welcome')}/>
-       :page==='requests'?<ClientWorkspace onRefresh={syncNow} syncStatus={syncStatus} loadedOnce={loadedOnce} lang={lang} onLanguage={switchLang} onFocusChange={setClientFocused} records={clientRecords} save={saveClientRecords} onStart={()=>{setClientDraft(null);go('newrequest');}} onResume={resumeClient} drafts={savedDrafts.map(item=>({key:item.key,title:wording(item.action,lang),resume:()=>open(item.service,item.action.id)}))}/>:page==='request'&&action?<RequestWizard onLegal={setLegal} key={chosen.id+'/'+action.id+'/'+(clientDraft??clientSeed?.id??'new')} lang={lang} serviceId={chosen.id} action={action} create={createClientRequest} onDone={()=>{setClientSeed(null);go('requests');}} onKeep={kept=>setClientSeed(kept)} onBack={()=>{go('detail');setTab('about');}} defaults={{name:account.name,phone:account.phone}} initial={clientRecords.find(r=>r.id===clientDraft)??(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id?clientSeed:undefined)}/>:simplePage()}
+       :page==='requests'?<ClientWorkspace onRefresh={syncNow} syncStatus={syncStatus} loadedOnce={loadedOnce} lang={lang} onLanguage={switchLang} onFocusChange={setClientFocused} records={clientRecords} save={saveClientRecords} onStart={()=>{setClientDraft(null);go('newrequest');}} onResume={resumeClient} drafts={savedDrafts.map(item=>({key:item.key,title:wording(item.action,lang),resume:()=>open(item.service,item.action.id)}))}/>:page==='request'&&action?<RequestWizard onLegal={setLegal} key={chosen.id+'/'+action.id+'/'+(clientDraft??clientSeed?.id??'new')} lang={lang} serviceId={chosen.id} action={action} create={createClientRequest} onDone={()=>{setClientSeed(null);go('requests');}} onKeep={kept=>setClientSeed(kept)} onBack={()=>{go('detail');setTab('about');}} defaults={{name:account.name,phone:account.phone}} initial={clientRecords.find(r=>r.id===clientDraft)??(clientSeed&&clientSeed.serviceId===chosen.id&&clientSeed.actionId===action.id?clientSeed:undefined)}/>:<FallbackScreen lang={lang} onServices={()=>openCatalogue()}/>}
    </BlurTargetView>
    {legal&&<View style={StyleSheet.absoluteFill}><LegalScreen lang={lang} doc={legal==='terms'?TERMS:PRIVACY} onBack={()=>setLegal(null)} Text={AppText}/></View>}
-   {barVisible&&<TabBar active={activeTab(page)} labels={tabLabels} onSelect={selectNav} blurTarget={blurTarget} accessory={page==='detail'?detailCTA():undefined} labelFont={sel=>({...font(lang,sel),...(lang==='ar'?{fontFamily:'ReferenceArabic'}:null)})}/>}
+   {barVisible&&<TabBar active={activeTab(page)} labels={tabLabels} onSelect={selectNav} blurTarget={blurTarget} accessory={page==='detail'?<StartRequestBar lang={lang} onPress={startRequest}/>:undefined} labelFont={sel=>({...font(lang,sel),...(lang==='ar'?{fontFamily:'ReferenceArabic'}:null)})}/>}
  </SafeAreaView></TabBarLayoutProvider></SafeAreaProvider>;
 }
 const styles=StyleSheet.create({

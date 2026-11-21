@@ -44,12 +44,16 @@ for(const service of items){
   if(d.contentStatus==='reference')assert.ok(d.sourcePages.length,'Missing source page '+service.id);
   assert.ok(['reference','review-required'].includes(d.contentStatus));
 }
-const app=fs.readFileSync(path.join(__dirname,'..','App.tsx'),'utf8');
-assert.ok(app.includes("ar?'row-reverse':'row'"),'Arabic RTL and English LTR rows must be explicit');
-assert.ok(app.includes("const arrow=ar?'‹':'›'"),'Forward arrows must mirror by locale');
-assert.ok(app.includes("ar?'next':'back'"),'Back arrows must mirror by locale');
-assert.ok(app.includes('structureFor(chosen.id)'), 'Selected service must drive all detail content');
-assert.ok(app.includes("onPress={switchLang}"),'Language toggle missing');
+const read=(...parts)=>fs.readFileSync(path.join(__dirname,'..',...parts),'utf8');
+const app=read('App.tsx');
+// The catalogue and service-details UI live in their own screens; the shared glass kit owns row direction and the back button.
+const glass=read('src','ui','Glass.tsx'),catalogue=read('src','services','ServicesScreen.tsx'),serviceDetails=read('src','services','ServiceDetailsScreen.tsx');
+assert.ok(glass.includes("lang==='ar'?'row-reverse' as const:'row' as const"),'Arabic RTL and English LTR rows must be explicit');
+assert.ok([catalogue,serviceDetails].every(src=>src.includes('rowFor(lang)')),'Screens must take row direction from the locale');
+assert.ok(serviceDetails.includes("ar?'back':'next'"),'Forward arrows must mirror by locale');
+assert.ok(glass.includes("ar?'next':'back'"),'Back arrows must mirror by locale');
+assert.ok(serviceDetails.includes('structureFor(service.id)')&&app.includes('service={chosen}'), 'Selected service must drive all detail content');
+assert.ok(app.includes('onLanguage={switchLang}')&&catalogue.includes('onPress={onLanguage}')&&serviceDetails.includes('onPress={p.onLanguage}'),'Language toggle missing');
 const publicIds=services.catalogueServices.map(service=>service.id);
 assert.equal(publicIds.length,24);
 assert.ok(!publicIds.includes('complete-business'));
@@ -80,8 +84,8 @@ assert.deepEqual(docsFor(permit,'renew-permit'),['licence','passport','permit'])
 assert.ok(records['legal-translation-individuals'].actions.every(action=>action.documents.some(doc=>doc.field==='text')));
 assert.ok(records['wage-protection'].actions.every(action=>!action.id.includes('permit')));
 assert.deepEqual(docsFor(records['family-sponsorship'].actions,'review-eligibility'),[]);
-assert.ok(app.includes('detail.actions.map'), 'Selected service actions missing');
-assert.ok(app.includes('detail.notes.map'), 'Selected service notes missing');
+assert.ok(serviceDetails.includes('detail.actions.map'), 'Selected service actions missing');
+assert.ok(serviceDetails.includes('detail.notes.map'), 'Selected service notes missing');
 assert.ok(app.includes('allowRealSubmission=false'),'Prototype submission must remain disabled');
 const rejectedDirectory=path.join(__dirname,'..','assets','service_banners');
 assert.ok(!fs.existsSync(rejectedDirectory)||
