@@ -37,7 +37,7 @@ exports.login=async(p,phone='0501234567',intl='971501234567',name='مستخدم 
   await p.getByPlaceholder('اسمك كما في الهوية').fill(name);
   await p.getByPlaceholder('name@example.com').fill('u'+intl+'@example.test');
   await p.getByPlaceholder('٨ أحرف على الأقل، فيها حرف ورقم').fill(exports.PASSWORD);
-  await p.getByPlaceholder('+971 5X XXX XXXX').fill(phone);
+  await p.getByPlaceholder('5X XXX XXXX').fill(phone);
   await p.getByRole('checkbox',{name:/هذا الرقم عليه واتساب/}).first().click();await p.waitForTimeout(2000);
   await exports.webhook(intl,start.v.code);await p.waitForTimeout(4000); // the box turns into "number confirmed"
   for(const n of [/أوافق على شروط/,/أوافق على سياسة/,/معالجة/])await p.getByRole('checkbox',{name:n}).first().click();

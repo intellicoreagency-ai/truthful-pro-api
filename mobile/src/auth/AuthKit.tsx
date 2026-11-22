@@ -44,6 +44,16 @@ export function StepTransition({stepKey,children}:{stepKey:string;children:React
   return <Animated.View style={{opacity:v,transform:[{translateY:v.interpolate({inputRange:[0,1],outputRange:[12,0]})}]}}>{children}</Animated.View>;
 }
 
+/** Web only: browsers paint autofilled fields with their own light background (and dark text), which breaks the glass.
+ *  Keep autofilled fields transparent with white text. Native apps are not affected. */
+if(Platform.OS==='web'&&typeof document!=='undefined'&&!document.getElementById('tp-autofill')){
+  const st=document.createElement('style');st.id='tp-autofill';
+  st.textContent='input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{-webkit-text-fill-color:#fff;caret-color:#fff;'+
+    '-webkit-box-shadow:0 0 0 1000px transparent inset;box-shadow:0 0 0 1000px transparent inset;transition:background-color 99999s ease-out 0s;}'+
+    'input:autofill{background:transparent!important;}';
+  document.head.appendChild(st);
+}
+
 /** Frosted glass over the photo (owner-approved reference, 22 Nov 2026): real blur of what is behind (expo-blur),
  *  a flat 20 % white frost, a thin white edge and white text. No gold border, no dark tint, no opaque sheen. */
 export function GlassCard({children,style}:{children:React.ReactNode;style?:object}){
@@ -103,7 +113,8 @@ export function AuthScaffold({lang,onLanguage,logo,title,subtitle,children,foote
 
 type FieldProps={lang:Lang;Text?:AuthText;label:string;icon?:IconName;error?:string|null;hint?:string;inputFont?:string}&Omit<TextInputProps,'style'>;
 /** Label above, glass field (52 pt), white focus ring, inline error. */
-export function RoundedField({lang,label,icon,error,hint,inputFont,ltr=false,trailing,onFocus,onBlur,...input}:FieldProps&{ltr?:boolean;trailing?:React.ReactNode}){
+export function RoundedField({lang,label,icon,error,hint,inputFont,ltr=false,trailing,prefix,onFocus,onBlur,...input}:FieldProps&{ltr?:boolean;trailing?:React.ReactNode;
+  /** Fixed text before the value that cannot be deleted (e.g. +971); the field then reads left to right. */prefix?:string}){
   const [focused,setFocused]=useState(false);
   const ar=lang==='ar';
   const T=AText;
@@ -111,10 +122,11 @@ export function RoundedField({lang,label,icon,error,hint,inputFont,ltr=false,tra
     <T lang={lang} style={[s.label,{textAlign:ar?'right':'left'}]}>{label}</T>
     <View style={[s.field,{flexDirection:ar?'row-reverse':'row'},focused&&s.fieldFocus,!!error&&s.fieldError]}>
       {icon?<Icon name={icon} size={20} color={focused?authGlass.text:authGlass.soft}/>:null}
-      <TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" accessibilityLabel={label}
+      {(()=>{const field=<TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" accessibilityLabel={prefix?`${label} ${prefix}`:label}
         placeholderTextColor={authGlass.placeholder} selectionColor={authGlass.link} keyboardAppearance="light"
         onFocus={e=>{setFocused(true);onFocus?.(e);}} onBlur={e=>{setFocused(false);onBlur?.(e);}}
-        {...input} style={[s.input,inputFont&&!ltr?{fontFamily:inputFont}:null,{textAlign:ar?'right':'left',writingDirection:ar&&!ltr?'rtl':'ltr'}]}/>
+        {...input} style={[s.input,inputFont&&!ltr&&!prefix?{fontFamily:inputFont}:null,{textAlign:prefix?'left':ar?'right':'left',writingDirection:ar&&!ltr&&!prefix?'rtl':'ltr'}]}/>;
+        return prefix?<View style={s.prefixRow}><Text maxFontSizeMultiplier={layout.maxFontScale} style={s.prefix} accessible={false}>{prefix}</Text><View style={s.prefixLine}/>{field}</View>:field;})()}
       {trailing}
     </View>
     {error?<T lang={lang} style={[s.error,{textAlign:ar?'right':'left'}]}>{error}</T>:hint?<T lang={lang} style={[s.hint,{textAlign:ar?'right':'left'}]}>{hint}</T>:null}
@@ -179,6 +191,9 @@ const s=StyleSheet.create({
   field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control+4,backgroundColor:authGlass.field,borderWidth:1,borderColor:authGlass.border},
   fieldFocus:{borderColor:'#E8D3A2',borderWidth:2,paddingHorizontal:space.lg-1,backgroundColor:authGlass.fieldFocus},
   fieldError:{borderColor:authGlass.error,borderWidth:2,paddingHorizontal:space.lg-1},
+  prefixRow:{flex:1,flexDirection:'row',alignItems:'center',gap:space.sm,direction:'ltr'} as object,
+  prefix:{fontSize:type.body,fontWeight:'600',color:authGlass.text},
+  prefixLine:{width:1,height:22,backgroundColor:authGlass.border},
   // no browser focus box on the web preview: the gold field border already shows focus
   input:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.body,color:authGlass.text,...(Platform.OS==='web'?{outlineStyle:'none',outlineWidth:0}:{})} as object,
   error:{fontSize:type.footnote,color:authGlass.error,fontWeight:'600'},

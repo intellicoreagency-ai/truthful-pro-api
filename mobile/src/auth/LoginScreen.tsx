@@ -2,7 +2,7 @@ import React,{useState} from 'react';
 import {StyleSheet,View} from 'react-native';
 import {ApiError,passwordLogin,setPassword} from '../api';
 import {authCopy,type Lang} from './copy';
-import {PHONE_PREFIX,isEmail,toE164} from './phone';
+import {PHONE_PREFIX,isEmail,localPhone,toE164} from './phone';
 import {AuthScaffold,PrimaryButton,RoundedField,SecondaryButton,StepTransition,TextLink,type AuthText,AText} from './AuthKit';
 import {PasswordField} from './PasswordField';
 import {WaitingStep} from './WaitingStep';
@@ -26,7 +26,7 @@ export function LoginScreen({lang,onLanguage,logo,inputFont,onVerified,onRegiste
   const T=AText;
   const [step,setStep]=useState<Step>('password');
   const [email,setEmail]=useState('');const [password,setPw]=useState('');
-  const [phone,setPhone]=useState(PHONE_PREFIX);const [newPw,setNewPw]=useState('');
+  const [phone,setPhone]=useState(''); /* local part only; +971 is a fixed label */const [newPw,setNewPw]=useState('');
   const [error,setError]=useState<string|null>(null);const [busy,setBusy]=useState(false);
   const [verifiedPhone,setVerifiedPhone]=useState<string|undefined>(undefined);
   const wa=useWaVerification(lang,info=>{if(info.isNewUser){onVerified(info);return;}setVerifiedPhone(info.phone);setStep('newpass');setError(null);});
@@ -38,7 +38,7 @@ export function LoginScreen({lang,onLanguage,logo,inputFont,onVerified,onRegiste
     setBusy(true);setError(null);
     try{await passwordLogin(email,password);onVerified({isNewUser:false});}catch(e){fail(e);}finally{setBusy(false);}
   };
-  const confirmNumber=()=>{const p=toE164(phone);if(!p){setError(t.e_phone);return;}setError(null);void wa.start(p,{open:true});};
+  const confirmNumber=()=>{const p=toE164(PHONE_PREFIX+phone);if(!p){setError(t.e_phone);return;}setError(null);void wa.start(p,{open:true});};
   const saveNew=async()=>{
     setBusy(true);setError(null);
     try{await setPassword(newPw);onVerified({isNewUser:false,phone:verifiedPhone});}catch(e){fail(e);}finally{setBusy(false);}
@@ -72,8 +72,8 @@ export function LoginScreen({lang,onLanguage,logo,inputFont,onVerified,onRegiste
         </View>
       :waiting?<WaitingStep lang={lang} Text={T} code={wa.challenge?.code} expiresAt={wa.challenge?.expiresAt} error={wa.error} onOpen={wa.openWhatsApp} onStagingConfirm={wa.stagingConfirm} onCancel={()=>wa.cancel()}/>
       :<View style={s.form}>
-          <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.phone} value={phone} onChangeText={v=>{setPhone(v);setError(null);}}
-            placeholder={t.phonePh} keyboardType="phone-pad" ltr textContentType="telephoneNumber" autoComplete="tel" maxLength={16} returnKeyType="go" onSubmitEditing={confirmNumber}
+          <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.phone} value={phone} prefix={PHONE_PREFIX} onChangeText={v=>{setPhone(localPhone(v));setError(null);}}
+            placeholder="5X XXX XXXX" keyboardType="phone-pad" ltr textContentType="telephoneNumber" autoComplete="tel-national" maxLength={16} returnKeyType="go" onSubmitEditing={confirmNumber}
             error={error??(wa.error||null)}/>
           <PrimaryButton lang={lang} Text={T} label={t.confirmWa} onPress={confirmNumber} busy={wa.busy}/>
           <SecondaryButton lang={lang} Text={T} label={t.backToLogin} onPress={back}/>

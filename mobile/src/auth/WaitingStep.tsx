@@ -17,6 +17,8 @@ export function WaitingStep({lang,Text:T,error,code,expiresAt,onOpen,onCancel,on
   const t=pick(authCopy,lang),ar=lang==='ar';
   const [now,setNow]=useState(Date.now());
   useEffect(()=>{if(!expiresAt)return;const id=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(id)},[expiresAt]);
+  const [slow,setSlow]=useState(false);
+  useEffect(()=>{setSlow(false);if(!code)return;const id=setTimeout(()=>setSlow(true),30000);return()=>clearTimeout(id);},[code]);
   const left=expiresAt?Math.max(0,Math.round((expiresAt-now)/1000)):0;
   const clock=`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`;
   const align={textAlign:(ar?'right':'left') as 'right'|'left'};
@@ -37,6 +39,7 @@ export function WaitingStep({lang,Text:T,error,code,expiresAt,onOpen,onCancel,on
 
     <PrimaryButton lang={lang} Text={T} label={t.openWa} onPress={onOpen}/>
     <View style={s.status} accessibilityLiveRegion="polite"><ActivityIndicator color={authGlass.link}/><T lang={lang} style={s.statusText}>{t.waiting}</T></View>
+    {slow?<T lang={lang} style={[s.statusText,{textAlign:'center'}]}>{t.waSlow}</T>:null}
     {error?<T lang={lang} style={s.error}>{error}</T>:null}
     {onStagingConfirm?<View style={s.staging}><T lang={lang} style={s.stagingNote}>{t.stagingNote}</T><PrimaryButton lang={lang} Text={T} label={t.stagingConfirm} onPress={onStagingConfirm}/></View>:null}
     {onRetry?<PrimaryButton lang={lang} Text={T} label={t.retry} onPress={onRetry}/>:null}

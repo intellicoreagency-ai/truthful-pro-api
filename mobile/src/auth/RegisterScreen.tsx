@@ -1,9 +1,9 @@
-import React,{useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import {ActivityIndicator,StyleSheet,View} from 'react-native';
 import {ApiError,logout,recordConsent,setPassword,setServerEmail,setServerName} from '../api';
 import {LEGAL_VERSION,PRIVACY_VERSION} from '../legal';
 import {authCopy,type Lang} from './copy';
-import {PHONE_PREFIX,isEmail,toE164} from './phone';
+import {PHONE_PREFIX,isEmail,localPhone,toE164} from './phone';
 import {AuthScaffold,ConsentRow,PrimaryButton,RoundedField,SecondaryButton,TextLink,type AuthText,AText} from './AuthKit';
 import {PasswordField} from './PasswordField';
 import {useWaVerification} from './useWaVerification';
@@ -28,7 +28,7 @@ const strong=(p:string)=>p.length>=8&&/\p{L}/u.test(p)&&/\d/.test(p);
 export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,onLogin,onLegal}:Props){
   const t=pick(authCopy,lang),ar=lang==='ar';
   const T=AText;
-  const [name,setName]=useState('');const [email,setEmail]=useState('');const [pw,setPw]=useState('');const [phone,setPhone]=useState(PHONE_PREFIX);
+  const [name,setName]=useState('');const [email,setEmail]=useState('');const [pw,setPw]=useState('');const [phone,setPhone]=useState(''); /* local part only; +971 is a fixed label */
   const [terms,setTerms]=useState(false);const [privacy,setPrivacy]=useState(false);const [docs,setDocs]=useState(false);
   const [waBox,setWaBox]=useState(false);const [verified,setVerified]=useState(mode==='complete');const [existing,setExisting]=useState(false);
   const [errors,setErrors]=useState<{name?:string;email?:string;password?:string;phone?:string;consent?:string}>({});
@@ -39,7 +39,7 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
   const toggleWa=()=>{
     if(verified)return; // locked once confirmed; use "Change number"
     if(waBox){wa.cancel();setWaBox(false);return;}
-    const p=toE164(phone);
+    const p=toE164(PHONE_PREFIX+phone);
     if(!p){setErrors(x=>({...x,phone:t.e_phone}));return;}
     setWaBox(true);clear('phone');void wa.start(p,{open:true});
   };
@@ -50,7 +50,7 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
     if(name.trim().length<2)e.name=t.e_name;
     if(!email.trim())e.email=t.e_email_req;else if(!isEmail(email))e.email=t.e_email;
     if(!strong(pw))e.password=t.e_weak;
-    if(mode==='register'&&!verified)e.phone=toE164(phone)?t.waRequired:t.e_phone;
+    if(mode==='register'&&!verified)e.phone=toE164(PHONE_PREFIX+phone)?t.waRequired:t.e_phone;
     if(!terms||!privacy||!docs)e.consent=t.e_consent;
     setErrors(e);return Object.keys(e).length===0;
   };
@@ -66,13 +66,15 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
     try{await setPassword(pw);}
     catch(e){setSaving(false);if(e instanceof ApiError&&e.code==='weak_password')setErrors(x=>({...x,password:t.e_weak}));else setSaveError(net(e)?t.e_net:t.e_save);return;}
     try{await setServerName(name.trim());}catch{/* shown later in the profile */}
-    setSaving(false);onSignedIn(mode==='register'?toE164(phone)??undefined:undefined);
+    setSaving(false);onSignedIn(mode==='register'?toE164(PHONE_PREFIX+phone)??undefined:undefined);
   };
 
   const row={flexDirection:(ar?'row-reverse':'row') as 'row'|'row-reverse'};
   const align={textAlign:(ar?'right':'left') as 'right'|'left'};
   const sentence=(txt:string)=>`${t.agree} ${txt}`;
   const waiting=waBox&&!verified&&!!wa.challenge;
+  const [slow,setSlow]=useState(false); // after 30 s without confirmation, say what usually went wrong
+  useEffect(()=>{setSlow(false);if(!waiting)return;const id=setTimeout(()=>setSlow(true),30000);return()=>clearTimeout(id);},[waiting,wa.challenge?.challengeId]);
   return <AuthScaffold lang={lang} onLanguage={onLanguage} logo={logo} Text={T}
     title={mode==='complete'?t.completeTitle:t.registerTitle} subtitle={mode==='complete'?t.completeSub:t.registerSub2}
     footer={mode==='register'?<View style={[s.row,row]}><T lang={lang} style={s.muted}>{t.haveAccount}</T><TextLink tone="photo" lang={lang} Text={T} label={t.toLogin} onPress={onLogin}/></View>:null}>
@@ -85,8 +87,8 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
       <PasswordField lang={lang} Text={T} label={t.password} value={pw} onChangeText={v=>{setPw(v);clear('password');}} error={errors.password} isNew/>
 
       {mode==='register'&&<View style={s.phoneBlock}>
-        <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.phone} value={phone} onChangeText={v=>{setPhone(v);clear('phone');}} editable={!waBox&&!verified}
-          placeholder={t.phonePh} keyboardType="phone-pad" ltr textContentType="telephoneNumber" autoComplete="tel" maxLength={16} error={errors.phone??(wa.error||null)}/>
+        <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.phone} value={phone} prefix={PHONE_PREFIX} onChangeText={v=>{setPhone(localPhone(v));clear('phone');}} editable={!waBox&&!verified}
+          placeholder="5X XXX XXXX" keyboardType="phone-pad" ltr textContentType="telephoneNumber" autoComplete="tel-national" maxLength={16} error={errors.phone??(wa.error||null)}/>
         {verified
           ?<View style={[s.done,row]} accessibilityLiveRegion="polite"><Icon name="check" size={18} color="#B9F2CF"/><T lang={lang} style={[s.doneText,align]}>{t.waDone}</T></View>
           :<ConsentRow lang={lang} Text={T} checked={waBox} onToggle={toggleWa} label={t.waCheck}><T lang={lang} style={s.consentText}>{t.waCheck}</T></ConsentRow>}
@@ -96,6 +98,7 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
           {waiting&&<>
             <View style={[s.waStatus,row]} accessibilityLiveRegion="polite"><ActivityIndicator color={authGlass.link}/><T lang={lang} style={s.waStatusText}>{t.waSent}</T></View>
             <T lang={lang} style={[s.hint,align]}>{t.codeLabel}: {LRI}{wa.challenge!.code}{PDI}</T>
+            {slow?<T lang={lang} style={[s.slow,align]}>{t.waSlow}</T>:null}
             {wa.stagingConfirm?<View style={s.staging}><T lang={lang} style={s.stagingNote}>{t.stagingNote}</T><PrimaryButton lang={lang} Text={T} label={t.stagingConfirm} onPress={wa.stagingConfirm}/></View>:null}
             <SecondaryButton lang={lang} Text={T} label={t.waAgain} onPress={wa.openWhatsApp}/>
           </>}
@@ -126,6 +129,7 @@ const s=StyleSheet.create({
   hint:{fontSize:type.footnote,lineHeight:type.footnote*1.5,color:authGlass.soft},
   waCard:{gap:space.sm,padding:space.md,borderRadius:16,backgroundColor:authGlass.field,borderWidth:1,borderColor:authGlass.border},
   waStatus:{alignItems:'center',gap:space.sm},
+  slow:{fontSize:type.footnote,lineHeight:type.footnote*1.5,color:authGlass.link,fontWeight:'600'},
   waStatusText:{fontSize:type.subhead,color:authGlass.text},
   done:{alignItems:'center',gap:space.sm,paddingVertical:space.sm,paddingHorizontal:space.md,borderRadius:14,backgroundColor:'rgba(143,227,176,0.16)',borderWidth:1,borderColor:'rgba(143,227,176,0.6)'},
   doneText:{flex:1,fontSize:type.subhead,fontWeight:'600',color:'#B9F2CF'},
