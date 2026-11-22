@@ -352,7 +352,7 @@ export default function App() {
    <StatusBar barStyle="dark-content"/>
    {languageMenu}
    <BlurTargetView ref={blurTarget} key={page==='detail'?'detail:'+chosen.id:page} style={styles.screen}>
-     {page==='welcome'?<AuthFlow lang={lang} onLanguage={switchLang} onGuest={()=>go('home')} onSignedIn={ph=>{setSignedIn(true);if(ph&&!accountRef.current.phone)updateAccount({phone:ph});refreshServerName();go('home');void syncNow()}} onLegal={setLegal} logo={officialLogo}/>
+     {page==='welcome'?<AuthFlow lang={lang} onLanguage={switchLang} onSignedIn={ph=>{setSignedIn(true);if(ph&&!accountRef.current.phone)updateAccount({phone:ph});refreshServerName();go('home');void syncNow()}} onLegal={setLegal} logo={officialLogo}/>
      :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{const hit=(b:boolean)=>catalogueServices.some(x=>x.business===b&&matchesService(x,value,lang));setBusiness(!hit(false)&&hit(true));openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents'||!!r.whatNow?.actionRequired)}/>:page==='services'?<ServicesScreen lang={lang} business={business} onAudience={setBusiness} query={query} onQuery={setQuery} services={allServices}
          choosing={choosingService} onOpen={service=>open(service)} onLanguage={switchLang} onProfile={()=>go('profile')}/>
      :page==='detail'?<ServiceDetailsScreen lang={lang} service={chosen} banner={bannerFor(chosen)} onBack={()=>go(detailOrigin)} onLanguage={switchLang} scrollRef={detailScroll}

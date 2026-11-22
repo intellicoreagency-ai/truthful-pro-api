@@ -8,10 +8,10 @@ import {ContactScreen} from './ContactScreen';
 import {logout,me} from '../api';
 import type {Lang} from './copy';
 
-type Props={lang:Lang;onLanguage:(l:Lang)=>void;logo:number;onGuest:()=>void;onSignedIn:(verifiedPhone?:string)=>void;onLegal:(k:'terms'|'privacy')=>void};
+type Props={lang:Lang;onLanguage:(l:Lang)=>void;logo:number;onSignedIn:(verifiedPhone?:string)=>void;onLegal:(k:'terms'|'privacy')=>void};
 type Screen='login'|'register'|'complete'|'contact';
 
-/** Root of the signed-out experience. Back: register → login; everything else lets the system handle it (exit). */
+/** Root of the signed-out experience (no guest access: owner decision 22 Nov 2026, everyone registers or signs in). Back: register → login; everything else lets the system handle it (exit). */
 export function AuthFlow(p:Props){
   const [screen,setScreen]=useState<Screen>('login');
   const phoneRef=useRef<string|undefined>(undefined); // the number verified on the login screen
@@ -26,7 +26,7 @@ export function AuthFlow(p:Props){
           onVerified={info=>{phoneRef.current=info.phone;if(info.isNewUser){setScreen('complete');return;}
             // existing account: the email is essential contact data, so an account without one adds it before entering
             void me().then(r=>r.user.email_set===false?setScreen('contact'):p.onSignedIn(info.phone)).catch(()=>p.onSignedIn(info.phone));}}
-          onRegister={()=>setScreen('register')} onGuest={p.onGuest} onLegal={p.onLegal}/>
+          onRegister={()=>setScreen('register')} onLegal={p.onLegal}/>
       :screen==='contact'
       ?<ContactScreen lang={p.lang} onLanguage={p.onLanguage} logo={p.logo} Text={AText} inputFont={inputFontFor(p.lang)} onDone={()=>p.onSignedIn(phoneRef.current)} onSignOut={()=>{void logout().finally(()=>setScreen('login'))}}/>
       :<RegisterScreen lang={p.lang} onLanguage={p.onLanguage} logo={p.logo} Text={AText} inputFont={inputFontFor(p.lang)}

@@ -3,7 +3,9 @@ import {ActivityIndicator,StyleSheet,View} from 'react-native';
 import {ApiError,logout,recordConsent,setPassword,setServerEmail,setServerName} from '../api';
 import {LEGAL_VERSION,PRIVACY_VERSION} from '../legal';
 import {authCopy,type Lang} from './copy';
-import {PHONE_PREFIX,isEmail,localPhone,toE164} from './phone';
+import {e164From,isEmail} from './phone';
+import {PhoneField} from './PhoneField';
+import {DEFAULT_COUNTRY} from './countries';
 import {AuthScaffold,ConsentRow,PrimaryButton,RoundedField,SecondaryButton,TextLink,type AuthText,AText} from './AuthKit';
 import {PasswordField} from './PasswordField';
 import {useWaVerification} from './useWaVerification';
@@ -28,7 +30,7 @@ const strong=(p:string)=>p.length>=8&&/\p{L}/u.test(p)&&/\d/.test(p);
 export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,onLogin,onLegal}:Props){
   const t=pick(authCopy,lang),ar=lang==='ar';
   const T=AText;
-  const [name,setName]=useState('');const [email,setEmail]=useState('');const [pw,setPw]=useState('');const [phone,setPhone]=useState(''); /* local part only; +971 is a fixed label */
+  const [name,setName]=useState('');const [email,setEmail]=useState('');const [pw,setPw]=useState('');const [phone,setPhone]=useState('');const [cc,setCc]=useState({iso:DEFAULT_COUNTRY.iso,dial:DEFAULT_COUNTRY.dial}); /* country code + local number */
   const [terms,setTerms]=useState(false);const [privacy,setPrivacy]=useState(false);const [docs,setDocs]=useState(false);
   const [waBox,setWaBox]=useState(false);const [verified,setVerified]=useState(mode==='complete');const [existing,setExisting]=useState(false);
   const [errors,setErrors]=useState<{name?:string;email?:string;password?:string;phone?:string;consent?:string}>({});
@@ -39,7 +41,7 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
   const toggleWa=()=>{
     if(verified)return; // locked once confirmed; use "Change number"
     if(waBox){wa.cancel();setWaBox(false);return;}
-    const p=toE164(PHONE_PREFIX+phone);
+    const p=e164From(cc.dial,phone);
     if(!p){setErrors(x=>({...x,phone:t.e_phone}));return;}
     setWaBox(true);clear('phone');void wa.start(p,{open:true});
   };
@@ -50,7 +52,7 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
     if(name.trim().length<2)e.name=t.e_name;
     if(!email.trim())e.email=t.e_email_req;else if(!isEmail(email))e.email=t.e_email;
     if(!strong(pw))e.password=t.e_weak;
-    if(mode==='register'&&!verified)e.phone=toE164(PHONE_PREFIX+phone)?t.waRequired:t.e_phone;
+    if(mode==='register'&&!verified)e.phone=e164From(cc.dial,phone)?t.waRequired:t.e_phone;
     if(!terms||!privacy||!docs)e.consent=t.e_consent;
     setErrors(e);return Object.keys(e).length===0;
   };
@@ -66,7 +68,7 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
     try{await setPassword(pw);}
     catch(e){setSaving(false);if(e instanceof ApiError&&e.code==='weak_password')setErrors(x=>({...x,password:t.e_weak}));else setSaveError(net(e)?t.e_net:t.e_save);return;}
     try{await setServerName(name.trim());}catch{/* shown later in the profile */}
-    setSaving(false);onSignedIn(mode==='register'?toE164(PHONE_PREFIX+phone)??undefined:undefined);
+    setSaving(false);onSignedIn(mode==='register'?e164From(cc.dial,phone)??undefined:undefined);
   };
 
   const row={flexDirection:(ar?'row-reverse':'row') as 'row'|'row-reverse'};
@@ -87,8 +89,7 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
       <PasswordField lang={lang} Text={T} label={t.password} value={pw} onChangeText={v=>{setPw(v);clear('password');}} error={errors.password} isNew/>
 
       {mode==='register'&&<View style={s.phoneBlock}>
-        <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.phone} value={phone} prefix={PHONE_PREFIX} onChangeText={v=>{setPhone(localPhone(v));clear('phone');}} editable={!waBox&&!verified}
-          placeholder="5X XXX XXXX" keyboardType="phone-pad" ltr textContentType="telephoneNumber" autoComplete="tel-national" maxLength={16} error={errors.phone??(wa.error||null)}/>
+        <PhoneField lang={lang} Text={T} label={t.phone} iso={cc.iso} dial={cc.dial} local={phone} editable={!waBox&&!verified} onChange={v=>{setCc({iso:v.iso,dial:v.dial});setPhone(v.local);clear('phone');}} error={errors.phone??(wa.error||null)}/>
         {verified
           ?<View style={[s.done,row]} accessibilityLiveRegion="polite"><Icon name="check" size={18} color="#B9F2CF"/><T lang={lang} style={[s.doneText,align]}>{t.waDone}</T></View>
           :<ConsentRow lang={lang} Text={T} checked={waBox} onToggle={toggleWa} label={t.waCheck}><T lang={lang} style={s.consentText}>{t.waCheck}</T></ConsentRow>}
