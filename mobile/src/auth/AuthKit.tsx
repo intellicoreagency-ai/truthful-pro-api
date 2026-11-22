@@ -44,18 +44,16 @@ export function StepTransition({stepKey,children}:{stepKey:string;children:React
   return <Animated.View style={{opacity:v,transform:[{translateY:v.interpolate({inputRange:[0,1],outputRange:[12,0]})}]}}>{children}</Animated.View>;
 }
 
-/** Frosted glass over the photo: gold gradient hairline, soft shadow, real blur (expo-blur), a light frost and white text. */
+/** Frosted glass over the photo (owner-approved reference, 22 Nov 2026): real blur of what is behind (expo-blur),
+ *  a flat 20 % white frost, a thin white edge and white text. No gold border, no dark tint, no opaque sheen. */
 export function GlassCard({children,style}:{children:React.ReactNode;style?:object}){
   const target=useContext(BlurCtx);
   return <View style={[s.cardShadow,style]}>
-    <Gradient colors={lux.goldBorder} start={{x:0,y:0}} end={{x:1,y:1}} style={s.cardBorder}>
-      <View style={s.card}>
-        <BlurView style={StyleSheet.absoluteFill} tint="dark" intensity={45} blurTarget={Platform.OS==='android'?target:undefined} blurMethod="dimezisBlurViewSdk31Plus"/>
-        {/* light frost on top, a touch of navy below: the photo stays visible and white text stays readable */}
-        <Gradient pointerEvents="none" colors={['rgba(255,255,255,0.16)','rgba(10,20,48,0.30)']} style={StyleSheet.absoluteFill}/>
-        <View style={s.cardInner}>{children}</View>
-      </View>
-    </Gradient>
+    <View style={s.card}>
+      <BlurView style={StyleSheet.absoluteFill} tint="light" intensity={50} blurTarget={Platform.OS==='android'?target:undefined} blurMethod="dimezisBlurViewSdk31Plus"/>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(255,255,255,0.20)'}]}/>
+      <View style={s.cardInner}>{children}</View>
+    </View>
   </View>;
 }
 
@@ -173,7 +171,7 @@ const s=StyleSheet.create({
     default:{shadowColor:'#000',shadowOffset:{width:0,height:16},shadowOpacity:0.28,shadowRadius:30},
   }) as object},
   cardBorder:{borderRadius:28,padding:1},
-  card:{borderRadius:27,overflow:'hidden'},
+  card:{borderRadius:28,overflow:'hidden',borderWidth:1,borderColor:'rgba(255,255,255,0.45)'},
   cardInner:{padding:space.xl,gap:space.lg},
   footer:{marginTop:space.sm,alignItems:'center',gap:space.xs},
   fieldWrap:{gap:space.sm-2},
@@ -189,8 +187,8 @@ const s=StyleSheet.create({
     ios:{shadowColor:'#1D3A9E',shadowOffset:{width:0,height:8},shadowOpacity:0.3,shadowRadius:14},android:{elevation:4},default:{}}) as object},
   primaryOff:{opacity:0.55},
   primaryText:{fontSize:type.headline,fontWeight:'700',color:lux.onAction},
-  secondary:{flex:1,minHeight:50,borderRadius:16,backgroundColor:'rgba(255,255,255,0.12)',borderWidth:1,borderColor:'rgba(232,211,162,0.7)',alignItems:'center',justifyContent:'center',paddingHorizontal:space.sm},
-  secondaryText:{fontSize:type.subhead,fontWeight:'700',color:authGlass.link,textAlign:'center'},
+  secondary:{flex:1,minHeight:50,borderRadius:16,backgroundColor:'rgba(255,255,255,0.10)',borderWidth:1,borderColor:'rgba(255,255,255,0.55)',alignItems:'center',justifyContent:'center',paddingHorizontal:space.sm},
+  secondaryText:{fontSize:type.subhead,fontWeight:'600',color:authGlass.text,textAlign:'center'},
   link:{minHeight:layout.minTouch,justifyContent:'center',paddingHorizontal:space.sm},
   linkText:{fontSize:type.callout,fontWeight:'700',color:glass.link},
   consent:{alignItems:'flex-start',gap:space.md,minHeight:layout.minTouch,paddingVertical:space.xs},
