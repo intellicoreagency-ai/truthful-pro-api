@@ -25,7 +25,7 @@ export type SyncStatus='idle'|'syncing'|'error';
 type Draft={key:string;title:string;resume:()=>void};
 type Props={
   lang:Lang;records:ClientRequest[];drafts:Draft[];syncStatus:SyncStatus;loadedOnce:boolean;demo:boolean;
-  onRefresh:()=>Promise<void>|void;onOpen:(r:ClientRequest)=>void;onMissing:(r:ClientRequest)=>void;onStart:()=>void;onLanguage:()=>void;onDemo:()=>void;
+  onRefresh:()=>Promise<void>|void;onOpen:(r:ClientRequest)=>void;onMissing:(r:ClientRequest)=>void;onStart:()=>void;onLanguage:()=>void;/** Development and staging only (sample screens); absent in production builds. */onDemo?:()=>void;
 };
 
 const copy={
@@ -206,7 +206,7 @@ export function DashboardScreen({lang,records,drafts,syncStatus,loadedOnce,demo,
         <RequestCard lang={lang} r={r} reduce={reduce} onOpen={()=>onOpen(r)} onMissing={()=>onMissing(r)}/>
       </Animated.View>)}
 
-      {!loading?<ScalePressable accessibilityRole="button" onPress={onDemo} style={s.demoLink}><Txt lang={lang} style={s.demoText}>{demo?t.demoOn:t.demoOff}</Txt></ScalePressable>:null}
+      {!loading&&onDemo?<ScalePressable accessibilityRole="button" onPress={onDemo} style={s.demoLink}><Txt lang={lang} style={s.demoText}>{demo?t.demoOn:t.demoOff}</Txt></ScalePressable>:null}
     </ScrollView>
 
     {/* Frosted header: content scrolls beneath it */}

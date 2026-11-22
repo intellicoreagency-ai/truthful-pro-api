@@ -12,6 +12,7 @@ import {colors,layout,radius,space,type} from '../theme';
 import {applicantAge,makeId,phoneDigits,type ClientFile,type ClientRequest} from '../clientModel';
 import {pickClientFile,previewFile} from '../clientStorage';
 import {apiEnabled,hasSession} from '../api';
+import {PREVIEW_TOOLS} from '../env';
 import {LEGAL_VERSION} from '../legal';
 import type {ServiceAction} from '../serviceDetails';
 import {tr} from '../i18n';
@@ -21,10 +22,15 @@ const STEP:Partial<Record<string,string>>={en:'Step',ru:'Шаг',zh:'步骤',fr:
 const digit=(n:number,lang:Lang)=>lang==='ar'?String(n).replace(/[0-9]/g,d=>'٠١٢٣٤٥٦٧٨٩'[+d]):String(n);
 
 type Props={lang:Lang;action:ServiceAction;serviceId:string;create:(r:ClientRequest)=>boolean;onDone:()=>void;onBack:()=>void;
-  defaults:{name:string;phone:string};initial?:ClientRequest;onKeep?:(r:ClientRequest)=>void;onLegal?:(k:'terms'|'privacy')=>void};
+  defaults:{name:string;phone:string};initial?:ClientRequest;onKeep?:(r:ClientRequest)=>void;onLegal?:(k:'terms'|'privacy')=>void;
+  /** Production guests: keep the request as a draft and go to sign-in (no on-device demo requests outside staging). */
+  onSignIn?:()=>void};
 
-export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaults,initial,onKeep,onLegal}:Props){
-  const live=apiEnabled&&hasSession();const ar=lang==='ar',row=rowFor(lang),tx=(a:string,e:string)=>tr({ar:a,en:e},lang);
+export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaults,initial,onKeep,onLegal,onSignIn}:Props){
+  const live=apiEnabled&&hasSession();
+  const guest=!live&&!PREVIEW_TOOLS; // production guest: must sign in to send
+  const real=live||guest;            // real terms (not the local-preview wording)
+  const ar=lang==='ar',row=rowFor(lang),tx=(a:string,e:string)=>tr({ar:a,en:e},lang);
   const reduce=useReduceTransparency();
   const idRef=useRef(initial?.id??makeId()),createdRef=useRef(initial?.createdAt??new Date().toISOString()),doneRef=useRef(false);
   const [step,setStep]=useState(1),[name,setName]=useState(initial?.name??defaults.name),[phone,setPhone]=useState(initial?.phone??defaults.phone),
@@ -54,7 +60,7 @@ export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaul
 
   return <GlassScreen>
     <ScreenHeader lang={lang} title={tx('بدء معاملة','Start request')} subtitle={tr(action,lang)} backLabel={tx('رجوع','Back')} onBack={()=>step>1?setStep(step-1):onBack()}/>
-    <Note lang={lang}>{live?tx('يُحفظ طلبك ومستنداتك مشفّرة في حسابك. لا تُحصَّل أي مبالغ داخل التطبيق.','Your request and documents are stored encrypted in your account. No payments are collected in the app.'):tx('تجربة محلية. لا يتم تقديم المعاملة للجهة أو تحصيل مبالغ.','Local demonstration. No authority submission or payment is made.')}</Note>
+    <Note lang={lang}>{live?tx('يُحفظ طلبك ومستنداتك مشفّرة في حسابك. لا تُحصَّل أي مبالغ داخل التطبيق.','Your request and documents are stored encrypted in your account. No payments are collected in the app.'):guest?tx('تتصفح كضيف: تُحفظ بيانات الطلب على هذا الجهاز، وتسجّل الدخول قبل الإرسال.','You are browsing as a guest: your request is kept on this device, and you sign in before sending it.'):tx('تجربة محلية. لا يتم تقديم المعاملة للجهة أو تحصيل مبالغ.','Local demonstration. No authority submission or payment is made.')}</Note>
 
     {/* Stepper */}
     <View accessible accessibilityRole="progressbar" accessibilityLabel={(ar?`الخطوة ${digit(step,lang)} من ${digit(5,lang)}: ${labels[step-1]}`:`${STEP[lang]??'Step'} ${step} / 5: ${labels[step-1]}`)}
@@ -114,24 +120,30 @@ export function RequestWizard({lang,action,serviceId,create,onDone,onBack,defaul
           <Txt lang={lang} bold style={g.valueText}>{value}</Txt></View>)}
       </View>
       <CheckRow lang={lang} checked={accepted} onPress={()=>setAccepted(!accepted)}
-        label={live?tx('أؤكد صحة بياناتي ومستنداتي وأوافق على شروط الاستخدام وسياسة الخصوصية','I confirm my details and documents are accurate and I accept the Terms of Use and Privacy Policy'):tx('أوافق على شروط المعاينة المحلية','I accept the local preview terms')}/>
-      {live&&onLegal?<View style={[styles.links,{flexDirection:row}]}>
+        label={real?tx('أؤكد صحة بياناتي ومستنداتي وأوافق على شروط الاستخدام وسياسة الخصوصية','I confirm my details and documents are accurate and I accept the Terms of Use and Privacy Policy'):tx('أوافق على شروط المعاينة المحلية','I accept the local preview terms')}/>
+      {real&&onLegal?<View style={[styles.links,{flexDirection:row}]}>
           <View style={g.flex1}><GlassButton lang={lang} compact label={tx('شروط الاستخدام','Terms of Use')} onPress={()=>onLegal('terms')}/></View>
           <View style={g.flex1}><GlassButton lang={lang} compact label={tx('سياسة الخصوصية','Privacy Policy')} onPress={()=>onLegal('privacy')}/></View>
         </View>
         :<GlassButton lang={lang} compact icon={terms?'close':'info'} label={tx('قراءة الشروط والخصوصية','Read terms & privacy')} onPress={()=>setTerms(!terms)}/>}
-      {!live&&terms&&<Note lang={lang}>{tx('هذه نسخة معاينة تُحفظ بياناتها وملفاتها على هذا الجهاز. لا تُرسل مستندات للجهات الحكومية ولا تُحصّل رسوم. يمكنك مشاركة الملفات التي تختارها بنفسك. شروط الخدمة وسياسة الاحتفاظ النهائية مطلوبة قبل الإطلاق الحي.','This preview stores data and files on this device. It does not submit documents to authorities or collect fees. You can share selected files yourself. Final service terms and retention policy are required before live launch.')}</Note>}
+      {!real&&terms&&<Note lang={lang}>{tx('هذه نسخة معاينة تُحفظ بياناتها وملفاتها على هذا الجهاز. لا تُرسل مستندات للجهات الحكومية ولا تُحصّل رسوم. يمكنك مشاركة الملفات التي تختارها بنفسك. شروط الخدمة وسياسة الاحتفاظ النهائية مطلوبة قبل الإطلاق الحي.','This preview stores data and files on this device. It does not submit documents to authorities or collect fees. You can share selected files yourself. Final service terms and retention policy are required before live launch.')}</Note>}
     </GlassCard>}
 
     {step===4&&<GlassCard reduce={reduce}>
-      <View style={styles.center}><View style={styles.bigIcon}><Icon name="lock" size={30} color={colors.brand}/></View>
-        <Txt lang={lang} bold style={g.sectionTitle}>{tx('الدفع غير مفعّل','Payment is not activated')}</Txt>
-        <Txt lang={lang} style={{...g.body,textAlign:'center'}}>{live?tx('تُعرض الرسوم بعد اعتماد عرض السعر. لا يُطلب دفع داخل التطبيق.','Fees appear after an approved quote. No payment is requested in the app.'):tx('تُعرض الرسوم بعد اعتماد عرض السعر. لا توجد مطالبة دفع ولا تسجيل دفعة في المعاينة.','Fees appear after an approved quote. No payment is requested or recorded in this preview.')}</Txt>
+      <View style={styles.center}><View style={styles.bigIcon}><Icon name="card" size={30} color={colors.brand}/></View>
+        <Txt lang={lang} bold style={g.sectionTitle}>{tx('التكلفة والدفع','Cost and payment')}</Txt>
+        <Txt lang={lang} style={{...g.body,textAlign:'center'}}>{tx('نرسل لك عرض سعر مكتوباً بعد مراجعة طلبك. لا تدفع شيئاً قبل موافقتك على العرض، ثم يتم الدفع من صفحة الطلب.','We send you a written quotation after reviewing your request. You pay nothing before approving it; payment is then made from the request page.')}</Txt>
       </View>
-      <GlassButton lang={lang} disabled label={tx('الدفع','Pay')} onPress={()=>{}}/>
     </GlassCard>}
 
-    {step===5&&<GlassCard reduce={reduce}>
+    {step===5&&guest&&<GlassCard reduce={reduce}>
+      <View style={styles.center}><View style={styles.bigIcon}><Icon name="user" size={30} color={colors.brand}/></View>
+        <Txt lang={lang} bold style={{...g.sectionTitle,textAlign:'center'}}>{tx('سجّل الدخول لإرسال طلبك','Sign in to send your request')}</Txt>
+        <Txt lang={lang} style={{...g.body,textAlign:'center'}}>{tx('نحفظ طلبك مسودةً على هذا الجهاز. بعد تسجيل الدخول افتحه من «طلباتي» وأرسله.','We keep your request as a draft on this device. After signing in, open it from My Requests and send it.')}</Txt>
+      </View>
+      <GlassButton lang={lang} primary busy={busy} label={tx('تسجيل الدخول','Sign in')} onPress={()=>{if(doneRef.current)return;doneRef.current=true;if(create(build('draft')))onSignIn?.();else{doneRef.current=false;setMessage(tx('تعذر الحفظ.','Save failed.'))}}}/>
+    </GlassCard>}
+    {step===5&&!guest&&<GlassCard reduce={reduce}>
       <View style={styles.center}><View style={[styles.bigIcon,styles.bigIconOn]}><Icon name="check" size={32} color="#FFFFFF"/></View>
         <Txt lang={lang} bold style={{...g.sectionTitle,textAlign:'center'}}>{live?tx('راجع ثم أكّد إرسال طلبك','Review, then confirm sending your request'):tx('راجع ثم أكد إنشاء الطلب التجريبي','Confirm creation of your demonstration request')}</Txt>
         <Txt lang={lang} style={{...g.body,textAlign:'center'}}>{live?tx('سيُحفظ الطلب في حسابك ويظهر في «طلباتي». لا يعني ذلك تقديمه للجهة الحكومية بعد.','The request is saved to your account and appears under My Requests. This does not yet submit it to a government authority.'):tx('سيظهر الطلب في «طلباتي» على هذا الجهاز. لا يعني ذلك تقديمه للجهة الحكومية.','The request will appear under My Requests on this device. This does not submit it to a government authority.')}</Txt>

@@ -10,7 +10,7 @@ API="${1:-}"
 case "$API" in *truthful-pro-api-v2-staging*) ;; *) echo "refusing: $API is not the staging Worker (expected truthful-pro-api-v2-staging…)"; exit 2;; esac
 echo "== dashboard (same origin as the API)"; ( cd "$ROOT/dashboard" && npm run build )
 echo "== customer app web preview -> $API"; rm -rf "$ROOT/mobile/dist-web"
-( cd "$ROOT/mobile" && EXPO_PUBLIC_API_URL="$API" npx expo export -p web --output-dir dist-web )
+( cd "$ROOT/mobile" && EXPO_PUBLIC_API_URL="$API" EXPO_PUBLIC_ENVIRONMENT=staging npx expo export -p web --output-dir dist-web )
 cat <<NEXT
 
 Built. Nothing was deployed. When you decide to publish staging:

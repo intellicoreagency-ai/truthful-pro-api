@@ -8,6 +8,7 @@ import {BackHandler,View} from 'react-native';
 import {DashboardScreen,type SyncStatus} from './dashboard/DashboardScreen';
 import {MissingDocumentsScreen} from './details/MissingDocumentsScreen';
 import {RequestFilesScreen} from './details/RequestFilesScreen';
+import {PREVIEW_TOOLS} from './env';
 import {ShareSheet} from './details/ShareSheet';
 import {TransactionDetailsScreen} from './details/TransactionDetailsScreen';
 import {FinancePanel} from './details/FinancePanel';
@@ -69,7 +70,7 @@ export function ClientWorkspace({lang,onLanguage,onFocusChange,records,save,onSt
  return <View style={{flex:1}}>
    {layer??<DashboardScreen lang={lang} records={all} drafts={drafts} syncStatus={syncStatus} loadedOnce={loadedOnce} demo={demo} onRefresh={async()=>{await onRefresh?.()}}
      onOpen={openDetails} onMissing={r=>{setSelected(r.id);setTab('missing')}} onStart={onStart} onLanguage={onLanguage}
-     onDemo={()=>void act(async()=>{if(!demoData.length)setDemoData(await seedDemoFiles(demoRequests()));setDemo(!demo)})}/>}
+     onDemo={PREVIEW_TOOLS?()=>void act(async()=>{if(!demoData.length)setDemoData(await seedDemoFiles(demoRequests()));setDemo(!demo)}):undefined}/>}
    <ShareSheet lang={lang} r={sharing} visible={!!sharing} onClose={()=>setShareId(null)} summary={includeSummary} financial={financial} selected={shareFiles}
      invoiceSelected={invoiceSelected} toggleSummary={()=>setIncludeSummary(!includeSummary)} toggleFinancial={()=>setFinancial(!financial)}
      toggleFile={id=>setShareFiles(a=>a.includes(id)?a.filter(v=>v!==id):[...a,id])} onInvoice={toggleInvoice} onShare={performShare}

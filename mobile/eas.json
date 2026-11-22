@@ -24,7 +24,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://truthful-pro-api-v2-staging.mrkmallah.workers.dev"
+        "EXPO_PUBLIC_API_URL": "https://truthful-pro-api-v2-staging.mrkmallah.workers.dev",
+        "EXPO_PUBLIC_ENVIRONMENT": "staging"
       }
     }
   }
