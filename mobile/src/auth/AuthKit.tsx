@@ -104,7 +104,7 @@ export function AuthScaffold({lang,onLanguage,logo,title,subtitle,children,foote
 
 type FieldProps={lang:Lang;Text?:AuthText;label:string;icon?:IconName;error?:string|null;hint?:string;inputFont?:string}&Omit<TextInputProps,'style'>;
 /** Label above, glass field (52 pt), white focus ring, inline error. */
-export function RoundedField({lang,label,icon,error,hint,inputFont,ltr=false,onFocus,onBlur,...input}:FieldProps&{ltr?:boolean}){
+export function RoundedField({lang,label,icon,error,hint,inputFont,ltr=false,trailing,onFocus,onBlur,...input}:FieldProps&{ltr?:boolean;trailing?:React.ReactNode}){
   const [focused,setFocused]=useState(false);
   const ar=lang==='ar';
   const T=AText;
@@ -116,6 +116,7 @@ export function RoundedField({lang,label,icon,error,hint,inputFont,ltr=false,onF
         placeholderTextColor={onGlass.placeholder} selectionColor={onGlass.link} keyboardAppearance="light"
         onFocus={e=>{setFocused(true);onFocus?.(e);}} onBlur={e=>{setFocused(false);onBlur?.(e);}}
         {...input} style={[s.input,inputFont&&!ltr?{fontFamily:inputFont}:null,{textAlign:ar?'right':'left',writingDirection:ar&&!ltr?'rtl':'ltr'}]}/>
+      {trailing}
     </View>
     {error?<T lang={lang} style={[s.error,{textAlign:ar?'right':'left'}]}>{error}</T>:hint?<T lang={lang} style={[s.hint,{textAlign:ar?'right':'left'}]}>{hint}</T>:null}
   </View>;
@@ -179,7 +180,8 @@ const s=StyleSheet.create({
   field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control+4,backgroundColor:'rgba(255,255,255,0.62)',borderWidth:1,borderColor:'rgba(217,188,126,0.55)'},
   fieldFocus:{borderColor:'#B8893F',borderWidth:2,paddingHorizontal:space.lg-1,backgroundColor:'rgba(255,255,255,0.8)'},
   fieldError:{borderColor:onGlass.error,borderWidth:2,paddingHorizontal:space.lg-1},
-  input:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.body,color:onGlass.text},
+  // no browser focus box on the web preview: the gold field border already shows focus
+  input:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.body,color:onGlass.text,...(Platform.OS==='web'?{outlineStyle:'none',outlineWidth:0}:{})} as object,
   error:{fontSize:type.footnote,color:onGlass.error,fontWeight:'600'},
   hint:{fontSize:type.footnote,color:onGlass.soft},
   primary:{minHeight:54,borderRadius:18,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl,overflow:'hidden',...Platform.select({

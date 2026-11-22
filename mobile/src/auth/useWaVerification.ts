@@ -2,7 +2,7 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import {Linking} from 'react-native';
 import {ApiError,waPoll,waStagingConfirm,waStart,type WaChallenge} from './../api';
 import {authCopy,type Lang} from './copy';
-import {apiLang,pick} from '../i18n';
+import {pick} from '../i18n';
 
 /**
  * Passwordless sign-in: the app shows the code and the steps; the user opens WhatsApp (only when they tap the button) and sends
@@ -23,9 +23,10 @@ export function useWaVerification(lang:Lang,onVerified:(info:{isNewUser:boolean;
     return c==='too_many_requests'?t.e_many:c==='not_configured'?t.e_notcfg:c==='invalid_phone'?t.e_phone:c==='network'?t.e_net:t.e_gen;
   },[t]);
 
-  const start=useCallback(async(phone:string)=>{
+  /** open: also open WhatsApp right away (the person just asked for it, e.g. by ticking the WhatsApp box). */
+  const start=useCallback(async(phone:string,opts:{open?:boolean}={})=>{
     setError('');setBusy(true);
-    try{const c=await waStart(phone,apiLang(lang));setChallenge({...c,phone,expiresAt:Date.now()+c.expiresIn*1000});}
+    try{const c=await waStart(phone,lang); /* the ready-made WhatsApp message is written in the app language */setChallenge({...c,phone,expiresAt:Date.now()+c.expiresIn*1000});if(opts.open&&!c.stagingConfirm)void Linking.openURL(c.link).catch(()=>{});}
     catch(e){setError(message(e));}
     finally{if(alive.current)setBusy(false);}
   },[lang,message]);

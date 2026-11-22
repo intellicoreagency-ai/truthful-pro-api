@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { Env, Vars } from './types'
-import { b64, hmacHex, hmacHexText, waCode, newId, open, openText, otpCode, randomToken, seal, sealText, sha256Hex, timingSafeEqual } from './crypto'
+import { b64, hashPassword, hmacHex, hmacHexText, strongPassword, verifyPassword, waCode, newId, open, openText, otpCode, randomToken, seal, sealText, sha256Hex, timingSafeEqual } from './crypto'
 import { MAX_FILES_PER_REQUEST, MAX_FILE_BYTES, REQUEST_STATUSES, isServiceId, isUuid, normalizePhone, safeFileName, sniffFile } from './validate'
 import { allow, audit, clientIp, jsonBody, requireAuth, securityHeaders, type C } from './security'
 import { sendOtp } from './sms'
@@ -111,6 +111,15 @@ async function loginPhone(c: C, phone: string, phoneHash: string) {
 
 // ---------- WhatsApp verification: the user sends us a message (inbound messages are free) ----------
 const WA_TTL = 10 * 60 * 1000
+/** The ready-made message, in the customer's app language. The webhook only looks for the TP-XXXXXXXX code, so any language works. */
+const WA_TEXT = {
+  ar: (code: string) => `تأكيد رقمي في تروثفل برو: ${code}`,
+  en: (code: string) => `Confirm my number for TRUTHFUL PRO: ${code}`,
+  ru: (code: string) => `Подтверждаю мой номер для TRUTHFUL PRO: ${code}`,
+  zh: (code: string) => `确认我的 TRUTHFUL PRO 号码：${code}`,
+  fr: (code: string) => `Je confirme mon numéro pour TRUTHFUL PRO : ${code}`,
+  es: (code: string) => `Confirmo mi número para TRUTHFUL PRO: ${code}`,
+} as const
 app.post('/v1/auth/wa/start', async (c) => {
   const body = await jsonBody(c)
   const phone = normalizePhone(body?.phone)
@@ -121,7 +130,7 @@ app.post('/v1/auth/wa/start', async (c) => {
   const code = waCode(), poll = randomToken(24), id = newId(), now = Date.now()
   await c.env.DB.prepare('INSERT INTO wa_challenges (id,phone_hash,code_hash,poll_hash,expires_at,created_at) VALUES (?,?,?,?,?,?)')
     .bind(id, phoneHash, await hmacHex(c.env.PEPPER, `wa:${code}`), await sha256Hex(poll), now + WA_TTL, now).run()
-  const text = body?.language === 'en' ? `Verify my TRUTHFUL PRO account: ${code}` : `تأكيد حسابي في تروثفل برو: ${code}`
+  const text = (WA_TEXT[body?.language as keyof typeof WA_TEXT] ?? WA_TEXT.ar)(code)
   await audit(c, 'wa.start', null)
   return c.json({ challengeId: id, pollToken: poll, code, expiresIn: WA_TTL / 1000, link: `https://wa.me/${c.env.WA_BUSINESS_NUMBER}?text=${encodeURIComponent(text)}`, ...(stagingTester(c.env, phone) ? { stagingConfirm: true } : {}) })
 })
@@ -195,6 +204,23 @@ app.post('/v1/auth/wa/poll', async (c) => {
   return c.json({ status: 'verified', ...(await loginPhone(c, phone, phoneHash)) })
 })
 
+// ---------- Email + password sign-in (owner decision, 22 Nov 2026) ----------
+/** Same answer for an unknown email, a wrong password and an account without a password, so the endpoint reveals nothing. */
+app.post('/v1/auth/login', async (c) => {
+  const b = await jsonBody(c)
+  const email = typeof b?.email === 'string' ? b.email.trim().toLowerCase() : ''
+  const password = typeof b?.password === 'string' ? b.password : ''
+  if (!(await allow(c.env, `login:i:${clientIp(c)}`, 30, 600))) return c.json({ error: 'too_many_requests' }, 429)
+  if (!validEmail(email) || !password || password.length > 128) return c.json({ error: 'invalid_credentials' }, 401)
+  const emailHash = await hmacHex(c.env.PEPPER, `email:${email}`)
+  if (!(await allow(c.env, `login:e:${emailHash}`, 10, 900))) return c.json({ error: 'too_many_requests' }, 429)
+  const u = await c.env.DB.prepare('SELECT id,password_hash FROM users WHERE email_hash=? AND deleted_at IS NULL').bind(emailHash).first<{ id: string; password_hash: string | null }>()
+  const ok = await verifyPassword(password, u?.password_hash)
+  if (!u || !ok) { await audit(c, 'auth.password_fail', u?.id ?? null); return c.json({ error: 'invalid_credentials' }, 401) }
+  await audit(c, 'auth.password_login', u.id)
+  return c.json({ ...(await issueSession(c, u.id)), isNewUser: false })
+})
+
 app.post('/v1/auth/refresh', async (c) => {
   const body = await jsonBody(c)
   const token = typeof body?.refreshToken === 'string' ? body.refreshToken : ''
@@ -225,8 +251,8 @@ authed.post('/auth/logout', async (c) => {
 
 // ---------- Profile, consent, privacy rights ----------
 authed.get('/me', async (c) => {
-  const u = await c.env.DB.prepare('SELECT id,display_name,language,created_at,email_enc IS NOT NULL AS has_email,email_verified_at FROM users WHERE id=?').bind(c.get('userId')).first<{ has_email: number; email_verified_at: number | null }>()
-  return c.json({ user: u ? { ...u, email_set: !!u.has_email, email_verified: !!u.email_verified_at, has_email: undefined, email_verified_at: undefined } : u })
+  const u = await c.env.DB.prepare('SELECT id,display_name,language,created_at,email_enc IS NOT NULL AS has_email,email_verified_at,password_hash IS NOT NULL AS has_pw FROM users WHERE id=?').bind(c.get('userId')).first<{ has_email: number; email_verified_at: number | null; has_pw: number }>()
+  return c.json({ user: u ? { ...u, email_set: !!u.has_email, email_verified: !!u.email_verified_at, password_set: !!u.has_pw, has_email: undefined, email_verified_at: undefined, has_pw: undefined } : u })
 })
 authed.patch('/me', async (c) => {
   const b = await jsonBody(c)
@@ -236,9 +262,31 @@ authed.patch('/me', async (c) => {
   if (b?.email !== undefined) {
     if (!validEmail(b.email)) return c.json({ error: 'invalid_email' }, 400)
     if (!(await allow(c.env, `email:${c.get('userId')}`, 5, 3600))) return c.json({ error: 'too_many_requests' }, 429)
-    await setCustomerEmail(c.env, c.get('userId'), b.email) // welcome email with the confirmation link goes first
+    try { await setCustomerEmail(c.env, c.get('userId'), b.email) } // welcome email with the confirmation link goes first
+    catch (e) { if (e instanceof Error && e.message === 'email_taken') return c.json({ error: 'email_taken' }, 409); throw e }
     await audit(c, 'email.set', c.get('userId'))
   }
+  return c.json({ ok: true })
+})
+/** Sets or changes the password. Changing one needs the current password, unless this session is fresh (signed in within
+ *  the last 15 minutes, e.g. right after confirming the number on WhatsApp: that is how "forgot password" works). */
+authed.post('/me/password', async (c) => {
+  const uid = c.get('userId'), b = await jsonBody(c)
+  if (!strongPassword(b?.password)) return c.json({ error: 'weak_password' }, 400)
+  if (!(await allow(c.env, `pw:${uid}`, 10, 3600))) return c.json({ error: 'too_many_requests' }, 429)
+  const u = await c.env.DB.prepare('SELECT password_hash FROM users WHERE id=?').bind(uid).first<{ password_hash: string | null }>()
+  const s = await c.env.DB.prepare('SELECT created_at FROM sessions WHERE id=?').bind(c.get('sessionId')).first<{ created_at: number }>()
+  const fresh = !!s && Date.now() - s.created_at < 15 * 60 * 1000
+  if (u?.password_hash && !fresh && !(await verifyPassword(typeof b?.currentPassword === 'string' ? b.currentPassword : '', u.password_hash))) {
+    return c.json({ error: 'current_password_required' }, 403)
+  }
+  const now = Date.now()
+  await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE users SET password_hash=?, password_set_at=? WHERE id=?').bind(await hashPassword(b.password), now, uid),
+    // a changed password signs out every other device
+    ...(u?.password_hash ? [c.env.DB.prepare('UPDATE sessions SET revoked_at=? WHERE user_id=? AND id!=? AND revoked_at IS NULL').bind(now, uid, c.get('sessionId'))] : []),
+  ])
+  await audit(c, u?.password_hash ? 'auth.password_change' : 'auth.password_set', uid)
   return c.json({ ok: true })
 })
 authed.post('/consents', async (c) => {
@@ -284,7 +332,7 @@ authed.delete('/me', async (c) => {
     c.env.DB.prepare('UPDATE request_files SET deleted_at=?, name=?, r2_key=? WHERE user_id=?').bind(now, 'deleted', 'deleted', uid),
     c.env.DB.prepare("UPDATE requests SET deleted_at=?, data='{}' WHERE user_id=?").bind(now, uid),
     c.env.DB.prepare('UPDATE sessions SET revoked_at=? WHERE user_id=?').bind(now, uid),
-    c.env.DB.prepare("UPDATE users SET deleted_at=?, display_name=NULL, email_enc=NULL, email_token_hash=NULL, phone_enc='deleted', phone_hash='deleted:'||id WHERE id=?").bind(now, uid),
+    c.env.DB.prepare("UPDATE users SET deleted_at=?, display_name=NULL, email_enc=NULL, email_hash=NULL, password_hash=NULL, email_token_hash=NULL, phone_enc='deleted', phone_hash='deleted:'||id WHERE id=?").bind(now, uid),
   ])
   await audit(c, 'privacy.delete', uid)
   return c.json({ ok: true })

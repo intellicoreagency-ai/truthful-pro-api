@@ -28,20 +28,25 @@ exports.webhook=async(intl,code)=>{const raw=JSON.stringify({entry:[{changes:[{v
 
 // ---- customer app (web preview) ----
 const watchStart=p=>{const box={v:null};p.on('response',async r=>{if(r.url().endsWith('/v1/auth/wa/start')&&r.ok()){try{box.v=await r.json()}catch{}}});return box};
-/** Registers a NEW customer in the app UI: name, mobile, email, three consents, WhatsApp verification. */
+exports.PASSWORD='Truthful2026';
+/** Registers a NEW customer in the app UI: name, email, password, mobile; ticks the WhatsApp box (the signed fake webhook delivers the
+ *  customer's message), then the three consents and "Create account". The email is u<intl>@example.test. */
 exports.login=async(p,phone='0501234567',intl='971501234567',name='مستخدم تجريبي')=>{const start=watchStart(p);
   await p.goto(APP+'/');await p.waitForTimeout(2500);
   await p.getByText('إنشاء حساب',{exact:true}).first().click();await p.waitForTimeout(600);
-  await p.getByPlaceholder('اسمك كما في الهوية').fill(name);await p.getByPlaceholder('+971 5X XXX XXXX').fill(phone);
-  await p.getByPlaceholder('name@example.com').fill('u'+intl+'@example.test'); // the email is required
-  for(let i=0;i<3;i++)await p.getByRole('checkbox').nth(i).click();
-  await p.getByRole('button',{name:'التحقق عبر واتساب'}).click();await p.waitForTimeout(2000);
-  await exports.webhook(intl,start.v.code);await p.waitForTimeout(5000)};
-/** Signs an EXISTING customer in from the login screen. */
-exports.signIn=async(p,phone,intl)=>{const start=watchStart(p);
+  await p.getByPlaceholder('اسمك كما في الهوية').fill(name);
+  await p.getByPlaceholder('name@example.com').fill('u'+intl+'@example.test');
+  await p.getByPlaceholder('٨ أحرف على الأقل، فيها حرف ورقم').fill(exports.PASSWORD);
+  await p.getByPlaceholder('+971 5X XXX XXXX').fill(phone);
+  await p.getByRole('checkbox',{name:/هذا الرقم عليه واتساب/}).first().click();await p.waitForTimeout(2000);
+  await exports.webhook(intl,start.v.code);await p.waitForTimeout(4000); // the box turns into "number confirmed"
+  for(const n of [/أوافق على شروط/,/أوافق على سياسة/,/معالجة/])await p.getByRole('checkbox',{name:n}).first().click();
+  await p.getByRole('button',{name:'إنشاء الحساب'}).first().click();await p.waitForTimeout(4000)};
+/** Signs an EXISTING customer in with email + password (registered by login() above). */
+exports.signIn=async(p,phone,intl)=>{
   await p.goto(APP+'/');await p.waitForTimeout(2500);
-  await p.getByPlaceholder('+971 5X XXX XXXX').fill(phone);await p.getByText('التحقق عبر واتساب',{exact:true}).first().click();await p.waitForTimeout(2000);
-  await exports.webhook(intl,start.v.code);await p.waitForTimeout(5000)};
+  await p.getByPlaceholder('name@example.com').fill('u'+intl+'@example.test');await p.getByLabel('كلمة المرور').first().fill(exports.PASSWORD);
+  await p.getByRole('button',{name:'تسجيل الدخول'}).first().click();await p.waitForTimeout(4000)};
 /** New Request (chooser): main service, transaction type, applicant; Continue opens the shared request flow at its first step. */
 exports.newRequestUI=async(p,{main='الهوية الإماراتية',action='تجديد الهوية',name='منى العلي',phone='0529990011',notes=''}={})=>{
   await p.getByRole('button',{name:'بدء معاملة'}).first().click();await p.waitForTimeout(1200);

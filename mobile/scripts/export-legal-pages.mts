@@ -3,10 +3,9 @@
 // /legal/privacy.html and /legal/terms.html — the URL App Store Connect and Google Play ask for.
 // Run: node --import ./scripts/ts-resolve.mjs scripts/export-legal-pages.mts
 import {mkdirSync,writeFileSync} from 'node:fs';
-import {LEGAL_VERSION,PRIVACY,TERMS,COMPANY,type LegalDoc} from '../src/legal.ts';
+import {PRIVACY,TERMS,COMPANY,type LegalDoc} from '../src/legal.ts';
 
 const esc=(s:string)=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const draft=LEGAL_VERSION.startsWith('draft');
 const block=(d:LegalDoc,l:'ar'|'en')=>`<section lang="${l}" dir="${l==='ar'?'rtl':'ltr'}">
 <h1>${esc(d.title[l])}</h1>
 <p>${esc(d.intro[l])}</p>
@@ -25,7 +24,7 @@ h1{font-size:26px;color:#0A1430;margin:0 0 8px}h2{font-size:18px;color:#1D3A9E;m
 footer,.meta{font-size:13px;color:#5B6478}a{color:#1D3A9E}
 </style></head><body><main>
 <header><img src="/logo.png" alt=""><div><strong>TRUTHFUL PRO · تروثفل برو</strong><div class="meta">${esc(COMPANY.name.en)} · ${esc(COMPANY.name.ar)}</div></div></header>
-${draft?`<p class="note" dir="rtl">مسودة بانتظار المراجعة القانونية — النسخة ${esc(LEGAL_VERSION)}.</p><p class="note">Draft pending legal review — version ${esc(LEGAL_VERSION)}.</p>`:`<p class="meta">Version ${esc(LEGAL_VERSION)}</p>`}
+${d.version.startsWith('draft')?`<p class="note" dir="rtl">مسودة بانتظار المراجعة القانونية — النسخة ${esc(d.version)}.</p><p class="note">Draft pending legal review — version ${esc(d.version)}.</p>`:`<p class="meta" dir="rtl">النسخة المعتمدة: ${esc(d.version)}</p><p class="meta">Adopted version: ${esc(d.version)}</p>`}
 <p class="meta" dir="rtl">النسختان العربية والإنجليزية هما المعتمدتان.</p><p class="meta">The Arabic and English versions are the authoritative texts.</p>
 ${block(d,'ar')}
 ${block(d,'en')}
@@ -36,4 +35,4 @@ const out=new URL('../../dashboard/public/legal/',import.meta.url);
 mkdirSync(out,{recursive:true});
 writeFileSync(new URL('privacy.html',out),page(PRIVACY,'/legal/terms',`${TERMS.title.ar} · ${TERMS.title.en}`));
 writeFileSync(new URL('terms.html',out),page(TERMS,'/legal/privacy',`${PRIVACY.title.ar} · ${PRIVACY.title.en}`));
-console.log('Wrote dashboard/public/legal/privacy.html and terms.html ('+LEGAL_VERSION+')');
+console.log(`Wrote dashboard/public/legal/privacy.html (${PRIVACY.version}) and terms.html (${TERMS.version})`);

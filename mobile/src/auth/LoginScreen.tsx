@@ -1,8 +1,10 @@
 import React,{useState} from 'react';
 import {StyleSheet,View} from 'react-native';
+import {ApiError,passwordLogin,setPassword} from '../api';
 import {authCopy,type Lang} from './copy';
-import {PHONE_PREFIX,toE164} from './phone';
+import {PHONE_PREFIX,isEmail,toE164} from './phone';
 import {AuthScaffold,PrimaryButton,RoundedField,SecondaryButton,StepTransition,TextLink,type AuthText,AText} from './AuthKit';
+import {PasswordField} from './PasswordField';
 import {WaitingStep} from './WaitingStep';
 import {useWaVerification} from './useWaVerification';
 import {glass,onGlass,space,type} from '../theme';
@@ -10,36 +12,71 @@ import {pick} from '../i18n';
 
 type Props={
   lang:Lang;onLanguage:(l:Lang)=>void;logo:number;Text?:AuthText;inputFont?:string;
-  onVerified:(info:{isNewUser:boolean;phone:string})=>void;onRegister:()=>void;onGuest:()=>void;onLegal:(k:'terms'|'privacy')=>void;
+  /** Signed in. isNewUser: the number confirmed in "forgot password" had no account yet (finish registration). */
+  onVerified:(info:{isNewUser:boolean;phone?:string})=>void;onRegister:()=>void;onGuest:()=>void;onLegal:(k:'terms'|'privacy')=>void;
 };
+type Step='password'|'forgot'|'newpass';
 
-/** Sign in: mobile number → WhatsApp confirmation → session. No password exists in this product. */
+/**
+ * Sign in with email and password. "Forgot password?" confirms the mobile number on WhatsApp (the customer sends one ready-made
+ * message), which signs the person in, and then asks for a new password.
+ */
 export function LoginScreen({lang,onLanguage,logo,inputFont,onVerified,onRegister,onGuest,onLegal}:Props){
   const t=pick(authCopy,lang);
   const T=AText;
-  const [phone,setPhone]=useState(PHONE_PREFIX);
-  const [fieldError,setFieldError]=useState<string|null>(null);
-  const wa=useWaVerification(lang,onVerified);
-  const submit=()=>{const p=toE164(phone);if(!p){setFieldError(t.e_phone);return;}setFieldError(null);void wa.start(p);};
-  const waiting=!!wa.challenge;
-  return <AuthScaffold lang={lang} onLanguage={onLanguage} logo={logo} title={waiting?t.waitTitle:t.loginTitle} subtitle={waiting?t.waitSub:t.loginSub}
-    footer={waiting?null:<>
+  const [step,setStep]=useState<Step>('password');
+  const [email,setEmail]=useState('');const [password,setPw]=useState('');
+  const [phone,setPhone]=useState(PHONE_PREFIX);const [newPw,setNewPw]=useState('');
+  const [error,setError]=useState<string|null>(null);const [busy,setBusy]=useState(false);
+  const [verifiedPhone,setVerifiedPhone]=useState<string|undefined>(undefined);
+  const wa=useWaVerification(lang,info=>{if(info.isNewUser){onVerified(info);return;}setVerifiedPhone(info.phone);setStep('newpass');setError(null);});
+  const fail=(e:unknown)=>{const c=e instanceof ApiError?e.code:'';setError(c==='invalid_credentials'?t.e_cred:c==='weak_password'?t.e_weak:c==='too_many_requests'?t.e_many:c==='network'?t.e_net:t.e_gen);};
+
+  const signIn=async()=>{
+    if(!isEmail(email)){setError(t.e_email);return;}
+    if(!password){setError(t.e_cred);return;}
+    setBusy(true);setError(null);
+    try{await passwordLogin(email,password);onVerified({isNewUser:false});}catch(e){fail(e);}finally{setBusy(false);}
+  };
+  const confirmNumber=()=>{const p=toE164(phone);if(!p){setError(t.e_phone);return;}setError(null);void wa.start(p,{open:true});};
+  const saveNew=async()=>{
+    setBusy(true);setError(null);
+    try{await setPassword(newPw);onVerified({isNewUser:false,phone:verifiedPhone});}catch(e){fail(e);}finally{setBusy(false);}
+  };
+
+  const waiting=step==='forgot'&&!!wa.challenge;
+  const title=step==='password'?t.loginTitle:step==='newpass'?t.newPassTitle:waiting?t.waitTitle:t.forgotTitle;
+  const subtitle=step==='password'?t.loginSub2:step==='newpass'?t.newPassSub:waiting?t.waitSub:t.forgotSub;
+  const back=()=>{wa.cancel();setStep('password');setError(null);};
+  return <AuthScaffold lang={lang} onLanguage={onLanguage} logo={logo} title={title} subtitle={subtitle}
+    footer={step!=='password'?null:<>
       <View style={[s.row,{flexDirection:lang==='ar'?'row-reverse':'row'}]}><T lang={lang} style={s.muted}>{t.noAccount}</T><TextLink tone="photo" lang={lang} Text={T} label={t.toRegister} onPress={onRegister}/></View>
       <TextLink tone="photo" lang={lang} Text={T} label={t.guest} onPress={onGuest}/>
     </>}>
-    <StepTransition stepKey={waiting?'wait':'form'}>
-      {waiting
-        ?<WaitingStep lang={lang} Text={T} code={wa.challenge?.code} expiresAt={wa.challenge?.expiresAt} error={wa.error} onOpen={wa.openWhatsApp} onStagingConfirm={wa.stagingConfirm} onCancel={wa.cancel}/>
-        :<View style={s.form}>
-          <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.phone} value={phone} onChangeText={v=>{setPhone(v);if(fieldError)setFieldError(null);}}
-            placeholder={t.phonePh} keyboardType="phone-pad" ltr textContentType="telephoneNumber" autoComplete="tel" maxLength={16} returnKeyType="go" onSubmitEditing={submit}
-            error={fieldError??(wa.error||null)}/>
-          <PrimaryButton lang={lang} Text={T} label={t.verify} onPress={submit} busy={wa.busy}/>
+    <StepTransition stepKey={waiting?'wait':step}>
+      {step==='password'?<View style={s.form}>
+          <RoundedField lang={lang} Text={T} label={t.email} icon="mail" value={email} onChangeText={v=>{setEmail(v);setError(null);}} ltr
+            placeholder={t.emailPh} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="username" autoComplete="email" maxLength={120} returnKeyType="next"/>
+          <PasswordField lang={lang} Text={T} label={t.password} value={password} onChangeText={v=>{setPw(v);setError(null);}} error={error} onSubmitEditing={()=>void signIn()}/>
+          <View style={{alignItems:lang==='ar'?'flex-start':'flex-end'}}><TextLink lang={lang} Text={T} label={t.forgot} onPress={()=>{setStep('forgot');setError(null);}}/></View>
+          <PrimaryButton lang={lang} Text={T} label={t.signIn} onPress={()=>void signIn()} busy={busy}/>
           <T lang={lang} style={[s.notice,{textAlign:lang==='ar'?'right':'left'}]}>{t.loginNotice} {t.terms} {t.and} {t.privacy}</T>
           <View style={[s.legalRow,{flexDirection:lang==='ar'?'row-reverse':'row'}]}>
             <SecondaryButton lang={lang} Text={T} label={t.termsLink} onPress={()=>onLegal('terms')}/>
             <SecondaryButton lang={lang} Text={T} label={t.privacyLink} onPress={()=>onLegal('privacy')}/>
           </View>
+        </View>
+      :step==='newpass'?<View style={s.form}>
+          <PasswordField lang={lang} Text={T} label={t.password} value={newPw} onChangeText={v=>{setNewPw(v);setError(null);}} error={error} isNew onSubmitEditing={()=>void saveNew()}/>
+          <PrimaryButton lang={lang} Text={T} label={t.savePass} onPress={()=>void saveNew()} busy={busy}/>
+        </View>
+      :waiting?<WaitingStep lang={lang} Text={T} code={wa.challenge?.code} expiresAt={wa.challenge?.expiresAt} error={wa.error} onOpen={wa.openWhatsApp} onStagingConfirm={wa.stagingConfirm} onCancel={()=>wa.cancel()}/>
+      :<View style={s.form}>
+          <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.phone} value={phone} onChangeText={v=>{setPhone(v);setError(null);}}
+            placeholder={t.phonePh} keyboardType="phone-pad" ltr textContentType="telephoneNumber" autoComplete="tel" maxLength={16} returnKeyType="go" onSubmitEditing={confirmNumber}
+            error={error??(wa.error||null)}/>
+          <PrimaryButton lang={lang} Text={T} label={t.confirmWa} onPress={confirmNumber} busy={wa.busy}/>
+          <SecondaryButton lang={lang} Text={T} label={t.backToLogin} onPress={back}/>
         </View>}
     </StepTransition>
   </AuthScaffold>;

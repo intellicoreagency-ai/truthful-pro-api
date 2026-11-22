@@ -73,3 +73,23 @@ export function waCode(): string {
   const b = crypto.getRandomValues(new Uint8Array(8))
   return 'TP-' + [...b].map((x) => ALPHA[x % 32]).join('')
 }
+
+// ---------- Passwords (email + password sign-in) ----------
+/** PBKDF2-SHA256; 100,000 iterations is the Workers runtime maximum. Stored as "pbkdf2$<iterations>$<salt b64>$<hash b64>". */
+const PBKDF2_ITERATIONS = 100_000
+async function pbkdf2(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey('raw', enc.encode(password.normalize('NFKC')), 'PBKDF2', false, ['deriveBits'])
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: salt as BufferSource, iterations }, key, 256))
+}
+export async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  return `pbkdf2$${PBKDF2_ITERATIONS}$${b64(salt)}$${b64(await pbkdf2(password, salt, PBKDF2_ITERATIONS))}`
+}
+export async function verifyPassword(password: string, stored: string | null | undefined): Promise<boolean> {
+  const m = /^pbkdf2\$(\d+)\$([A-Za-z0-9+/=]+)\$([A-Za-z0-9+/=]+)$/.exec(stored ?? '')
+  if (!m) { await pbkdf2(password, new Uint8Array(16), PBKDF2_ITERATIONS); return false } // same work either way (no timing hint)
+  const got = b64(await pbkdf2(password, unb64(m[2]!), Number(m[1])))
+  return timingSafeEqual(got, m[3]!)
+}
+/** At least 8 characters with a letter and a digit; at most 128. */
+export const strongPassword = (p: unknown): p is string => typeof p === 'string' && p.length >= 8 && p.length <= 128 && /\p{L}/u.test(p) && /\d/.test(p)

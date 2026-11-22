@@ -1939,3 +1939,68 @@ describe('calendar-month rules', () => {
     expect(pv('2026-07-31', 'bad').outcome).toBe('manual_review')
   })
 })
+
+describe('email + password sign-in', () => {
+  const pw = 'Truthful2026'
+  const signIn = (email: string, password: string, ip?: string) => call('POST', '/v1/auth/login', { body: { email, password }, ip })
+  it('sets a password after the number is confirmed, then signs in by email (any case); wrong or unknown give the same answer', async () => {
+    const { json } = await login('+971521160001') // the helper also saves u971521160001@example.test
+    const t = json.accessToken
+    expect((await call('POST', '/v1/me/password', { token: t, body: { password: 'short1' } })).status).toBe(400)
+    expect((await call('POST', '/v1/me/password', { token: t, body: { password: 'onlyletters' } })).status).toBe(400)
+    expect((await call('POST', '/v1/me/password', { token: t, body: { password: pw } })).status).toBe(200)
+    const me = await (await call('GET', '/v1/me', { token: t })).json() as { user: { password_set: boolean } }
+    expect(me.user.password_set).toBe(true)
+    const ok = await signIn('U971521160001@Example.TEST', pw)
+    expect(ok.status).toBe(200)
+    const s = await ok.json() as { accessToken: string; isNewUser: boolean }
+    expect(s.accessToken).toBeTruthy(); expect(s.isNewUser).toBe(false)
+    const wrong = await signIn('u971521160001@example.test', 'Truthful2027')
+    const unknown = await signIn('nobody-here@example.test', pw)
+    expect(wrong.status).toBe(401); expect(unknown.status).toBe(401)
+    expect(await wrong.json()).toEqual(await unknown.json()) // no hint whether the email exists
+  })
+  it('an email can belong to one account only', async () => {
+    const a = await login('+971521160002'), b = await login('+971521160003')
+    expect((await call('PATCH', '/v1/me', { token: a.json.accessToken, body: { email: 'shared@example.test' } })).status).toBe(200)
+    const r = await call('PATCH', '/v1/me', { token: b.json.accessToken, body: { email: 'Shared@Example.test' } })
+    expect(r.status).toBe(409); expect(await r.json()).toEqual({ error: 'email_taken' })
+  })
+  it('changing a password needs the current one unless the session is fresh (forgot password = confirm on WhatsApp again); other devices are signed out', async () => {
+    const { json } = await login('+971521160004')
+    await call('POST', '/v1/me/password', { token: json.accessToken, body: { password: pw } })
+    const other = await (await signIn('u971521160004@example.test', pw)).json() as { accessToken: string }
+    const old = Date.now() - 3600_000 // age every session of this user
+    const me = await (await call('GET', '/v1/me', { token: json.accessToken })).json() as { user: { id: string } }
+    await env.DB.prepare('UPDATE sessions SET created_at=? WHERE user_id=?').bind(old, me.user.id).run()
+    expect((await call('POST', '/v1/me/password', { token: json.accessToken, body: { password: 'NewPass2026' } })).status).toBe(403)
+    expect((await call('POST', '/v1/me/password', { token: json.accessToken, body: { password: 'NewPass2026', currentPassword: pw } })).status).toBe(200)
+    expect((await call('GET', '/v1/me', { token: other.accessToken })).status).toBe(401) // the other device is signed out
+    expect((await call('GET', '/v1/me', { token: json.accessToken })).status).toBe(200)
+    expect((await signIn('u971521160004@example.test', pw)).status).toBe(401)
+    expect((await signIn('u971521160004@example.test', 'NewPass2026')).status).toBe(200)
+    // forgot password: confirming the number again gives a fresh session, which may set a new password without the old one
+    const again = await login('+971521160004')
+    expect((await call('POST', '/v1/me/password', { token: again.json.accessToken, body: { password: 'Reset2026x' } })).status).toBe(200)
+    expect((await signIn('u971521160004@example.test', 'Reset2026x')).status).toBe(200)
+  })
+  it('deleting the account removes the email and password, so sign-in stops working', async () => {
+    const { json } = await login('+971521160005')
+    await call('POST', '/v1/me/password', { token: json.accessToken, body: { password: pw } })
+    expect((await call('DELETE', '/v1/me', { token: json.accessToken, body: { confirm: 'DELETE' } })).status).toBe(200)
+    expect((await signIn('u971521160005@example.test', pw)).status).toBe(401)
+  })
+  it('the WhatsApp confirmation message is written in the customer\'s language', async () => {
+    const wa = { ...env, WA_BUSINESS_NUMBER: '971500000000' } as Env
+    let n = 10
+    const text = async (language: string) => {
+      const r = await app.fetch(new Request('https://api.test/v1/auth/wa/start', { method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': `10.9.0.${++ipCounter % 250}` }, body: JSON.stringify({ phone: `+9715211600${n++}`, language }) }), wa)
+      const j = await r.json() as { link: string; code: string }
+      return { msg: decodeURIComponent(new URL(j.link).searchParams.get('text') ?? ''), code: j.code }
+    }
+    for (const [l, word] of [['ar', 'تأكيد'], ['en', 'Confirm'], ['ru', 'Подтверждаю'], ['zh', '确认'], ['fr', 'Je confirme'], ['es', 'Confirmo'], ['xx', 'تأكيد']] as const) {
+      const { msg, code } = await text(l)
+      expect(msg).toContain(word); expect(msg).toContain(code)
+    }
+  })
+})

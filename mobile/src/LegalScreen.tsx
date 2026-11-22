@@ -7,7 +7,7 @@ import {BackHandler,StyleSheet,View} from 'react-native';
 import {Txt} from './ui/Txt';
 import {GlassCard,GlassScreen,ScreenHeader,Tag,g,rowFor,useReduceTransparency} from './ui/Glass';
 import {colors,space,type} from './theme';
-import {COMPANY,LEGAL_VERSION,type LegalDoc} from './legal';
+import {COMPANY,type LegalDoc} from './legal';
 import {COMMON,tr} from './i18n';
 
 const DRAFT:Record<Language,string>={ar:'مسودة بانتظار المراجعة القانونية',en:'Draft pending legal review',ru:'Проект, ожидает юридической проверки',zh:'草稿，待法律审阅',fr:'Projet en attente de validation juridique',es:'Borrador pendiente de revisión legal'};
@@ -28,8 +28,8 @@ export function LegalScreen({lang,doc,onBack}:Props){
   return <GlassScreen>
     <ScreenHeader lang={lang} title={tr(doc.title,lang)} backLabel={COMMON[lang].back} onBack={onBack}/>
     <View style={[styles.meta,{flexDirection:rowFor(lang)}]}>
-      <Tag lang={lang}>{DRAFT[lang]}</Tag>
-      <Txt lang={lang} style={g.meta}>{`${tr(COMPANY.name,lang)} · ${tr(COMPANY.city,lang)} · `}{'⁦'+LEGAL_VERSION+'⁩'}</Txt>
+      {doc.version.startsWith('draft')&&<Tag lang={lang}>{DRAFT[lang]}</Tag>}
+      <Txt lang={lang} style={g.meta}>{`${tr(COMPANY.name,lang)} · ${tr(COMPANY.city,lang)} · `}{'⁦'+doc.version+'⁩'}</Txt>
     </View>
     {PREVAILS[lang]?<View style={styles.notice} accessibilityRole="text"><Txt lang={lang} bold style={styles.noticeText}>{PREVAILS[lang]}</Txt></View>:null}
     <GlassCard reduce={reduce}><Txt lang={lang} style={styles.p}>{tr(doc.intro,lang)}</Txt></GlassCard>

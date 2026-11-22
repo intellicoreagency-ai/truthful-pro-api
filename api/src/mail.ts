@@ -1,5 +1,5 @@
 import type { Env } from './types'
-import { newId, openText, randomToken, sha256Hex, sealText } from './crypto'
+import { hmacHex, newId, openText, randomToken, sha256Hex, sealText } from './crypto'
 
 // Customer email: a welcome email (with the confirmation link) first, then the invoice when the customer starts the transaction.
 // Nothing is sent unless EMAIL_MODE is configured ('brevo'); tests use 'capture'. Invoices go only to a CONFIRMED address.
@@ -35,9 +35,12 @@ const wrap = (env: Env, ar: string, en: string) => {
 
 /** Sets (or replaces) the customer's email, un-confirms it and queues the welcome email that carries the confirmation link. */
 export async function setCustomerEmail(env: Env, userId: string, email: string): Promise<void> {
-  const token = randomToken(32), now = Date.now()
+  const token = randomToken(32), now = Date.now(), lower = email.trim().toLowerCase()
+  const emailHash = await hmacHex(env.PEPPER, `email:${lower}`) // lets the customer sign in with this email (POST /v1/auth/login)
+  const taken = await env.DB.prepare('SELECT id FROM users WHERE email_hash=? AND id!=? AND deleted_at IS NULL').bind(emailHash, userId).first()
+  if (taken) throw new Error('email_taken')
   await env.DB.batch([
-    env.DB.prepare('UPDATE users SET email_enc=?, email_verified_at=NULL, email_token_hash=?, email_token_expires=? WHERE id=?').bind(await sealText(env.DATA_KEY, `user-email:${userId}`, email.toLowerCase()), await sha256Hex(token), now + 7 * 86400000, userId),
+    env.DB.prepare('UPDATE users SET email_enc=?, email_hash=?, email_verified_at=NULL, email_token_hash=?, email_token_expires=? WHERE id=?').bind(await sealText(env.DATA_KEY, `user-email:${userId}`, lower), emailHash, await sha256Hex(token), now + 7 * 86400000, userId),
     env.DB.prepare("DELETE FROM email_outbox WHERE user_id=? AND kind='welcome' AND status!='sent'").bind(userId),
     env.DB.prepare("INSERT OR IGNORE INTO email_outbox (id,user_id,kind,ref_id,created_at) VALUES (?,?,'welcome','',?)").bind(newId(), userId, now),
   ])

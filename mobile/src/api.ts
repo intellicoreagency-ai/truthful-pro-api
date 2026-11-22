@@ -64,10 +64,17 @@ export async function verifyOtp(phone:string,challengeId:string,code:string){
 }
 /** stagingConfirm: only a STAGING server with this number on its tester list sets it (never production). */
 export type WaChallenge={challengeId:string;pollToken:string;code:string;expiresIn:number;link:string;stagingConfirm?:boolean};
-export const waStart=async(phone:string,language:'ar'|'en')=>json<WaChallenge>(await call('POST','/v1/auth/wa/start',{auth:false,body:{phone,language}}));
+export const waStart=async(phone:string,language:import('./i18n').Lang)=>json<WaChallenge>(await call('POST','/v1/auth/wa/start',{auth:false,body:{phone,language}}));
 /** STAGING ONLY: an allow-listed tester confirms without sending a WhatsApp message (the server refuses it everywhere else). */
 export async function waStagingConfirm(phone:string,c:Pick<WaChallenge,'challengeId'|'pollToken'>){await call('POST','/v1/auth/wa/staging-confirm',{auth:false,body:{phone,challengeId:c.challengeId,pollToken:c.pollToken}})}
 /** Resolves 'pending' | 'expired' | 'verified' (+ whether the number had no account yet). On 'verified' the session tokens are stored in the device keychain/keystore (expo-secure-store). */
+/** Email + password sign-in. Errors: invalid_credentials, too_many_requests, network. */
+export async function passwordLogin(email:string,password:string){
+  const j=await json<{accessToken:string;refreshToken:string}>(await call('POST','/v1/auth/login',{auth:false,body:{email:email.trim(),password}}));
+  await saveTokens(j.accessToken,j.refreshToken);
+}
+/** Sets or changes the password. currentPassword is needed only when changing it long after signing in. Errors: weak_password, current_password_required. */
+export async function setPassword(password:string,currentPassword?:string){await call('POST','/v1/me/password',{body:{password,...(currentPassword?{currentPassword}:{})}})}
 export async function waPoll(phone:string,c:Pick<WaChallenge,'challengeId'|'pollToken'>):Promise<{status:'pending'|'expired'|'verified';isNewUser?:boolean}>{
   const j=await json<{status:'pending'|'expired'|'verified';isNewUser?:boolean;accessToken?:string;refreshToken?:string}>(await call('POST','/v1/auth/wa/poll',{auth:false,body:{phone,challengeId:c.challengeId,pollToken:c.pollToken}}));
   if(j.status==='verified'&&j.accessToken&&j.refreshToken)await saveTokens(j.accessToken,j.refreshToken);
@@ -76,7 +83,7 @@ export async function waPoll(phone:string,c:Pick<WaChallenge,'challengeId'|'poll
 /** Display name for the account (the server stores it with the profile). */
 export async function setServerName(displayName:string){await call('PATCH','/v1/me',{body:{displayName}})}
 export async function logout(){try{if(mem.access)await call('POST','/v1/auth/logout')}catch{}await clearTokens()}
-export const me=async()=>json<{user:{id:string;display_name:string|null;language:'ar'|'en';email_set?:boolean;email_verified?:boolean}}>(await call('GET','/v1/me'));
+export const me=async()=>json<{user:{id:string;display_name:string|null;language:'ar'|'en';email_set?:boolean;email_verified?:boolean;password_set?:boolean}}>(await call('GET','/v1/me'));
 export const recordConsent=(type:'terms'|'privacy'|'document_processing',version:string,accepted:boolean)=>call('POST','/v1/consents',{body:{type,version,accepted}});
 export const exportMyData=async()=>json<unknown>(await call('GET','/v1/me/export'));
 /** Saves the email on the server: a welcome email with a confirmation link is sent; invoices are emailed only after it is confirmed. */

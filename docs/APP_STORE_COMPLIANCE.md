@@ -9,8 +9,8 @@ Checked against the App Review Guidelines and the code on branch `claude/glass-s
 | **Account deletion inside the app** (5.1.1(v)) | Account → Security & Privacy → "Delete my account". Asks for confirmation, then deletes on the server (`DELETE /v1/me`): requests, files and personal data. |
 | **Data export** | Same screen → "Export my data". |
 | **Privacy Policy and Terms reachable in the app** | Sign-in screen, the request consent step, and Account → Security & Privacy. |
-| **Public Privacy Policy / Terms URL** (for App Store Connect and Google Play) | `https://<worker host>/legal/privacy` and `/legal/terms`. They are generated from the same texts the app shows (`mobile/scripts/export-legal-pages.mts`) and are marked as a draft until the lawyer approves them. |
-| **Sign in with Apple** (4.8) | **Not required.** It is only required when an app uses a third-party or social login (Google, Facebook…). This app has its own account, identified by the customer's mobile number, which is confirmed with one WhatsApp message to the company. That is number verification, not "login with WhatsApp". Say so in the review notes. |
+| **Public Privacy Policy / Terms URL** (for App Store Connect and Google Play) | `https://<worker host>/legal/privacy` and `/legal/terms`, generated from the same texts the app shows (`mobile/scripts/export-legal-pages.mts`). The Privacy Policy was adopted by the owner on 22 Nov 2026 (version `2026-11-22`). The Terms are still a draft. |
+| **Sign in with Apple** (4.8) | **Not required today.** Customers sign in with their own email and password (since 22 Nov 2026). The mobile number is confirmed once, at registration, with one WhatsApp message to the company; that is number verification, not a third-party login. **If Google sign-in is added later, Sign in with Apple must be added at the same time.** |
 | **No placeholder or sample data in production** | Sample screens, the on-device "demo request" and "preview" wording appear only in development and staging builds (`mobile/src/env.ts`). In production, a guest who finishes a request is asked to sign in, and the request is kept as a draft. |
 | **Payments** (3.1) | The services are real-world services (government clearance), so in-app purchase does not apply. The customer approves a written quotation first. There is no payment gateway in the app. |
 | **Encryption export question** | `ITSAppUsesNonExemptEncryption: false` (standard HTTPS only). |
@@ -20,12 +20,8 @@ Checked against the App Review Guidelines and the code on branch `claude/glass-s
 
 ## Must be done before submitting (owner decisions or external)
 
-1. **Access for the App Review team** (2.1). Apple must be able to sign in, and a reviewer cannot send a WhatsApp message from a UAE number.
-   - Proposal: one review phone number on an allow-list in production, signing in with the same "confirm without WhatsApp" button staging uses.
-   - Limits: only that number, only while a production switch is on, every use audited.
-   - This account must not be deletable by the reviewer; the review notes say so.
-   - Needs the owner's approval because it touches production sign-in.
-2. **Lawyer-approved Terms and Privacy Policy.** The public pages show "draft" until `LEGAL_VERSION` changes.
+1. **Access for the App Review team** (2.1). Now simpler: create a review account in production in advance (email + password) and give Apple those credentials in the review notes. The reviewer must not delete it; the review notes say so. Registering a *new* account still needs a WhatsApp confirmation, which a reviewer cannot do; say so in the notes.
+2. **Terms of Use** still marked draft (`LEGAL_VERSION`). A UAE-licensed lawyer's review of both documents is still recommended.
 3. **Apple Developer account in the company's name** (D-U-N-S). Recommended because the app handles government documents and IDs.
 4. **App Privacy "nutrition label"** in App Store Connect:
    - Data collected and linked to the user: name, phone, email, documents (passport, Emirates ID…), profile photo (on the device only).
