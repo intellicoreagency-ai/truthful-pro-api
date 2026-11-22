@@ -32,7 +32,7 @@ const watchStart=p=>{const box={v:null};p.on('response',async r=>{if(r.url().end
 exports.login=async(p,phone='0501234567',intl='971501234567',name='مستخدم تجريبي')=>{const start=watchStart(p);
   await p.goto(APP+'/');await p.waitForTimeout(2500);
   await p.getByText('إنشاء حساب',{exact:true}).first().click();await p.waitForTimeout(600);
-  await p.getByPlaceholder('اسمك كما في الهوية').fill(name);await p.getByPlaceholder('05XXXXXXXX').fill(phone);
+  await p.getByPlaceholder('اسمك كما في الهوية').fill(name);await p.getByPlaceholder('+971 5X XXX XXXX').fill(phone);
   await p.getByPlaceholder('name@example.com').fill('u'+intl+'@example.test'); // the email is required
   for(let i=0;i<3;i++)await p.getByRole('checkbox').nth(i).click();
   await p.getByRole('button',{name:'التحقق عبر واتساب'}).click();await p.waitForTimeout(2000);
@@ -40,7 +40,7 @@ exports.login=async(p,phone='0501234567',intl='971501234567',name='مستخدم 
 /** Signs an EXISTING customer in from the login screen. */
 exports.signIn=async(p,phone,intl)=>{const start=watchStart(p);
   await p.goto(APP+'/');await p.waitForTimeout(2500);
-  await p.getByPlaceholder('05XXXXXXXX').fill(phone);await p.getByText('التحقق عبر واتساب',{exact:true}).first().click();await p.waitForTimeout(2000);
+  await p.getByPlaceholder('+971 5X XXX XXXX').fill(phone);await p.getByText('التحقق عبر واتساب',{exact:true}).first().click();await p.waitForTimeout(2000);
   await exports.webhook(intl,start.v.code);await p.waitForTimeout(5000)};
 /** New Request (chooser): main service, transaction type, applicant; Continue opens the shared request flow at its first step. */
 exports.newRequestUI=async(p,{main='الهوية الإماراتية',action='تجديد الهوية',name='منى العلي',phone='0529990011',notes=''}={})=>{

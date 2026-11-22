@@ -3,7 +3,7 @@ import {StyleSheet,View} from 'react-native';
 import {ApiError,recordConsent,setServerEmail,setServerName} from '../api';
 import {LEGAL_VERSION} from '../legal';
 import {authCopy,type Lang} from './copy';
-import {isEmail,toE164} from './phone';
+import {PHONE_PREFIX,isEmail,toE164} from './phone';
 import {AuthScaffold,ConsentRow,PrimaryButton,RoundedField,StepTransition,TextLink,type AuthText,AText} from './AuthKit';
 import {WaitingStep} from './WaitingStep';
 import {useWaVerification} from './useWaVerification';
@@ -25,7 +25,7 @@ type Props={
 export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,onLogin,onLegal}:Props){
   const t=pick(authCopy,lang);
   const T=AText;
-  const [name,setName]=useState('');const [phone,setPhone]=useState('');const [email,setEmail]=useState('');
+  const [name,setName]=useState('');const [phone,setPhone]=useState(PHONE_PREFIX);const [email,setEmail]=useState('');
   const [terms,setTerms]=useState(false);const [privacy,setPrivacy]=useState(false);const [docs,setDocs]=useState(false);
   const [errors,setErrors]=useState<{name?:string;phone?:string;email?:string;consent?:string}>({});
   const [saveError,setSaveError]=useState('');const [saving,setSaving]=useState(false);const [verified,setVerified]=useState(false);
@@ -63,12 +63,12 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
     footer={waiting?null:mode==='register'?<View style={[s.row,{flexDirection:lang==='ar'?'row-reverse':'row'}]}><T lang={lang} style={s.muted}>{t.haveAccount}</T><TextLink tone="photo" lang={lang} Text={T} label={t.toLogin} onPress={onLogin}/></View>:null}>
     <StepTransition stepKey={waiting?'wait':'form'}>
       {waiting
-        ?<WaitingStep lang={lang} Text={T} error={saveError||wa.error} onOpen={wa.openWhatsApp} onStagingConfirm={wa.stagingConfirm} onCancel={()=>{wa.cancel();setVerified(false);setSaveError('');}} onRetry={verified&&!saving?()=>void finish():undefined}/>
+        ?<WaitingStep lang={lang} Text={T} code={wa.challenge?.code} expiresAt={wa.challenge?.expiresAt} error={saveError||wa.error} onOpen={wa.openWhatsApp} onStagingConfirm={wa.stagingConfirm} onCancel={()=>{wa.cancel();setVerified(false);setSaveError('');}} onRetry={verified&&!saving?()=>void finish():undefined}/>
         :<View style={s.form}>
           <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.name} icon="user" value={name} onChangeText={v=>{setName(v);setErrors(x=>({...x,name:undefined}));}}
             placeholder={t.namePh} autoComplete="name" textContentType="name" maxLength={80} returnKeyType="next" error={errors.name}/>
           {mode==='register'?<RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.phone} value={phone} onChangeText={v=>{setPhone(v);setErrors(x=>({...x,phone:undefined}));}}
-            placeholder={t.phonePh} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" maxLength={16} error={errors.phone??(wa.error||null)}/>:null}
+            placeholder={t.phonePh} keyboardType="phone-pad" ltr textContentType="telephoneNumber" autoComplete="tel" maxLength={16} error={errors.phone??(wa.error||null)}/>:null}
           <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.email} icon="mail" value={email} onChangeText={v=>{setEmail(v);setErrors(x=>({...x,email:undefined}));}}
             placeholder={t.emailPh} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" autoComplete="email" maxLength={120}
             hint={t.emailHint} error={errors.email}/>

@@ -32,7 +32,7 @@ const ui={
     language:'اللغة',requests:'طلباتي',favorites:'المفضلة',exit:'الخروج من صفحة الحساب',back:'رجوع إلى حسابي',
     addPhoto:'إضافة صورة شخصية',changePhoto:'تغيير الصورة الشخصية',removePhoto:'إزالة الصورة الشخصية',
     photoSize:'حجم الصورة يتجاوز ٢ ميغابايت. اختر صورة أصغر.',photoFormat:'اختر صورة بصيغة JPG أو PNG أو WebP.',
-    photoError:'تعذّر فتح الصورة. جرّب صورة أخرى.',storageError:'تعذّر الحفظ على هذا الجهاز.',
+    photoError:'تعذّر فتح الصورة. جرّب صورة أخرى.',photoPermission:'اسمح للتطبيق بالوصول إلى الصور من إعدادات الجهاز لاختيار صورة.',storageError:'تعذّر الحفظ على هذا الجهاز.',
     save:'حفظ',saved:'تم الحفظ على هذا الجهاز.',emptyDocs:'لا توجد مستندات مرفقة في هذه الجلسة.',
     emptyNotifications:'لا توجد إشعارات جديدة.',emptyFavorites:'لم تضف أي خدمة إلى المفضلة.',openRequests:'فتح طلباتي',
     browse:'تصفّح الخدمات',settings:'إعدادات الحساب',
@@ -52,7 +52,7 @@ const ui={
     language:'Language',requests:'My Requests',favorites:'Favorites',exit:'Leave Account',back:'Back to My Account',
     addPhoto:'Add profile photo',changePhoto:'Change profile photo',removePhoto:'Remove profile photo',
     photoSize:'Choose a photo under 2 MB.',photoFormat:'Choose a JPG, PNG or WebP image.',
-    photoError:'Could not open the photo. Try a different image.',storageError:'Could not save to this device.',
+    photoError:'Could not open the photo. Try a different image.',photoPermission:'Allow access to your photos in Settings to choose a picture.',storageError:'Could not save to this device.',
     save:'Save',saved:'Saved on this device.',emptyDocs:'No documents attached in this session.',
     emptyNotifications:'No new notifications.',emptyFavorites:'You haven’t added any favorite services.',openRequests:'Open My Requests',
     browse:'Browse Services',settings:'Account Settings',
@@ -72,7 +72,7 @@ const ui={
     language:'Язык',requests:'Мои заявки',favorites:'Избранное',exit:'Выйти из профиля',back:'Назад в профиль',
     addPhoto:'Добавить фото',changePhoto:'Сменить фото',removePhoto:'Удалить фото',
     photoSize:'Выберите фото до 2 МБ.',photoFormat:'Выберите изображение JPG, PNG или WebP.',
-    photoError:'Не удалось открыть фото. Попробуйте другое изображение.',storageError:'Не удалось сохранить на этом устройстве.',
+    photoError:'Не удалось открыть фото. Попробуйте другое изображение.',photoPermission:'Разрешите доступ к фото в настройках устройства, чтобы выбрать снимок.',storageError:'Не удалось сохранить на этом устройстве.',
     save:'Сохранить',saved:'Сохранено на этом устройстве.',emptyDocs:'В этой сессии документов нет.',
     emptyNotifications:'Новых уведомлений нет.',emptyFavorites:'Вы ещё не добавили услуги в избранное.',openRequests:'Открыть мои заявки',
     browse:'Перейти к услугам',settings:'Настройки аккаунта',
@@ -92,7 +92,7 @@ const ui={
     language:'语言',requests:'我的申请',favorites:'收藏',exit:'退出账户',back:'返回我的账户',
     addPhoto:'添加头像',changePhoto:'更换头像',removePhoto:'删除头像',
     photoSize:'请选择小于 2 MB 的照片。',photoFormat:'请选择 JPG、PNG 或 WebP 图片。',
-    photoError:'无法打开照片，请换一张图片。',storageError:'无法保存到本设备。',
+    photoError:'无法打开照片，请换一张图片。',photoPermission:'请在设备设置中允许访问照片后再选择图片。',storageError:'无法保存到本设备。',
     save:'保存',saved:'已保存到本设备。',emptyDocs:'本次会话没有附加文件。',
     emptyNotifications:'暂无新通知。',emptyFavorites:'您还没有收藏任何服务。',openRequests:'打开我的申请',
     browse:'浏览服务',settings:'账户设置',
@@ -112,7 +112,7 @@ const ui={
     language:'Langue',requests:'Mes demandes',favorites:'Favoris',exit:'Quitter le compte',back:'Retour à mon compte',
     addPhoto:'Ajouter une photo',changePhoto:'Changer la photo',removePhoto:'Supprimer la photo',
     photoSize:'Choisissez une photo de moins de 2 Mo.',photoFormat:'Choisissez une image JPG, PNG ou WebP.',
-    photoError:'Impossible d’ouvrir la photo. Essayez une autre image.',storageError:'Enregistrement impossible sur cet appareil.',
+    photoError:'Impossible d’ouvrir la photo. Essayez une autre image.',photoPermission:'Autorisez l’accès aux photos dans les Réglages pour choisir une image.',storageError:'Enregistrement impossible sur cet appareil.',
     save:'Enregistrer',saved:'Enregistré sur cet appareil.',emptyDocs:'Aucun document joint dans cette session.',
     emptyNotifications:'Aucune nouvelle notification.',emptyFavorites:'Vous n’avez encore aucun service favori.',openRequests:'Ouvrir mes demandes',
     browse:'Voir les services',settings:'Paramètres du compte',
@@ -132,7 +132,7 @@ const ui={
     language:'Idioma',requests:'Mis solicitudes',favorites:'Favoritos',exit:'Salir de la cuenta',back:'Volver a mi cuenta',
     addPhoto:'Añadir foto',changePhoto:'Cambiar foto',removePhoto:'Quitar foto',
     photoSize:'Elija una foto de menos de 2 MB.',photoFormat:'Elija una imagen JPG, PNG o WebP.',
-    photoError:'No se pudo abrir la foto. Pruebe con otra imagen.',storageError:'No se pudo guardar en este dispositivo.',
+    photoError:'No se pudo abrir la foto. Pruebe con otra imagen.',photoPermission:'Permita el acceso a las fotos en Ajustes para elegir una imagen.',storageError:'No se pudo guardar en este dispositivo.',
     save:'Guardar',saved:'Guardado en este dispositivo.',emptyDocs:'No hay documentos adjuntos en esta sesión.',
     emptyNotifications:'No hay notificaciones nuevas.',emptyFavorites:'Aún no ha añadido servicios favoritos.',openRequests:'Abrir mis solicitudes',
     browse:'Ver servicios',settings:'Ajustes de la cuenta',
@@ -184,7 +184,7 @@ export function AccountScreen({lang,account,update,requests,documents,favorites,
       if(photo){if(update({photo})){setPhotoFailed(false);setPhotoMessage(t.saved)}else setPhotoMessage(t.storageError)}
     }catch(error){
       const reason=error instanceof Error?error.message:'';
-      setPhotoMessage(reason==='format'?t.photoFormat:reason==='size'?t.photoSize:t.photoError);
+      setPhotoMessage(reason==='permission'?t.photoPermission:reason==='format'?t.photoFormat:reason==='size'?t.photoSize:t.photoError);
     }finally{pickerPending.current=false}
   };
   const sections:Record<Section,{title:string;description:string;icon:IconName}>={

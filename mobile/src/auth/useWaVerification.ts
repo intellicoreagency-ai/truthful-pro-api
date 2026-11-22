@@ -5,12 +5,13 @@ import {authCopy,type Lang} from './copy';
 import {apiLang,pick} from '../i18n';
 
 /**
- * Passwordless sign-in: the user sends a ready-made WhatsApp message (free for them); the server verifies the signed webhook and
- * we poll until it says "verified". The session tokens are saved by the API client in expo-secure-store (Keychain / Keystore).
+ * Passwordless sign-in: the app shows the code and the steps; the user opens WhatsApp (only when they tap the button) and sends
+ * the ready-made message (free for them); the server verifies the signed webhook and we poll until it says "verified", then sign in
+ * automatically. The session tokens are saved by the API client in expo-secure-store (Keychain / Keystore).
  */
 export function useWaVerification(lang:Lang,onVerified:(info:{isNewUser:boolean;phone:string})=>void){
   const t=pick(authCopy,lang);
-  const [challenge,setChallenge]=useState<(WaChallenge&{phone:string})|null>(null);
+  const [challenge,setChallenge]=useState<(WaChallenge&{phone:string;expiresAt:number})|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const alive=useRef(true);
@@ -24,7 +25,7 @@ export function useWaVerification(lang:Lang,onVerified:(info:{isNewUser:boolean;
 
   const start=useCallback(async(phone:string)=>{
     setError('');setBusy(true);
-    try{const c=await waStart(phone,apiLang(lang));setChallenge({...c,phone});if(!c.stagingConfirm)void Linking.openURL(c.link).catch(()=>{});}
+    try{const c=await waStart(phone,apiLang(lang));setChallenge({...c,phone,expiresAt:Date.now()+c.expiresIn*1000});}
     catch(e){setError(message(e));}
     finally{if(alive.current)setBusy(false);}
   },[lang,message]);

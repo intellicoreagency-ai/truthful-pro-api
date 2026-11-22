@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {StyleSheet,View} from 'react-native';
 import {authCopy,type Lang} from './copy';
-import {toE164} from './phone';
+import {PHONE_PREFIX,toE164} from './phone';
 import {AuthScaffold,PrimaryButton,RoundedField,SecondaryButton,StepTransition,TextLink,type AuthText,AText} from './AuthKit';
 import {WaitingStep} from './WaitingStep';
 import {useWaVerification} from './useWaVerification';
@@ -17,7 +17,7 @@ type Props={
 export function LoginScreen({lang,onLanguage,logo,inputFont,onVerified,onRegister,onGuest,onLegal}:Props){
   const t=pick(authCopy,lang);
   const T=AText;
-  const [phone,setPhone]=useState('');
+  const [phone,setPhone]=useState(PHONE_PREFIX);
   const [fieldError,setFieldError]=useState<string|null>(null);
   const wa=useWaVerification(lang,onVerified);
   const submit=()=>{const p=toE164(phone);if(!p){setFieldError(t.e_phone);return;}setFieldError(null);void wa.start(p);};
@@ -29,10 +29,10 @@ export function LoginScreen({lang,onLanguage,logo,inputFont,onVerified,onRegiste
     </>}>
     <StepTransition stepKey={waiting?'wait':'form'}>
       {waiting
-        ?<WaitingStep lang={lang} Text={T} error={wa.error} onOpen={wa.openWhatsApp} onStagingConfirm={wa.stagingConfirm} onCancel={wa.cancel}/>
+        ?<WaitingStep lang={lang} Text={T} code={wa.challenge?.code} expiresAt={wa.challenge?.expiresAt} error={wa.error} onOpen={wa.openWhatsApp} onStagingConfirm={wa.stagingConfirm} onCancel={wa.cancel}/>
         :<View style={s.form}>
           <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.phone} value={phone} onChangeText={v=>{setPhone(v);if(fieldError)setFieldError(null);}}
-            placeholder={t.phonePh} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" maxLength={16} returnKeyType="go" onSubmitEditing={submit}
+            placeholder={t.phonePh} keyboardType="phone-pad" ltr textContentType="telephoneNumber" autoComplete="tel" maxLength={16} returnKeyType="go" onSubmitEditing={submit}
             error={fieldError??(wa.error||null)}/>
           <PrimaryButton lang={lang} Text={T} label={t.verify} onPress={submit} busy={wa.busy}/>
           <T lang={lang} style={[s.notice,{textAlign:lang==='ar'?'right':'left'}]}>{t.loginNotice} {t.terms} {t.and} {t.privacy}</T>

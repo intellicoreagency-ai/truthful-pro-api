@@ -1,5 +1,5 @@
 import {tr} from './i18n';
-import {SERVICES, Service} from './services';
+import {SERVICES, type Service} from './services';
 
 /** Templates transcribed and normalized from the user's 42-page visual reference.
  * The screenshots are visual examples, not verified government advice.

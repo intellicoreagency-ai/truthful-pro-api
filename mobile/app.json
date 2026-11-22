@@ -28,6 +28,14 @@
     "plugins": [
       "expo-document-picker",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "TRUTHFUL PRO uses your photo library only when you choose a profile picture.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/app/splash-icon.png",

@@ -1,7 +1,8 @@
 import {isLang} from './i18n';
 import {Platform} from 'react-native';
 import {File, Paths} from 'expo-file-system';
-import {getDocumentAsync} from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+import {ImageManipulator,SaveFormat} from 'expo-image-manipulator';
 import {catalogueServiceId} from './services';
 
 export type AccountData = {
@@ -21,7 +22,7 @@ export const emptyAccount:AccountData = {
 
 const storageKey='truthful-pro-account-preview-v1';
 const maxPhotoSize=2*1024*1024;
-const imageFormats:Record<string,string>={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp'};
+const PHOTO_PX=512;
 const dataFile=()=>new File(Paths.document,storageKey+'.json');
 
 export function readAccount():AccountData {
@@ -50,23 +51,25 @@ export function saveAccount(account:AccountData) {
   else dataFile().writeSync(payload);
 }
 
+/**
+ * Profile photo from the photo library (gallery), cropped to a square by the system editor, then
+ * re-encoded as a 512 px JPEG so it is small enough to keep on the device (iPhone HEIC and large camera
+ * photos are converted, not rejected). Returns a data URI, or null if the person cancelled.
+ * Errors: 'permission' (library access refused), 'format' (unreadable image).
+ */
 export async function chooseAccountPhoto():Promise<string|null> {
-  const result=await getDocumentAsync({
-    type:['image/jpeg','image/png','image/webp'],
-    multiple:false,
-    copyToCacheDirectory:true,
-    base64:Platform.OS==='web',
-  });
-  if(result.canceled) return null;
-  const asset=result.assets[0];
-  const mime=imageFormats[asset.name.split('.').pop()?.toLowerCase()??''];
-  if(!mime||(asset.mimeType&&asset.mimeType!==mime&&asset.mimeType!=='application/octet-stream')) throw Error('format');
-  if(asset.size!==undefined&&asset.size>maxPhotoSize) throw Error('size');
-  const data=Platform.OS==='web'
-    ? asset.base64
-    : 'data:'+mime+';base64,'+await new File(asset.uri).base64();
-  const signature=mime==='image/jpeg'?'/9j/':mime==='image/png'?'iVBORw0KGgo':'UklGR';
-  if(!data||!data.startsWith('data:'+mime+';base64,'+signature)) throw Error('format');
+  if(Platform.OS!=='web'){
+    const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if(!permission.granted) throw Error('permission');
+  }
+  const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],shape:'oval',quality:1,exif:false});
+  if(result.canceled||!result.assets?.length) return null;
+  const context=ImageManipulator.manipulate(result.assets[0].uri);
+  context.resize({width:PHOTO_PX});
+  const image=await context.renderAsync();
+  const saved=await image.saveAsync({format:SaveFormat.JPEG,compress:0.82,base64:true});
+  const data=saved.base64?(saved.base64.startsWith('data:')?saved.base64:'data:image/jpeg;base64,'+saved.base64):'';
+  if(!data.startsWith('data:image/jpeg;base64,/9j/')) throw Error('format');
   if(data.length>Math.ceil(maxPhotoSize/3)*4+30) throw Error('size');
   return data;
 }

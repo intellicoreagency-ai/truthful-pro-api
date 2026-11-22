@@ -1,6 +1,6 @@
 /**
  * Home — premium concierge design.
- * Full-bleed "Sapphire night over Dubai" vector hero (src/ui/HeroArt.tsx) with parallax (moves at ~40% of scroll, stretches on pull-down), glass controls over the photo,
+ * Full-bleed live Dubai Marina photo hero (src/ui/LiveHero.tsx: slow Ken Burns drift) with parallax (moves at ~40% of scroll, stretches on pull-down), glass controls over the photo,
  * a floating glass search, a gold display headline, staggered service cards and a dark espresso concierge card.
  * Approved artwork kept (Dubai photo, illustrations cropped from the approved home reference). Every word is real text.
  * Motion respects Reduce motion; glass falls back to opaque under Reduce transparency.
@@ -18,7 +18,7 @@ import {Entrance,GoldBadge,GoldText,LuxCard,ScalePressable} from './ui/Premium';
 import {useTabBarHeight} from './navigation/TabBarLayout';
 import {colors,layout,lux,radius,space,type} from './theme';
 import {LanguageButton} from './ui/LanguageButton';
-import {HeroArt} from './ui/HeroArt';
+import {LiveHero} from './ui/LiveHero';
 import {pick} from './i18n';
 
 type Props={lang:Lang;onLanguage:()=>void;onServices:(business:boolean)=>void;onSearch:(query:string)=>void;onNotifications:()=>void;alerts?:boolean};
@@ -30,7 +30,7 @@ const HERO=340;
 const COPY={
   ar:{brand:'تروثفل برو',tagline:'خدمات تخليص المعاملات',languageA11y:'التبديل إلى الإنجليزية',
     notifications:'الإشعارات',notificationsAlert:'الإشعارات، توجد معاملة تحتاج إجراءً منك',
-    welcome:'مرحباً بك في تروثفل',heroTitle:'نقرّب لك الإجراءات',heroBody:'خدمات تخليص المعاملات للأفراد والشركات في دبي، بعناية واهتمام.',heroA11y:'أفق دبي ليلاً بالكحلي والذهبي',
+    welcome:'مرحباً بك في تروثفل',heroTitle:'نقرّب لك الإجراءات',heroBody:'خدمات تخليص المعاملات للأفراد والشركات في دبي، بعناية واهتمام.',heroA11y:'مرسى دبي وأفق المدينة عند الغروب',
     search:'ابحث عن خدمة أو معاملة',searchGo:'بحث',services:'خدماتنا',
     individuals:'خدمات الأفراد',individualsBody:'الإقامات، الهوية، الأسرة، والمزيد لك ولعائلتك',
     business:'خدمات الشركات',businessBody:'الرخص، التأسيس، العمالة، وخدمات منشأتك',
@@ -38,7 +38,7 @@ const COPY={
     contactError:'تعذّر فتح التطبيق. اتصل بنا على ‎+971 52 594 9522'},
   en:{brand:'TRUTHFUL PRO',tagline:'Document clearance services',languageA11y:'Switch to Arabic',
     notifications:'Notifications',notificationsAlert:'Notifications, a request needs your action',
-    welcome:'Welcome to TRUTHFUL',heroTitle:'Making procedures simpler',heroBody:'Document clearance for individuals and businesses in Dubai, handled with care.',heroA11y:'Dubai skyline at night in navy and gold',
+    welcome:'Welcome to TRUTHFUL',heroTitle:'Making procedures simpler',heroBody:'Document clearance for individuals and businesses in Dubai, handled with care.',heroA11y:'Dubai Marina and the city skyline at dusk',
     search:'Search for a service',searchGo:'Search',services:'Our services',
     individuals:'Individual Services',individualsBody:'Residency, Emirates ID, family and more for you and yours',
     business:'Business Services',businessBody:'Licences, company setup, labour and services for your business',
@@ -46,7 +46,7 @@ const COPY={
     contactError:'Could not open the app. Call us on +971 52 594 9522.'},
   ru:{tagline:'Услуги по оформлению документов',languageA11y:'Сменить язык',
     notifications:'Уведомления',notificationsAlert:'Уведомления: запрос требует вашего действия',
-    welcome:'Добро пожаловать в TRUTHFUL',heroTitle:'Упрощаем процедуры',heroBody:'Оформление документов для частных лиц и компаний в Дубае — внимательно и надёжно.',heroA11y:'Ночной Дубай в тёмно-синих и золотых тонах',
+    welcome:'Добро пожаловать в TRUTHFUL',heroTitle:'Упрощаем процедуры',heroBody:'Оформление документов для частных лиц и компаний в Дубае — внимательно и надёжно.',heroA11y:'Дубай Марина и панорама города на закате',
     search:'Поиск услуги',searchGo:'Найти',services:'Наши услуги',
     individuals:'Услуги для частных лиц',individualsBody:'ВНЖ, Emirates ID, семья и многое другое для вас и ваших близких',
     business:'Услуги для компаний',businessBody:'Лицензии, регистрация компании, персонал и другие услуги для бизнеса',
@@ -54,7 +54,7 @@ const COPY={
     contactError:'Не удалось открыть приложение. Позвоните нам: +971 52 594 9522.'},
   zh:{tagline:'文件清关服务',languageA11y:'切换语言',
     notifications:'通知',notificationsAlert:'通知：有一项申请需要您处理',
-    welcome:'欢迎来到 TRUTHFUL',heroTitle:'让办事更简单',heroBody:'为迪拜的个人与企业提供细致可靠的文件清关服务。',heroA11y:'迪拜夜景，海军蓝与金色',
+    welcome:'欢迎来到 TRUTHFUL',heroTitle:'让办事更简单',heroBody:'为迪拜的个人与企业提供细致可靠的文件清关服务。',heroA11y:'黄昏时分的迪拜码头与城市天际线',
     search:'搜索服务',searchGo:'搜索',services:'我们的服务',
     individuals:'个人服务',individualsBody:'居留、阿联酋身份证、家庭团聚等，为您和家人办理',
     business:'企业服务',businessBody:'执照、公司注册、劳工及其他企业服务',
@@ -62,7 +62,7 @@ const COPY={
     contactError:'无法打开应用。请致电 +971 52 594 9522。'},
   fr:{tagline:'Services de formalités administratives',languageA11y:'Changer de langue',
     notifications:'Notifications',notificationsAlert:'Notifications : une demande requiert votre action',
-    welcome:'Bienvenue chez TRUTHFUL',heroTitle:'Des démarches simplifiées',heroBody:'Formalités administratives pour particuliers et entreprises à Dubaï, traitées avec soin.',heroA11y:'Dubaï la nuit, en bleu marine et or',
+    welcome:'Bienvenue chez TRUTHFUL',heroTitle:'Des démarches simplifiées',heroBody:'Formalités administratives pour particuliers et entreprises à Dubaï, traitées avec soin.',heroA11y:'Dubai Marina et la ligne d’horizon au crépuscule',
     search:'Rechercher un service',searchGo:'Rechercher',services:'Nos services',
     individuals:'Services aux particuliers',individualsBody:'Résidence, Emirates ID, famille et plus pour vous et vos proches',
     business:'Services aux entreprises',businessBody:'Licences, création de société, main-d’œuvre et services pour votre entreprise',
@@ -70,7 +70,7 @@ const COPY={
     contactError:'Impossible d’ouvrir l’application. Appelez-nous au +971 52 594 9522.'},
   es:{tagline:'Servicios de trámites y documentación',languageA11y:'Cambiar idioma',
     notifications:'Notificaciones',notificationsAlert:'Notificaciones: una solicitud requiere su acción',
-    welcome:'Bienvenido a TRUTHFUL',heroTitle:'Trámites más sencillos',heroBody:'Gestión de documentos para particulares y empresas en Dubái, con esmero y confianza.',heroA11y:'Dubái de noche en azul marino y dorado',
+    welcome:'Bienvenido a TRUTHFUL',heroTitle:'Trámites más sencillos',heroBody:'Gestión de documentos para particulares y empresas en Dubái, con esmero y confianza.',heroA11y:'Dubai Marina y el horizonte de la ciudad al atardecer',
     search:'Buscar un servicio',searchGo:'Buscar',services:'Nuestros servicios',
     individuals:'Servicios para particulares',individualsBody:'Residencia, Emirates ID, familia y más para usted y los suyos',
     business:'Servicios para empresas',businessBody:'Licencias, constitución de empresas, personal y servicios para su negocio',
@@ -80,7 +80,7 @@ const COPY={
 
 /** Illustration crops of the approved home reference (artwork only, no text). */
 type Box=[number,number,number,number];
-const ART:{individuals:Box;business:Box;support:Box}={individuals:[665,760,160,145],business:[666,966,160,145],support:[695,1209,120,143]};
+const ART:{individuals:Box;business:Box}={individuals:[665,760,160,145],business:[666,966,160,145]};
 
 /** Round glass control over the photo (dark material, light glyph). */
 function PhotoButton({label,onPress,children,reduce}:{label:string;onPress:()=>void;children:React.ReactNode;reduce:boolean}){
@@ -117,7 +117,7 @@ export function HomeScreen({lang,onLanguage,onServices,onSearch,onNotifications,
 
       {/* Hero */}
       <View style={styles.hero} accessible accessibilityRole="image" accessibilityLabel={t.heroA11y}>
-        <Animated.View style={[StyleSheet.absoluteFill,styles.heroImage,heroImage]}><HeroArt/></Animated.View>
+        <Animated.View style={[StyleSheet.absoluteFill,styles.heroImage,heroImage]}><LiveHero/></Animated.View>
         <LinearGradient pointerEvents="none" colors={['rgba(10,20,48,0.62)','rgba(10,20,48,0)']} style={styles.topScrim}/>
         <LinearGradient pointerEvents="none" colors={['rgba(243,245,248,0)','rgba(243,245,248,0.85)',lux.ivory]} locations={[0,0.7,1]} style={styles.bottomFade}/>
       </View>
@@ -186,7 +186,7 @@ export function HomeScreen({lang,onLanguage,onServices,onSearch,onNotifications,
               <LinearGradient colors={[lux.espressoSoft,lux.espresso]} start={{x:0,y:0}} end={{x:1,y:1}} style={styles.concierge}>
                 <View style={[styles.conciergeHead,{flexDirection:row}]}>
                   <LinearGradient colors={lux.goldBright} style={styles.supportFrame}>
-                    <View style={styles.supportArt}><RefSprite source={home} sourceWidth={864} sourceHeight={1536} bounds={ART.support} style={styles.sprite}/></View>
+                    <View style={styles.supportArt}><Icon name="headset" size={32} color={lux.goldText[1]}/></View>
                   </LinearGradient>
                   <View style={[styles.flex1,styles.serviceText]}>
                     <GoldText lang={lang} colors={lux.goldBright} style={styles.conciergeEyebrow}>{t.concierge}</GoldText>
@@ -261,7 +261,7 @@ const styles=StyleSheet.create({
   concierge:{borderRadius:radius.card+9,padding:space.xl,gap:space.lg},
   conciergeHead:{alignItems:'center',gap:space.md},
   supportFrame:{width:68,height:68,borderRadius:34,padding:2},
-  supportArt:{flex:1,borderRadius:32,overflow:'hidden',backgroundColor:lux.ivory,justifyContent:'center'},
+  supportArt:{flex:1,borderRadius:32,overflow:'hidden',backgroundColor:lux.ivory,alignItems:'center',justifyContent:'center'},
   conciergeEyebrow:{fontSize:type.footnote+1,lineHeight:20},
   conciergeTitle:{fontSize:type.headline,lineHeight:26,color:lux.onDark},
   conciergeBody:{fontSize:type.footnote+1,lineHeight:20,color:lux.onDarkSoft},

@@ -14,6 +14,7 @@ import {PlusJakartaSans_500Medium} from '@expo-google-fonts/plus-jakarta-sans/50
 import {PlusJakartaSans_700Bold} from '@expo-google-fonts/plus-jakarta-sans/700Bold';
 import {SERVICES, catalogueServices, Service, serviceLabel, serviceDescription} from './src/services';
 import {structureFor, wording} from './src/serviceDetails';
+import {matchesService} from './src/search';
 import {companyBannerFonts} from './src/CompanyBanner';
 import {CategoryBanner} from './src/catalogue/CategoryBanner';
 import {locate} from './src/catalogue/categories';
@@ -241,13 +242,7 @@ export default function App() {
  const allowRealSubmission=false; // release gate; never send customer data in a prototype
  const ar=lang==='ar';const t=pickCopy(copy,lang);
  const allServices=useMemo(()=>{
-   const search=query.trim().toLowerCase();
-   return catalogueServices.filter(service=>{
-     if(service.business!==business) return false;
-     return !search||[serviceLabel(service,lang),serviceDescription(service,lang),
-       ...structureFor(service.id).actions.map(item=>wording(item,lang))]
-        .some(value=>value.toLowerCase().includes(search));
-   });
+   return catalogueServices.filter(service=>service.business===business&&matchesService(service,query,lang));
  },[business,query,lang]);
  const switchLang=()=>setLangMenu(true);
  const languageMenu=<SelectSheet visible={langMenu} lang={lang} title={LANG_MENU_TITLE[lang]} selectedId={lang}
@@ -358,7 +353,7 @@ export default function App() {
    {languageMenu}
    <BlurTargetView ref={blurTarget} key={page==='detail'?'detail:'+chosen.id:page} style={styles.screen}>
      {page==='welcome'?<AuthFlow lang={lang} onLanguage={switchLang} onGuest={()=>go('home')} onSignedIn={ph=>{setSignedIn(true);if(ph&&!accountRef.current.phone)updateAccount({phone:ph});refreshServerName();go('home');void syncNow()}} onLegal={setLegal} logo={officialLogo}/>
-     :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents'||!!r.whatNow?.actionRequired)}/>:page==='services'?<ServicesScreen lang={lang} business={business} onAudience={setBusiness} query={query} onQuery={setQuery} services={allServices}
+     :page==='home'?<HomeScreen lang={lang} onLanguage={switchLang} onServices={value=>{setBusiness(value);openCatalogue();}} onSearch={value=>{const hit=(b:boolean)=>catalogueServices.some(x=>x.business===b&&matchesService(x,value,lang));setBusiness(!hit(false)&&hit(true));openCatalogue();setQuery(value);}} onNotifications={()=>go('requests')} alerts={clientRecords.some(r=>r.status==='needs_documents'||!!r.whatNow?.actionRequired)}/>:page==='services'?<ServicesScreen lang={lang} business={business} onAudience={setBusiness} query={query} onQuery={setQuery} services={allServices}
          choosing={choosingService} onOpen={service=>open(service)} onLanguage={switchLang} onProfile={()=>go('profile')}/>
      :page==='detail'?<ServiceDetailsScreen lang={lang} service={chosen} banner={bannerFor(chosen)} onBack={()=>go(detailOrigin)} onLanguage={switchLang} scrollRef={detailScroll}
          favorite={favorite} onToggleFavorite={toggleFavorite} tab={tab} onTab={selectTab} actionId={actionId} needsAction={needsAction} showDocumentsOnAbout={pilotService}

@@ -104,7 +104,7 @@ export function AuthScaffold({lang,onLanguage,logo,title,subtitle,children,foote
 
 type FieldProps={lang:Lang;Text?:AuthText;label:string;icon?:IconName;error?:string|null;hint?:string;inputFont?:string}&Omit<TextInputProps,'style'>;
 /** Label above, glass field (52 pt), white focus ring, inline error. */
-export function RoundedField({lang,label,icon,error,hint,inputFont,onFocus,onBlur,...input}:FieldProps){
+export function RoundedField({lang,label,icon,error,hint,inputFont,ltr=false,onFocus,onBlur,...input}:FieldProps&{ltr?:boolean}){
   const [focused,setFocused]=useState(false);
   const ar=lang==='ar';
   const T=AText;
@@ -115,7 +115,7 @@ export function RoundedField({lang,label,icon,error,hint,inputFont,onFocus,onBlu
       <TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" accessibilityLabel={label}
         placeholderTextColor={onGlass.placeholder} selectionColor={onGlass.link} keyboardAppearance="light"
         onFocus={e=>{setFocused(true);onFocus?.(e);}} onBlur={e=>{setFocused(false);onBlur?.(e);}}
-        {...input} style={[s.input,inputFont?{fontFamily:inputFont}:null,{textAlign:ar?'right':'left',writingDirection:ar?'rtl':'ltr'}]}/>
+        {...input} style={[s.input,inputFont&&!ltr?{fontFamily:inputFont}:null,{textAlign:ar?'right':'left',writingDirection:ar&&!ltr?'rtl':'ltr'}]}/>
     </View>
     {error?<T lang={lang} style={[s.error,{textAlign:ar?'right':'left'}]}>{error}</T>:hint?<T lang={lang} style={[s.hint,{textAlign:ar?'right':'left'}]}>{hint}</T>:null}
   </View>;
