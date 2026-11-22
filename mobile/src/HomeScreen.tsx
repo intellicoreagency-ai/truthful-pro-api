@@ -22,7 +22,7 @@ import {HeroArt} from './ui/HeroArt';
 import {pick} from './i18n';
 
 type Props={lang:Lang;onLanguage:()=>void;onServices:(business:boolean)=>void;onSearch:(query:string)=>void;onNotifications:()=>void;alerts?:boolean};
-const home=require('../assets/design-references/home.png');
+const home=require('../assets/design-references/home.jpg');
 const SUPPORT_WHATSAPP='https://wa.me/971585144005';
 const SUPPORT_PHONE='tel:+971525949522';
 const HERO=340;

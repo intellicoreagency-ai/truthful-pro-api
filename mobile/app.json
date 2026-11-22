@@ -17,7 +17,6 @@
     },
     "android": {
       "package": "com.truthfulclearance.pro",
-      "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/app/adaptive-icon.png",
         "monochromeImage": "./assets/app/adaptive-icon-mono.png",
