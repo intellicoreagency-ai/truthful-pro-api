@@ -63,6 +63,17 @@ These would allow outbound messages, email or code echoes:
 |---|---|---|
 | `EXPO_PUBLIC_API_URL` | EAS environment **preview** (plaintext; it is a public URL) | the staging Worker URL (https) |
 
+## How staging is deployed (chosen 22 Nov 2026)
+
+Deploys run on GitHub Actions (`.github/workflows/deploy-staging.yml`), not from a laptop. They start only when the branch `deploy/staging` is pushed.
+
+- The workflow builds the dashboard and the app web preview, applies migrations to the staging database, deploys the staging Worker, sets its secrets and publishes the Pages preview. It then writes the URLs to `docs/STAGING_URLS.md` on that branch.
+- It needs two repository secrets: `CLOUDFLARE_API_TOKEN` and `STAGING_WORKER_SECRETS`. The second holds `KEY=value` lines for `PEPPER`, `DATA_KEY`, `OWNER_PHONE`, `OWNER_SETUP_KEY` and `STAGING_TESTER_PHONES`.
+- It refuses to run if any of the "must stay unset" names below is present.
+- The staging database (`4ea9ff14-…`) and file store were created on 22 Nov 2026.
+
+The manual steps below remain the reference.
+
 ## Steps (owner, in order)
 
 1. **Access.** You need the Cloudflare account (Workers Paid, so database history is kept 30 days) and the Expo account that owns project `3a7d3dbd-a174-4dd6-9f2c-6363e7abbe49`.

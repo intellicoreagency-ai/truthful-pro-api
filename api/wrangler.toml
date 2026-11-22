@@ -60,15 +60,16 @@ WA_BUSINESS_NUMBER = "971585144005"
 SCANNER_MODE = "fake-test"          # test scanner (marks files clean, quarantines the EICAR test string); ignored in production
 COMPANY_NAME_AR = "تروثفل لخدمات التخليص ذ.م.م"
 COMPANY_NAME_EN = "Truthful Clearance Services LLC"
-# ALLOWED_ORIGINS, PUBLIC_BASE_URL, STAGING_TESTER_PHONES: set after the first deploy (docs/STAGING.md, step 4)
+# PUBLIC_BASE_URL and ALLOWED_ORIGINS are passed by .github/workflows/deploy-staging.yml at deploy time;
+# STAGING_TESTER_PHONES is a Worker secret (personal data stays out of the repo).
 
-# Create these once (docs/STAGING.md, step 2), then paste the real database_id:
+# Created 22 Nov 2026 (docs/STAGING.md, step 2):
 #   npx wrangler d1 create truthful-pro-v2-staging-db
 #   npx wrangler r2 bucket create truthful-pro-v2-staging-documents
 [[env.staging.d1_databases]]
 binding = "DB"
 database_name = "truthful-pro-v2-staging-db"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "4ea9ff14-ff87-4a48-83f6-e987b69633b9"
 migrations_dir = "migrations"
 
 [[env.staging.r2_buckets]]

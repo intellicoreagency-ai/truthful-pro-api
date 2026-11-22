@@ -1,0 +1,112 @@
+# Deploys STAGING only: the Worker "truthful-pro-api-v2-staging" (API + staff dashboard) and the
+# customer-app web preview (Cloudflare Pages project "truthful-pro-app-staging").
+# It never deploys the default (production) Worker: every wrangler command below uses --env staging.
+#
+# Runs only when someone pushes to the branch "deploy/staging" (or starts it by hand).
+# Repository secrets it needs (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN     account token (Workers, D1, R2, Pages)
+#   STAGING_WORKER_SECRETS   KEY=value lines: PEPPER, DATA_KEY, OWNER_PHONE, OWNER_SETUP_KEY, STAGING_TESTER_PHONES
+# Nothing here sends WhatsApp messages, emails or payments (see docs/STAGING.md).
+name: Deploy staging
+
+on:
+  push:
+    branches: [deploy/staging]
+  workflow_dispatch:
+
+concurrency: deploy-staging
+
+permissions:
+  contents: write   # to commit docs/STAGING_URLS.md back to this branch
+
+env:
+  CLOUDFLARE_ACCOUNT_ID: 2d08f2305b954bb3d557ea1cb1099eed
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  WORKER: truthful-pro-api-v2-staging
+  PAGES_PROJECT: truthful-pro-app-staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check secrets are present
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN secret is missing"; exit 1; }
+          [ "${{ secrets.STAGING_WORKER_SECRETS != '' }}" = "true" ] || { echo "::error::STAGING_WORKER_SECRETS secret is missing"; exit 1; }
+
+      - name: Install
+        run: |
+          (cd api && npm ci)
+          (cd dashboard && npm ci)
+          (cd mobile && npm ci)
+
+      - name: Work out the staging URLs
+        run: |
+          api() { curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/$1"; }
+          SUB=$(api workers/subdomain | jq -r .result.subdomain)
+          test -n "$SUB" && test "$SUB" != null
+          echo "API_URL=https://$WORKER.$SUB.workers.dev" >> "$GITHUB_ENV"
+          (cd api && npx wrangler pages project create "$PAGES_PROJECT" --production-branch main) || echo "Pages project already exists"
+          PSUB=$(api "pages/projects/$PAGES_PROJECT" | jq -r .result.subdomain)
+          test -n "$PSUB" && test "$PSUB" != null
+          echo "APP_URL=https://$PSUB" >> "$GITHUB_ENV"
+
+      - name: Build dashboard and customer-app web preview
+        run: bash scripts/build-staging-previews.sh "$API_URL"
+
+      - name: Database schema (staging database only)
+        working-directory: api
+        run: npx wrangler d1 migrations apply truthful-pro-v2-staging-db --remote --env staging
+
+      - name: Deploy the staging Worker
+        working-directory: api
+        run: npx wrangler deploy --env staging --var "PUBLIC_BASE_URL:$API_URL" --var "ALLOWED_ORIGINS:$APP_URL"
+
+      - name: Worker secrets
+        working-directory: api
+        env:
+          SECRETS: ${{ secrets.STAGING_WORKER_SECRETS }}
+        run: |
+          printf '%s\n' "$SECRETS" | node -e '
+            const lines = require("fs").readFileSync(0, "utf8").split(/\r?\n/);
+            const out = {};
+            for (const l of lines) { const m = l.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/); if (m) out[m[1]] = m[2]; }
+            const need = ["PEPPER", "DATA_KEY", "OWNER_PHONE", "OWNER_SETUP_KEY", "STAGING_TESTER_PHONES"];
+            const missing = need.filter((k) => !out[k]);
+            if (missing.length) { console.error("missing in STAGING_WORKER_SECRETS: " + missing.join(", ")); process.exit(1); }
+            const forbidden = ["WA_TOKEN", "WA_OTP_TEMPLATE", "EMAIL_MODE", "BREVO_API_KEY", "TWILIO_TOKEN", "DEV_OTP_ECHO"].filter((k) => k in out);
+            if (forbidden.length) { console.error("refusing: staging must not have " + forbidden.join(", ")); process.exit(1); }
+            require("fs").writeFileSync(process.env.RUNNER_TEMP + "/s.json", JSON.stringify(out));
+            console.log("secret names: " + Object.keys(out).join(", "));'
+          npx wrangler secret bulk "$RUNNER_TEMP/s.json" --env staging
+          rm -f "$RUNNER_TEMP/s.json"
+
+      - name: Deploy the customer-app web preview
+        working-directory: api
+        run: npx wrangler pages deploy ../mobile/dist-web --project-name "$PAGES_PROJECT" --branch main --commit-dirty=true
+
+      - name: Smoke check
+        run: |
+          curl -fsS "$API_URL/health"; echo
+          curl -fsS -o /dev/null -w "dashboard %{http_code}\n" "$API_URL/"
+          curl -fsS -o /dev/null -w "app preview %{http_code}\n" "$APP_URL/"
+
+      - name: Record the URLs on this branch
+        run: |
+          cat > docs/STAGING_URLS.md <<EOF
+          # Staging URLs (written by the deploy workflow)
+
+          - Staff dashboard and API: $API_URL
+          - Customer app web preview: $APP_URL
+          - Deployed from commit: $GITHUB_SHA
+          - Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          EOF
+          git config user.name "staging-deploy"
+          git config user.email "staging-deploy@users.noreply.github.com"
+          git add docs/STAGING_URLS.md
+          git commit -m "Staging URLs" && git push || echo "nothing to record"
