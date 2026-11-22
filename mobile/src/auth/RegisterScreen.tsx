@@ -8,7 +8,7 @@ import {AuthScaffold,ConsentRow,PrimaryButton,RoundedField,SecondaryButton,TextL
 import {PasswordField} from './PasswordField';
 import {useWaVerification} from './useWaVerification';
 import {Icon} from '../Icons';
-import {glass,onGlass,space,type} from '../theme';
+import {glass,authGlass,space,type} from '../theme';
 import {pick} from '../i18n';
 
 type Props={
@@ -88,13 +88,13 @@ export function RegisterScreen({lang,onLanguage,logo,inputFont,mode,onSignedIn,o
         <RoundedField lang={lang} Text={T} inputFont={inputFont} label={t.phone} value={phone} onChangeText={v=>{setPhone(v);clear('phone');}} editable={!waBox&&!verified}
           placeholder={t.phonePh} keyboardType="phone-pad" ltr textContentType="telephoneNumber" autoComplete="tel" maxLength={16} error={errors.phone??(wa.error||null)}/>
         {verified
-          ?<View style={[s.done,row]} accessibilityLiveRegion="polite"><Icon name="check" size={18} color="#1E7B45"/><T lang={lang} style={[s.doneText,align]}>{t.waDone}</T></View>
+          ?<View style={[s.done,row]} accessibilityLiveRegion="polite"><Icon name="check" size={18} color="#B9F2CF"/><T lang={lang} style={[s.doneText,align]}>{t.waDone}</T></View>
           :<ConsentRow lang={lang} Text={T} checked={waBox} onToggle={toggleWa} label={t.waCheck}><T lang={lang} style={s.consentText}>{t.waCheck}</T></ConsentRow>}
         {!waBox&&!verified&&<T lang={lang} style={[s.hint,align]}>{t.waCheckHint}</T>}
         {waBox&&!verified&&<View style={s.waCard}>
-          {wa.busy&&!wa.challenge?<ActivityIndicator color={onGlass.link}/>:null}
+          {wa.busy&&!wa.challenge?<ActivityIndicator color={authGlass.link}/>:null}
           {waiting&&<>
-            <View style={[s.waStatus,row]} accessibilityLiveRegion="polite"><ActivityIndicator color={onGlass.link}/><T lang={lang} style={s.waStatusText}>{t.waSent}</T></View>
+            <View style={[s.waStatus,row]} accessibilityLiveRegion="polite"><ActivityIndicator color={authGlass.link}/><T lang={lang} style={s.waStatusText}>{t.waSent}</T></View>
             <T lang={lang} style={[s.hint,align]}>{t.codeLabel}: {LRI}{wa.challenge!.code}{PDI}</T>
             {wa.stagingConfirm?<View style={s.staging}><T lang={lang} style={s.stagingNote}>{t.stagingNote}</T><PrimaryButton lang={lang} Text={T} label={t.stagingConfirm} onPress={wa.stagingConfirm}/></View>:null}
             <SecondaryButton lang={lang} Text={T} label={t.waAgain} onPress={wa.openWhatsApp}/>
@@ -123,15 +123,15 @@ const s=StyleSheet.create({
   row:{alignItems:'center',gap:space.xs,flexWrap:'wrap'},
   muted:{fontSize:type.callout,color:glass.textSoft},
   phoneBlock:{gap:space.sm},
-  hint:{fontSize:type.footnote,lineHeight:type.footnote*1.5,color:onGlass.soft},
-  waCard:{gap:space.sm,padding:space.md,borderRadius:16,backgroundColor:onGlass.field,borderWidth:1,borderColor:onGlass.border},
+  hint:{fontSize:type.footnote,lineHeight:type.footnote*1.5,color:authGlass.soft},
+  waCard:{gap:space.sm,padding:space.md,borderRadius:16,backgroundColor:authGlass.field,borderWidth:1,borderColor:authGlass.border},
   waStatus:{alignItems:'center',gap:space.sm},
-  waStatusText:{fontSize:type.subhead,color:onGlass.text},
-  done:{alignItems:'center',gap:space.sm,paddingVertical:space.sm,paddingHorizontal:space.md,borderRadius:14,backgroundColor:'rgba(30,123,69,0.1)',borderWidth:1,borderColor:'rgba(30,123,69,0.35)'},
-  doneText:{flex:1,fontSize:type.subhead,fontWeight:'600',color:'#1E7B45'},
+  waStatusText:{fontSize:type.subhead,color:authGlass.text},
+  done:{alignItems:'center',gap:space.sm,paddingVertical:space.sm,paddingHorizontal:space.md,borderRadius:14,backgroundColor:'rgba(143,227,176,0.16)',borderWidth:1,borderColor:'rgba(143,227,176,0.6)'},
+  doneText:{flex:1,fontSize:type.subhead,fontWeight:'600',color:'#B9F2CF'},
   staging:{gap:space.sm,padding:space.md,borderRadius:16,borderWidth:1,borderStyle:'dashed',borderColor:'#B8893F',backgroundColor:'rgba(217,188,126,0.14)'},
-  stagingNote:{fontSize:type.footnote,color:onGlass.text,textAlign:'center'},
+  stagingNote:{fontSize:type.footnote,color:authGlass.text,textAlign:'center'},
   consents:{gap:space.xs},
-  consentText:{fontSize:type.subhead,lineHeight:type.subhead*1.5,color:onGlass.text},
-  error:{fontSize:type.footnote,color:onGlass.error,fontWeight:'600'},
+  consentText:{fontSize:type.subhead,lineHeight:type.subhead*1.5,color:authGlass.text},
+  error:{fontSize:type.footnote,color:authGlass.error,fontWeight:'600'},
 });

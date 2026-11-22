@@ -7,7 +7,7 @@ import {AuthScaffold,PrimaryButton,RoundedField,SecondaryButton,StepTransition,T
 import {PasswordField} from './PasswordField';
 import {WaitingStep} from './WaitingStep';
 import {useWaVerification} from './useWaVerification';
-import {glass,onGlass,space,type} from '../theme';
+import {glass,authGlass,space,type} from '../theme';
 import {pick} from '../i18n';
 
 type Props={
@@ -85,6 +85,6 @@ const s=StyleSheet.create({
   form:{gap:space.lg},
   row:{alignItems:'center',gap:space.xs},
   muted:{fontSize:type.callout,color:glass.textSoft},
-  notice:{fontSize:type.footnote,color:onGlass.soft,lineHeight:type.footnote*1.5},
+  notice:{fontSize:type.footnote,color:authGlass.soft,lineHeight:type.footnote*1.5},
   legalRow:{gap:space.sm},
 });

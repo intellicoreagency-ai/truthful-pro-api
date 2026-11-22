@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {ActivityIndicator,StyleSheet,View} from 'react-native';
-import {onGlass,space,type} from '../theme';
+import {authGlass,space,type} from '../theme';
 import {PrimaryButton,SecondaryButton,type AuthText} from './AuthKit';
 import {authCopy,type Lang} from './copy';
 import {pick} from '../i18n';
@@ -36,7 +36,7 @@ export function WaitingStep({lang,Text:T,error,code,expiresAt,onOpen,onCancel,on
     </View>
 
     <PrimaryButton lang={lang} Text={T} label={t.openWa} onPress={onOpen}/>
-    <View style={s.status} accessibilityLiveRegion="polite"><ActivityIndicator color={onGlass.link}/><T lang={lang} style={s.statusText}>{t.waiting}</T></View>
+    <View style={s.status} accessibilityLiveRegion="polite"><ActivityIndicator color={authGlass.link}/><T lang={lang} style={s.statusText}>{t.waiting}</T></View>
     {error?<T lang={lang} style={s.error}>{error}</T>:null}
     {onStagingConfirm?<View style={s.staging}><T lang={lang} style={s.stagingNote}>{t.stagingNote}</T><PrimaryButton lang={lang} Text={T} label={t.stagingConfirm} onPress={onStagingConfirm}/></View>:null}
     {onRetry?<PrimaryButton lang={lang} Text={T} label={t.retry} onPress={onRetry}/>:null}
@@ -45,18 +45,18 @@ export function WaitingStep({lang,Text:T,error,code,expiresAt,onOpen,onCancel,on
 }
 const s=StyleSheet.create({
   wrap:{gap:space.md},
-  codeCard:{alignItems:'center',gap:2,paddingVertical:space.md,borderRadius:18,backgroundColor:onGlass.field,borderWidth:1,borderColor:onGlass.border},
-  codeLabel:{fontSize:type.footnote,color:onGlass.soft},
-  code:{fontSize:28,lineHeight:36,letterSpacing:2,fontWeight:'700',color:onGlass.text,fontVariant:['tabular-nums']},
-  expires:{fontSize:type.footnote,color:onGlass.soft},
+  codeCard:{alignItems:'center',gap:2,paddingVertical:space.md,borderRadius:18,backgroundColor:authGlass.field,borderWidth:1,borderColor:authGlass.border},
+  codeLabel:{fontSize:type.footnote,color:authGlass.soft},
+  code:{fontSize:28,lineHeight:36,letterSpacing:2,fontWeight:'700',color:authGlass.text,fontVariant:['tabular-nums']},
+  expires:{fontSize:type.footnote,color:authGlass.soft},
   steps:{gap:space.sm},
   step:{alignItems:'flex-start',gap:space.sm},
   num:{width:24,height:24,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(217,188,126,0.9)',marginTop:1},
   numText:{fontSize:13,lineHeight:16,fontWeight:'700',color:'#0A1430'},
-  stepText:{flex:1,fontSize:type.subhead,lineHeight:22,color:onGlass.text},
+  stepText:{flex:1,fontSize:type.subhead,lineHeight:22,color:authGlass.text},
   status:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:space.sm,paddingVertical:space.sm},
-  statusText:{fontSize:type.footnote+1,color:onGlass.soft},
+  statusText:{fontSize:type.footnote+1,color:authGlass.soft},
   staging:{gap:space.sm,padding:space.md,borderRadius:16,borderWidth:1,borderStyle:'dashed',borderColor:'#B8893F',backgroundColor:'rgba(217,188,126,0.14)'},
-  stagingNote:{fontSize:type.footnote,color:onGlass.text,textAlign:'center'},
-  error:{fontSize:type.footnote,color:onGlass.error,fontWeight:'600',textAlign:'center'},
+  stagingNote:{fontSize:type.footnote,color:authGlass.text,textAlign:'center'},
+  error:{fontSize:type.footnote,color:authGlass.error,fontWeight:'600',textAlign:'center'},
 });

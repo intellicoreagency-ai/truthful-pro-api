@@ -5,7 +5,7 @@ import Svg,{Defs,LinearGradient,Rect,Stop} from 'react-native-svg';
 import {LinearGradient as Gradient} from 'expo-linear-gradient';
 import {GoldText,ScalePressable} from '../ui/Premium';
 import {Icon,type IconName} from '../Icons';
-import {colors,glass,layout,lux,onGlass,radius,space,type} from '../theme';
+import {colors,glass,layout,lux,authGlass,radius,space,type} from '../theme';
 import {LanguageButton} from '../ui/LanguageButton';
 import type {Lang} from './copy';
 
@@ -44,14 +44,15 @@ export function StepTransition({stepKey,children}:{stepKey:string;children:React
   return <Animated.View style={{opacity:v,transform:[{translateY:v.interpolate({inputRange:[0,1],outputRange:[12,0]})}]}}>{children}</Animated.View>;
 }
 
-/** Premium glass over the photo: gold gradient hairline, warm shadow, real blur (expo-blur) and an ivory sheen. */
+/** Frosted glass over the photo: gold gradient hairline, soft shadow, real blur (expo-blur), a light frost and white text. */
 export function GlassCard({children,style}:{children:React.ReactNode;style?:object}){
   const target=useContext(BlurCtx);
   return <View style={[s.cardShadow,style]}>
     <Gradient colors={lux.goldBorder} start={{x:0,y:0}} end={{x:1,y:1}} style={s.cardBorder}>
       <View style={s.card}>
-        <BlurView style={StyleSheet.absoluteFill} tint="light" intensity={60} blurTarget={Platform.OS==='android'?target:undefined} blurMethod="dimezisBlurViewSdk31Plus"/>
-        <Gradient pointerEvents="none" colors={['rgba(255,255,255,0.82)','rgba(243,245,248,0.64)']} style={StyleSheet.absoluteFill}/>
+        <BlurView style={StyleSheet.absoluteFill} tint="dark" intensity={45} blurTarget={Platform.OS==='android'?target:undefined} blurMethod="dimezisBlurViewSdk31Plus"/>
+        {/* light frost on top, a touch of navy below: the photo stays visible and white text stays readable */}
+        <Gradient pointerEvents="none" colors={['rgba(255,255,255,0.16)','rgba(10,20,48,0.30)']} style={StyleSheet.absoluteFill}/>
         <View style={s.cardInner}>{children}</View>
       </View>
     </Gradient>
@@ -111,9 +112,9 @@ export function RoundedField({lang,label,icon,error,hint,inputFont,ltr=false,tra
   return <View style={s.fieldWrap}>
     <T lang={lang} style={[s.label,{textAlign:ar?'right':'left'}]}>{label}</T>
     <View style={[s.field,{flexDirection:ar?'row-reverse':'row'},focused&&s.fieldFocus,!!error&&s.fieldError]}>
-      {icon?<Icon name={icon} size={20} color={focused?onGlass.text:onGlass.soft}/>:null}
+      {icon?<Icon name={icon} size={20} color={focused?authGlass.text:authGlass.soft}/>:null}
       <TextInput maxFontSizeMultiplier={layout.maxFontScale} underlineColorAndroid="transparent" accessibilityLabel={label}
-        placeholderTextColor={onGlass.placeholder} selectionColor={onGlass.link} keyboardAppearance="light"
+        placeholderTextColor={authGlass.placeholder} selectionColor={authGlass.link} keyboardAppearance="light"
         onFocus={e=>{setFocused(true);onFocus?.(e);}} onBlur={e=>{setFocused(false);onBlur?.(e);}}
         {...input} style={[s.input,inputFont&&!ltr?{fontFamily:inputFont}:null,{textAlign:ar?'right':'left',writingDirection:ar&&!ltr?'rtl':'ltr'}]}/>
       {trailing}
@@ -139,7 +140,7 @@ export function SecondaryButton({lang,label,onPress}:{lang:Lang;Text?:AuthText;l
 /** Inline text link ("Create account"). */
 export function TextLink({lang,label,onPress,tone='glass'}:{lang:Lang;Text?:AuthText;label:string;onPress:()=>void;tone?:'glass'|'photo'}){
   const T=AText;
-  return <ScalePressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress} style={s.link} rippleColor={tone==='photo'?'rgba(255,255,255,0.3)':'rgba(29,58,158,0.15)'}><T lang={lang} style={[s.linkText,tone==='glass'&&{color:onGlass.link}]}>{label}</T></ScalePressable>;
+  return <ScalePressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress} style={s.link} rippleColor={tone==='photo'?'rgba(255,255,255,0.3)':'rgba(29,58,158,0.15)'}><T lang={lang} style={[s.linkText,tone==='glass'&&{color:authGlass.link}]}>{label}</T></ScalePressable>;
 }
 
 /** Consent row: rounded checkbox + text. */
@@ -176,24 +177,24 @@ const s=StyleSheet.create({
   cardInner:{padding:space.xl,gap:space.lg},
   footer:{marginTop:space.sm,alignItems:'center',gap:space.xs},
   fieldWrap:{gap:space.sm-2},
-  label:{fontSize:type.footnote,fontWeight:'600',color:onGlass.soft},
-  field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control+4,backgroundColor:'rgba(255,255,255,0.62)',borderWidth:1,borderColor:'rgba(217,188,126,0.55)'},
-  fieldFocus:{borderColor:'#B8893F',borderWidth:2,paddingHorizontal:space.lg-1,backgroundColor:'rgba(255,255,255,0.8)'},
-  fieldError:{borderColor:onGlass.error,borderWidth:2,paddingHorizontal:space.lg-1},
+  label:{fontSize:type.footnote,fontWeight:'600',color:authGlass.soft},
+  field:{minHeight:52,alignItems:'center',gap:space.md,paddingHorizontal:space.lg,borderRadius:radius.control+4,backgroundColor:authGlass.field,borderWidth:1,borderColor:authGlass.border},
+  fieldFocus:{borderColor:'#E8D3A2',borderWidth:2,paddingHorizontal:space.lg-1,backgroundColor:authGlass.fieldFocus},
+  fieldError:{borderColor:authGlass.error,borderWidth:2,paddingHorizontal:space.lg-1},
   // no browser focus box on the web preview: the gold field border already shows focus
-  input:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.body,color:onGlass.text,...(Platform.OS==='web'?{outlineStyle:'none',outlineWidth:0}:{})} as object,
-  error:{fontSize:type.footnote,color:onGlass.error,fontWeight:'600'},
-  hint:{fontSize:type.footnote,color:onGlass.soft},
+  input:{flex:1,minWidth:0,minHeight:layout.minTouch,fontSize:type.body,color:authGlass.text,...(Platform.OS==='web'?{outlineStyle:'none',outlineWidth:0}:{})} as object,
+  error:{fontSize:type.footnote,color:authGlass.error,fontWeight:'600'},
+  hint:{fontSize:type.footnote,color:authGlass.soft},
   primary:{minHeight:54,borderRadius:18,backgroundColor:colors.orange,alignItems:'center',justifyContent:'center',paddingHorizontal:space.xl,overflow:'hidden',...Platform.select({
     ios:{shadowColor:'#1D3A9E',shadowOffset:{width:0,height:8},shadowOpacity:0.3,shadowRadius:14},android:{elevation:4},default:{}}) as object},
   primaryOff:{opacity:0.55},
   primaryText:{fontSize:type.headline,fontWeight:'700',color:lux.onAction},
-  secondary:{flex:1,minHeight:50,borderRadius:16,backgroundColor:'rgba(255,255,255,0.72)',borderWidth:1,borderColor:'rgba(217,188,126,0.6)',alignItems:'center',justifyContent:'center',paddingHorizontal:space.sm},
-  secondaryText:{fontSize:type.subhead,fontWeight:'700',color:colors.brand,textAlign:'center'},
+  secondary:{flex:1,minHeight:50,borderRadius:16,backgroundColor:'rgba(255,255,255,0.12)',borderWidth:1,borderColor:'rgba(232,211,162,0.7)',alignItems:'center',justifyContent:'center',paddingHorizontal:space.sm},
+  secondaryText:{fontSize:type.subhead,fontWeight:'700',color:authGlass.link,textAlign:'center'},
   link:{minHeight:layout.minTouch,justifyContent:'center',paddingHorizontal:space.sm},
   linkText:{fontSize:type.callout,fontWeight:'700',color:glass.link},
   consent:{alignItems:'flex-start',gap:space.md,minHeight:layout.minTouch,paddingVertical:space.xs},
-  box:{width:24,height:24,borderRadius:7,borderWidth:1.5,borderColor:onGlass.box,alignItems:'center',justifyContent:'center',marginTop:1},
+  box:{width:24,height:24,borderRadius:7,borderWidth:1.5,borderColor:authGlass.box,alignItems:'center',justifyContent:'center',marginTop:1},
   boxOn:{backgroundColor:'#D9BC7E',borderColor:'#B8893F'},
   consentText:{flex:1},
 });

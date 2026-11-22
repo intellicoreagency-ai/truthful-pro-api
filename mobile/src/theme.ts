@@ -66,6 +66,20 @@ export const glass={
 } as const;
 
 /** Colours INSIDE the light frosted card: dark text on light glass (Apple "light material"). */
+/** Sign-in / registration card: real frosted glass over the Dubai night photo (light text on blurred photo).
+ *  Approved look (owner): translucent glass, not an opaque panel. Contrast comes from the blur plus a light navy tint. */
+export const authGlass={
+  text:'#FFFFFF',
+  soft:'rgba(255,255,255,0.88)',
+  placeholder:'rgba(255,255,255,0.62)',
+  field:'rgba(255,255,255,0.14)',
+  fieldFocus:'rgba(255,255,255,0.22)',
+  border:'rgba(255,255,255,0.42)',
+  link:'#F1DDAA',
+  error:'#FFB4A8',
+  box:'rgba(255,255,255,0.9)',
+} as const;
+
 export const onGlass={
   text:'#0E1526',
   soft:'#3E4860',

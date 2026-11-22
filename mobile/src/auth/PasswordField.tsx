@@ -4,7 +4,7 @@ import {Icon} from '../Icons';
 import {ScalePressable} from '../ui/Premium';
 import {RoundedField,type AuthText} from './AuthKit';
 import {authCopy,type Lang} from './copy';
-import {onGlass,layout} from '../theme';
+import {authGlass,layout} from '../theme';
 import {pick} from '../i18n';
 
 /** Password input with a show/hide button. `isNew` asks the keyboard/password manager for a new password. */
@@ -16,7 +16,7 @@ export function PasswordField({lang,Text,label,value,onChangeText,error,hint,isN
     textContentType={isNew?'newPassword':'password'} autoComplete={isNew?'new-password':'current-password'} passwordRules={isNew?'minlength: 8; required: lower; required: digit;':undefined}
     placeholder={isNew?t.passwordPh:undefined} returnKeyType="go" onSubmitEditing={onSubmitEditing} error={error??undefined} hint={hint}
     trailing={<ScalePressable accessibilityRole="button" accessibilityLabel={shown?t.hidePw:t.showPw} onPress={()=>setShown(v=>!v)} style={s.eye} rippleColor="rgba(14,21,38,0.12)">
-      <Icon name={shown?'eyeOff':'eye'} size={20} color={onGlass.soft}/>
+      <Icon name={shown?'eyeOff':'eye'} size={20} color={authGlass.soft}/>
     </ScalePressable>}/>;
 }
 const s=StyleSheet.create({eye:{width:layout.minTouch,height:layout.minTouch,alignItems:'center',justifyContent:'center',borderRadius:22}});
