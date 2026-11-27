@@ -3,12 +3,13 @@ import type { Lang } from '@/i18n';
 
 export type FontWeight = 'regular' | 'medium' | 'semibold' | 'bold';
 /** أدوار الخطوط (مجموعة الخطوط المعتمدة من المالك، لا تُستبدل): */
-export type FontRole = 'body' | 'display' | 'label';
+export type FontRole = 'body' | 'display' | 'label' | 'kufi';
 
 /**
  * body    IBM Plex Sans Arabic 400/500/600/700: النصوص الأساسية والبطاقات وحقول الإدخال وتفاصيل الوكلاء.
  * display Cairo 400/600/700/800: العناوين الكبيرة، الأزرار الرئيسية، أرقام الأسعار والدفعات.
- * label   Tajawal 500/700/800: شريط التنقل السفلي، التسميات القصيرة، شارات الحالة، البطاقات المدمجة.
+ * kufi    Noto Kufi Arabic 400–700: خط تصميم Gemini المعتمد (صندوق الدخول).
+ * label   Noto Kufi Arabic 400–700 (بدل Tajawal بقرار المالك): شريط التنقل السفلي، التسميات القصيرة، شارات الحالة.
  * الاحتياط: Noto Sans Arabic ثم خط النظام (SF Pro على آيفون).
  */
 export const fontSources = {
@@ -20,9 +21,10 @@ export const fontSources = {
   Cairo_600SemiBold: require('@expo-google-fonts/cairo/600SemiBold/Cairo_600SemiBold.ttf'),
   Cairo_700Bold: require('@expo-google-fonts/cairo/700Bold/Cairo_700Bold.ttf'),
   Cairo_800ExtraBold: require('@expo-google-fonts/cairo/800ExtraBold/Cairo_800ExtraBold.ttf'),
-  Tajawal_500Medium: require('@expo-google-fonts/tajawal/500Medium/Tajawal_500Medium.ttf'),
-  Tajawal_700Bold: require('@expo-google-fonts/tajawal/700Bold/Tajawal_700Bold.ttf'),
-  Tajawal_800ExtraBold: require('@expo-google-fonts/tajawal/800ExtraBold/Tajawal_800ExtraBold.ttf'),
+  NotoKufiArabic_400Regular: require('@expo-google-fonts/noto-kufi-arabic/400Regular/NotoKufiArabic_400Regular.ttf'),
+  NotoKufiArabic_500Medium: require('@expo-google-fonts/noto-kufi-arabic/500Medium/NotoKufiArabic_500Medium.ttf'),
+  NotoKufiArabic_600SemiBold: require('@expo-google-fonts/noto-kufi-arabic/600SemiBold/NotoKufiArabic_600SemiBold.ttf'),
+  NotoKufiArabic_700Bold: require('@expo-google-fonts/noto-kufi-arabic/700Bold/NotoKufiArabic_700Bold.ttf'),
   NotoSansArabic_400Regular: require('@expo-google-fonts/noto-sans-arabic/400Regular/NotoSansArabic_400Regular.ttf'),
   NotoSansArabic_600SemiBold: require('@expo-google-fonts/noto-sans-arabic/600SemiBold/NotoSansArabic_600SemiBold.ttf'),
   NotoSansArabic_700Bold: require('@expo-google-fonts/noto-sans-arabic/700Bold/NotoSansArabic_700Bold.ttf'),
@@ -31,7 +33,8 @@ export const fontSources = {
 const FACE: Record<FontRole, Record<FontWeight, string>> = {
   body: { regular: 'IBMPlexSansArabic_400Regular', medium: 'IBMPlexSansArabic_500Medium', semibold: 'IBMPlexSansArabic_600SemiBold', bold: 'IBMPlexSansArabic_700Bold' },
   display: { regular: 'Cairo_400Regular', medium: 'Cairo_600SemiBold', semibold: 'Cairo_700Bold', bold: 'Cairo_800ExtraBold' },
-  label: { regular: 'Tajawal_500Medium', medium: 'Tajawal_500Medium', semibold: 'Tajawal_700Bold', bold: 'Tajawal_800ExtraBold' },
+  kufi: { regular: 'NotoKufiArabic_400Regular', medium: 'NotoKufiArabic_500Medium', semibold: 'NotoKufiArabic_600SemiBold', bold: 'NotoKufiArabic_700Bold' },
+  label: { regular: 'NotoKufiArabic_400Regular', medium: 'NotoKufiArabic_500Medium', semibold: 'NotoKufiArabic_600SemiBold', bold: 'NotoKufiArabic_700Bold' },
 };
 const NOTO = 'NotoSansArabic_400Regular, NotoSansArabic_600SemiBold, NotoSansArabic_700Bold';
 const WEB_FALLBACK = `${NOTO}, "SF Pro Text", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;

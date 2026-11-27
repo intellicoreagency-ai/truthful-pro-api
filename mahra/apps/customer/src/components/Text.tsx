@@ -16,7 +16,7 @@ const VARIANTS: Record<Variant, { size: number; weight: FontWeight }> = {
 type Props = TextProps & {
   variant?: Variant;
   weight?: FontWeight;
-  /** دور الخط: يُستنتج من النمط (عناوين=Cairo، نص=IBM Plex)؛ label للتسميات القصيرة (Tajawal) */
+  /** دور الخط: يُستنتج من النمط (عناوين=Cairo، نص=IBM Plex)؛ label للتسميات القصيرة (Noto Kufi Arabic) */
   font?: FontRole;
   tone?: 'normal' | 'dim' | 'gold' | 'danger' | 'success';
   center?: boolean;

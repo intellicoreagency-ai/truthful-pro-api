@@ -8,10 +8,14 @@ import Svg, { Path } from 'react-native-svg';
 import { Glass } from '@/components/Glass';
 import { Press } from '@/components/Press';
 import { Text } from '@/components/Text';
+import type { ComponentProps } from 'react';
 import { LANGS, useI18n } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { fontStyle } from '@/theme/fonts';
 import { color, radius, space } from '@/theme/tokens';
+
+/** كل نص في الشاشة بخط Noto Kufi Arabic (خط تصميم Gemini المعتمد من المالك). */
+const T = (props: ComponentProps<typeof Text>) => <Text font="kufi" {...props} />;
 
 const BG = require('../../../assets/ui/login-bg.jpg');
 /** أبعاد صورة التصميم المرجعية؛ كل المواضع تُحسب بنسبة العرض فتطابق أي شاشة. */
@@ -59,7 +63,7 @@ export default function Login() {
   const [code, setCode] = useState('');
   const [langOpen, setLangOpen] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'bad' | 'info'; text: string } | null>(null);
-  const font = fontStyle(lang, 'regular');
+  const font = fontStyle(lang, 'regular', 'kufi');
   const s = w / IMG_W;
 
   const onLayout = (e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width);
@@ -92,15 +96,15 @@ export default function Login() {
       <ScrollView contentContainerStyle={{ paddingTop: CARD_TOP * s, paddingBottom: 40 + insets.bottom, paddingHorizontal: CARD_SIDE * s }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Glass r={12} strong style={styles.card}>
           <LinearGradient pointerEvents="none" colors={['rgba(255,238,205,0)', 'rgba(255,238,205,0.20)', 'rgba(255,238,205,0)']} locations={[0.28, 0.56, 0.84]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <Text variant="title" font="body" weight="medium" center style={{ fontSize: 24, lineHeight: 38 }}>{step === 'phone' ? t('signIn') : t('codeTitle')}</Text>
-          {step === 'code' && <Text variant="caption" tone="dim" center>{t('codeSub', { phone: `+${cc} ${digits(phone)}` })}</Text>}
+          <T variant="title" weight="medium" center style={{ fontSize: 24, lineHeight: 38 }}>{step === 'phone' ? t('signIn') : t('codeTitle')}</T>
+          {step === 'code' && <T variant="caption" tone="dim" center>{t('codeSub', { phone: `+${cc} ${digits(phone)}` })}</T>}
 
           {step === 'phone' ? (
             <>
               {field('call-outline', (
                 <View style={styles.phoneRow}>
                   <Press onPress={() => setCcOpen((v) => !v)} accessibilityRole="button" accessibilityLabel={`${t('countryCode')} +${cc}`} accessibilityState={{ expanded: ccOpen }} style={styles.ccBtn}>
-                    <Text weight="semibold" tone="dim">+{cc}</Text>
+                    <T weight="semibold" tone="dim">+{cc}</T>
                     <Ionicons name={ccOpen ? 'chevron-up' : 'chevron-down'} size={14} color={color.textDim} />
                   </Press>
                   <TextInput value={phone} onChangeText={(v) => setPhone(digits(v).slice(0, cc === '971' ? 9 : 12))} placeholder={t('phonePlaceholder')} placeholderTextColor={color.textMuted} inputMode="numeric" autoComplete="tel" accessibilityLabel={t('phoneLabel')} style={[styles.input, font]} />
@@ -111,7 +115,7 @@ export default function Login() {
                   <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
                     {COUNTRIES.map((c) => (
                       <Press key={c.iso} onPress={() => { setCc(c.cc); setCcOpen(false); }} accessibilityRole="button" accessibilityState={{ selected: c.cc === cc }} style={styles.ccItem}>
-                        <Text variant="caption" weight={c.cc === cc ? 'bold' : 'regular'} tone={c.cc === cc ? 'gold' : 'normal'} style={{ writingDirection: 'ltr' }}>{c.iso}   +{c.cc}</Text>
+                        <T variant="caption" weight={c.cc === cc ? 'bold' : 'regular'} tone={c.cc === cc ? 'gold' : 'normal'} style={{ writingDirection: 'ltr' }}>{c.iso}   +{c.cc}</T>
                       </Press>
                     ))}
                   </ScrollView>
@@ -119,7 +123,7 @@ export default function Login() {
               )}
               <Press onPress={() => setHasWa((v) => !v)} accessibilityRole="checkbox" accessibilityState={{ checked: hasWa }} style={styles.check}>
                 <Ionicons name={hasWa ? 'checkbox' : 'square-outline'} size={24} color={hasWa ? color.goldBright : color.textDim} />
-                <Text variant="caption" style={{ flex: 1 }}>{t('hasWhatsapp')}</Text>
+                <T variant="caption" style={{ flex: 1 }}>{t('hasWhatsapp')}</T>
               </Press>
             </>
           ) : (
@@ -128,28 +132,28 @@ export default function Login() {
             ))
           )}
 
-          {msg && <Text variant="caption" tone={msg.tone === 'bad' ? 'danger' : 'gold'} accessibilityLiveRegion="polite">{msg.text}</Text>}
+          {msg && <T variant="caption" tone={msg.tone === 'bad' ? 'danger' : 'gold'} accessibilityLiveRegion="polite">{msg.text}</T>}
 
           <Press onPress={step === 'phone' ? sendCode : verify} accessibilityRole="button" accessibilityLabel={step === 'phone' ? t('sendCode') : t('verify')} style={styles.ctaWrap}>
             <LinearGradient colors={['#3E5CD3', '#8C9CE0', '#EEE0C4', '#DCBE8A']} locations={[0, 0.36, 0.72, 1]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.cta}>
-              <Text variant="heading" font="body" weight="medium" style={{ color: '#0B1020', fontSize: 18 }}>{step === 'phone' ? t('sendCode') : t('verify')}</Text>
+              <T variant="heading" weight="medium" style={{ color: '#0B1020', fontSize: 18 }}>{step === 'phone' ? t('sendCode') : t('verify')}</T>
             </LinearGradient>
           </Press>
 
           {step === 'code' ? (
             <Press onPress={() => { setStep('phone'); setCode(''); setMsg(null); }} accessibilityRole="button" style={styles.pill}>
-              <Text variant="caption" font="body" weight="regular" style={{ fontSize: 16, lineHeight: 25 }}>{t('changeNumber')}</Text>
+              <T variant="caption" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('changeNumber')}</T>
             </Press>
           ) : (
             <>
               <View style={styles.rule} />
               <Press onPress={biometric} accessibilityRole="button" accessibilityLabel={t('faceId')} style={styles.pill}>
                 <Ionicons name="finger-print-outline" size={24} color={color.goldBright} />
-                <Text variant="caption" font="body" weight="regular" style={{ fontSize: 16, lineHeight: 25 }}>{t('faceId')}</Text>
+                <T variant="caption" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('faceId')}</T>
               </Press>
               <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('apple')} style={styles.pill}>
                 <Ionicons name="logo-apple" size={22} color="#fff" />
-                <Text variant="caption" font="body" weight="regular" style={{ fontSize: 16, lineHeight: 25 }}>{t('apple')}</Text>
+                <T variant="caption" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('apple')}</T>
               </Press>
             </>
           )}
@@ -157,7 +161,7 @@ export default function Login() {
 
         {step === 'phone' && (
           <View style={styles.alt}>
-            <Text variant="caption" tone="dim">{t('orSignUp')}</Text>
+            <T variant="caption" tone="dim">{t('orSignUp')}</T>
             <View style={styles.altRow}>
               <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('google')} style={styles.altBtn}><GoogleG /></Press>
               <Press onPress={() => setHasWa(false)} accessibilityRole="button" accessibilityLabel={t('signIn')} style={styles.altBtn}><Ionicons name="person-add-outline" size={24} color="#fff" /></Press>
@@ -169,13 +173,13 @@ export default function Login() {
       <View style={[styles.langWrap, { top: insets.top + 8 }]}>
         <Press onPress={() => setLangOpen((v) => !v)} accessibilityRole="button" accessibilityLabel={t('language')} style={styles.langBtn}>
           <Ionicons name="globe-outline" size={16} color={color.goldBright} />
-          <Text variant="caption" weight="semibold" tone="gold">{LANGS.find((l) => l.code === lang)?.label}</Text>
+          <T variant="caption" weight="semibold" tone="gold">{LANGS.find((l) => l.code === lang)?.label}</T>
         </Press>
         {langOpen && (
           <Glass r={20} strong style={styles.langMenu}>
             {LANGS.map((l) => (
               <Press key={l.code} onPress={() => { setLang(l.code); setLangOpen(false); }} accessibilityRole="button" accessibilityState={{ selected: lang === l.code }} style={styles.langItem}>
-                <Text variant="caption" weight={lang === l.code ? 'bold' : 'regular'} tone={lang === l.code ? 'gold' : 'normal'}>{l.label}</Text>
+                <T variant="caption" weight={lang === l.code ? 'bold' : 'regular'} tone={lang === l.code ? 'gold' : 'normal'}>{l.label}</T>
               </Press>
             ))}
           </Glass>
