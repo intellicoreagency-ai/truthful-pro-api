@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { AgentTile } from '@/components/AgentTile';
 import { Glass } from '@/components/Glass';
 import { Screen } from '@/components/Screen';
@@ -8,6 +8,7 @@ import { Text } from '@/components/Text';
 import { agentById, type AgentId } from '@/data/agents';
 import { useI18n, useTx } from '@/i18n';
 import { color, space } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 type Card = {
   id: string;
@@ -42,7 +43,7 @@ export default function Requests() {
       {CARDS.map((c) => {
         const a = agentById(c.agent)!;
         return (
-          <Pressable key={c.id} onPress={c.go} accessibilityRole="button" accessibilityLabel={`${tx(c.title[0], c.title[1])}. ${tx(c.pill[0], c.pill[1])}`}>
+          <Press key={c.id} onPress={c.go} accessibilityRole="button" accessibilityLabel={`${tx(c.title[0], c.title[1])}. ${tx(c.pill[0], c.pill[1])}`}>
             <Glass r={24} style={[styles.card, { borderColor: a.accent + '55' }]}>
               <View style={styles.head}>
                 <AgentTile agent={a} size={48} />
@@ -66,11 +67,11 @@ export default function Requests() {
                 <Text variant="caption" weight="semibold" style={{ color: a.accent }}>{tx(c.pill[0], c.pill[1])}</Text>
               </View>
             </Glass>
-          </Pressable>
+          </Press>
         );
       })}
 
-      <Pressable onPress={() => router.push({ pathname: '/chat/[agentId]', params: { agentId: 'mansour' } })} accessibilityRole="button" accessibilityLabel={tx('سجل المحادثات والملفات', 'Chats and files history')}>
+      <Press onPress={() => router.push({ pathname: '/chat/[agentId]', params: { agentId: 'mansour' } })} accessibilityRole="button" accessibilityLabel={tx('سجل المحادثات والملفات', 'Chats and files history')}>
         <Glass r={24} style={[styles.card, { borderColor: color.blue + '55', flexDirection: 'row', alignItems: 'center', gap: space.md }]}>
           <View style={[styles.hist, { backgroundColor: color.blue + '29', borderColor: color.blue + '99' }]}><Ionicons name="folder-open-outline" size={24} color={color.blue} /></View>
           <View style={{ flex: 1, gap: 2 }}>
@@ -79,7 +80,7 @@ export default function Requests() {
           </View>
           <Ionicons name="chevron-back" size={20} color={color.textDim} />
         </Glass>
-      </Pressable>
+      </Press>
     </Screen>
   );
 }

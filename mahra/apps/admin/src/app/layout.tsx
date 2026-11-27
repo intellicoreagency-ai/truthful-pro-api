@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import '@fontsource/ibm-plex-sans-arabic/400.css';
 import '@fontsource/ibm-plex-sans-arabic/500.css';
 import '@fontsource/ibm-plex-sans-arabic/600.css';
@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   title: 'لوحة مدير مهرة',
   description: 'اعتماد المزودين وتحصيل العمولات والإيرادات',
 };
+
+export const viewport: Viewport = { themeColor: '#0b1530' };
 
 function Pearl() {
   return (
@@ -37,18 +39,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ar" dir="rtl">
       <body>
+        <a className="skip" href="#main">تخطَّ إلى المحتوى</a>
         <div className="shell">
           <aside className="side">
             <div className="brand">
               <Pearl />
               <div>
-                <b>مهرة</b>
+                <b translate="no">مهرة</b>
                 <small>لوحة المدير</small>
               </div>
             </div>
             <Nav />
           </aside>
-          <main className="main">
+          <main className="main" id="main" tabIndex={-1}>
             <div className="devbar" role="note">
               وضع التطوير: بيانات تجريبية في الذاكرة، ودخول تجريبي بدور «مالك». لا يُستعمل مع بيانات حقيقية.
             </div>

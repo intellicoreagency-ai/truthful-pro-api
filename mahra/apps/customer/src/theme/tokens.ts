@@ -1,3 +1,5 @@
+import { Easing } from 'react-native';
+
 /**
  * رموز تصميم مهرة (العميل). الألوان من لوحة Apple للوضع الداكن (system colors) وأدوار النص (label)،
  * مع كحلي ليلي للأرضية (من apple-design: deep navy) وذهبي «شمبانيا» للعلامة والفعل الرئيسي.
@@ -70,3 +72,8 @@ export const motion = {
   breathSpeaking: 700,
   spinThinking: 2600,
 } as const;
+
+/** منحنى خروج قوي (ease-out) لكل استجابة لحظية: يبدأ سريعاً فيبدو التطبيق مستجيباً. */
+export const easeOut = Easing.bezier(0.23, 1, 0.32, 1);
+/** ضغطة سريعة (100ms) وإفلات أبطأ قليلاً (160ms): الاستجابة أسرع من الإرجاع. */
+export const pressMs = { in: 100, out: 160 } as const;

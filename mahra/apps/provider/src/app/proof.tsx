@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -11,6 +11,7 @@ import { aedFmt } from '@/lib/format';
 import { useStore } from '@/lib/store';
 import { fontFor } from '@/theme/fonts';
 import { color, radius, space, TOUCH } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 /**
  * رفع إثبات التحويل. المبلغ المصرَّح به يجب أن يساوي مجموع العمولات المختارة (تفرضه القاعدة أيضاً).
@@ -28,9 +29,9 @@ export default function Proof() {
   const [error, setError] = useState<string | null>(null);
 
   const back = (
-    <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t('back')} style={{ width: TOUCH, height: TOUCH, justifyContent: 'center' }}>
+    <Press onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t('back')} style={{ width: TOUCH, height: TOUCH, justifyContent: 'center' }}>
       <Ionicons name="arrow-back" size={26} color={color.text} style={{ transform: [{ scaleX: dir === 'rtl' ? -1 : 1 }] }} />
-    </Pressable>
+    </Press>
   );
 
   if (done) {

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 import { AgentTile } from '@/components/AgentTile';
 import { Button } from '@/components/Button';
 import { Glass } from '@/components/Glass';
@@ -12,6 +12,8 @@ import { requestById, type Offer } from '@/data/requests';
 import { useI18n, useTx } from '@/i18n';
 import { formatAed } from '@/lib/pricing';
 import { color, space, TOUCH } from '@/theme/tokens';
+import { FadeIn } from '@/components/FadeIn';
+import { Press } from '@/components/Press';
 
 type Pay = 'card' | 'cash';
 
@@ -54,9 +56,9 @@ export default function RequestDetail() {
   const others = req.offers.filter((o) => o !== best);
 
   const back = (
-    <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t('back')} style={styles.back}>
+    <Press onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t('back')} style={styles.back}>
       <Ionicons name="arrow-back" size={24} color={color.text} style={{ transform: [{ scaleX: dir === 'rtl' ? -1 : 1 }] }} />
-    </Pressable>
+    </Press>
   );
 
   const price = (o: Offer, big?: boolean) => (
@@ -116,8 +118,9 @@ export default function RequestDetail() {
         </Glass>
       )}
 
-      {others.map((o) => (
-        <Glass key={o.id} r={24} style={[styles.card, styles.compact, picked?.id === o.id && { borderColor: color.gold + 'AA' }]}>
+      {others.map((o, i) => (
+        <FadeIn key={o.id} delay={[0, 60, 110][Math.min(i, 2)]}>
+        <Glass r={24} style={[styles.card, styles.compact, picked?.id === o.id && { borderColor: color.gold + 'AA' }]}>
           <View style={{ flex: 1, gap: 6 }}>
             <View style={styles.metaRow}>
               <Text weight="semibold">{o.provider}</Text>
@@ -129,6 +132,7 @@ export default function RequestDetail() {
           {price(o)}
           <Button kind="glass" small label={tx('اختر', 'Choose')} onPress={() => setPicked(o)} />
         </Glass>
+        </FadeIn>
       ))}
 
       {picked && (
@@ -136,10 +140,10 @@ export default function RequestDetail() {
           <Text weight="bold">{t('payTitle')}</Text>
           <View style={styles.metaRow}>
             {(['card', 'cash'] as const).map((p) => (
-              <Pressable key={p} onPress={() => setPay(p)} accessibilityRole="radio" accessibilityState={{ selected: pay === p }} style={[styles.payBtn, pay === p && { borderColor: color.gold, backgroundColor: color.gold + '22' }]}>
+              <Press key={p} onPress={() => setPay(p)} accessibilityRole="radio" accessibilityState={{ selected: pay === p }} style={[styles.payBtn, pay === p && { borderColor: color.gold, backgroundColor: color.gold + '22' }]}>
                 <Ionicons name={p === 'card' ? 'card-outline' : 'cash-outline'} size={20} color={pay === p ? color.gold : color.textDim} />
                 <Text tone={pay === p ? 'gold' : 'normal'}>{t(p === 'card' ? 'payCard' : 'payCash')}</Text>
-              </Pressable>
+              </Press>
             ))}
           </View>
           <Text variant="caption" tone="dim">{t('payNote')} {t('providerContactHidden')}</Text>

@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
 import type { ComponentProps } from 'react';
-import { Pressable, StyleSheet, View, type PressableProps } from 'react-native';
+import { StyleSheet, View, type PressableProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glass } from './Glass';
 import { Text } from './Text';
 import { useI18n, type StringKey } from '@/i18n';
 import { useVoice } from '@/lib/voice';
 import { color, radius, TOUCH } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -16,7 +17,7 @@ type ButtonProps = TabTriggerSlotProps & { icon: IconName; iconActive: IconName;
 
 function TabButton({ icon, iconActive, label, isFocused, ...rest }: ButtonProps) {
   return (
-    <Pressable
+    <Press
       {...(rest as unknown as PressableProps)}
       accessibilityRole="tab"
       accessibilityLabel={label}
@@ -25,7 +26,7 @@ function TabButton({ icon, iconActive, label, isFocused, ...rest }: ButtonProps)
     >
       <Ionicons name={isFocused ? iconActive : icon} size={24} color={isFocused ? color.gold : color.textDim} />
       <Text style={[styles.tabLabel, { color: isFocused ? color.gold : color.textDim }]}>{label}</Text>
-    </Pressable>
+    </Press>
   );
 }
 
@@ -66,7 +67,7 @@ export function TabBar() {
         {tab(0)}
         {tab(1)}
         <View style={styles.micSlot}>
-          <Pressable
+          <Press
             onPress={onMic}
             accessibilityRole="button"
             accessibilityLabel={active ? t('stop') : t('talkToMohra')}
@@ -74,7 +75,7 @@ export function TabBar() {
             style={[styles.mic, active && { backgroundColor: color.aqua }]}
           >
             <Ionicons name={active ? 'stop' : 'mic'} size={28} color={color.ink} />
-          </Pressable>
+          </Press>
         </View>
         {tab(2)}
         {tab(3)}

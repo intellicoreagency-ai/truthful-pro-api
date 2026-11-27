@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { AgentTile } from './AgentTile';
 import { Glass } from './Glass';
 import { Text } from './Text';
 import { nationality, type Agent } from '@/data/agents';
 import { useI18n } from '@/i18n';
 import { color, space } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 /**
  * بطاقة وكيل زجاجية بعمودين (كما في الموجّه): بلاطة بلون الوكيل، الاسم والدور، سطر وصف، وزر «تحدث الآن» بلونه.
@@ -17,7 +18,7 @@ export function AgentCard({ agent, tag }: { agent: Agent; tag?: string }) {
   const { lang, t } = useI18n();
   const L = lang === 'ar' ? 'ar' : 'en';
   return (
-    <Pressable
+    <Press
       style={styles.cell}
       onPress={() => router.push({ pathname: '/chat/[agentId]', params: { agentId: agent.id } })}
       accessibilityRole="button"
@@ -40,7 +41,7 @@ export function AgentCard({ agent, tag }: { agent: Agent; tag?: string }) {
           <Text variant="caption" weight="bold" style={{ color: color.deep }}>{t('talkNow')}</Text>
         </LinearGradient>
       </Glass>
-    </Pressable>
+    </Press>
   );
 }
 

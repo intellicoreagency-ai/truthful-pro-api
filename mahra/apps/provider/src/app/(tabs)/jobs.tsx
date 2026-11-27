@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Badge, Card } from '@/components/ui';
@@ -8,12 +8,13 @@ import { useI18n } from '@/i18n';
 import { aedFmt } from '@/lib/format';
 import { useStore, type Job } from '@/lib/store';
 import { color, space } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 function JobCard({ j }: { j: Job }) {
   const { t, lang, dir } = useI18n();
   const L = lang === 'ar' ? 'ar' : 'en';
   return (
-    <Pressable onPress={() => router.push({ pathname: '/job/[id]', params: { id: j.id } })} accessibilityRole="button" accessibilityLabel={j.title[L]}>
+    <Press onPress={() => router.push({ pathname: '/job/[id]', params: { id: j.id } })} accessibilityRole="button" accessibilityLabel={j.title[L]}>
       <Card style={styles.row}>
         <View style={{ flex: 1, gap: 4 }}>
           <Text weight="semibold">{j.title[L]}</Text>
@@ -25,7 +26,7 @@ function JobCard({ j }: { j: Job }) {
           <Ionicons name="chevron-forward" size={20} color={color.dim} style={{ transform: [{ scaleX: dir === 'rtl' ? -1 : 1 }] }} />
         </View>
       </Card>
-    </Pressable>
+    </Press>
   );
 }
 

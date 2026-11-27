@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { PriceInput } from '@/components/PriceInput';
 import { Screen } from '@/components/Screen';
@@ -12,6 +12,7 @@ import { aedFmt, dateFmt } from '@/lib/format';
 import { toFils } from '@/lib/pricing';
 import { useStore } from '@/lib/store';
 import { color, space, TOUCH } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 export default function JobScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,9 +24,9 @@ export default function JobScreen() {
   const [msg, setMsg] = useState<{ tone: 'ok' | 'bad'; text: string } | null>(null);
 
   const back = (
-    <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t('back')} style={styles.back}>
+    <Press onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t('back')} style={styles.back}>
       <Ionicons name="arrow-back" size={26} color={color.text} style={{ transform: [{ scaleX: dir === 'rtl' ? -1 : 1 }] }} />
-    </Pressable>
+    </Press>
   );
   if (!job) return <Screen>{back}<Card><Text tone="dim">{t('noJobs')}</Text></Card></Screen>;
 

@@ -68,6 +68,8 @@ export async function setProviderStatus(f: FormData) {
   const back = `/providers/${pid}`;
   const status = str(f, 'status');
   if (!['approved', 'suspended', 'terminated'].includes(status)) redirect(`${back}?error=${encodeURIComponent('حالة غير صالحة')}`);
+  // الإلغاء النهائي لا يُنفَّذ بنقرة واحدة: يلزم تأكيد صريح (يُتحقق منه هنا لا في الواجهة وحدها).
+  if (status === 'terminated' && str(f, 'confirm') !== 'yes') redirect(`${back}?error=${encodeURIComponent('أكّد الإلغاء النهائي بتحديد خانة التأكيد')}`);
   const days = str(f, 'override_days');
   await perform(
     () =>

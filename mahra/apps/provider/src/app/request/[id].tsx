@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { PriceInput } from '@/components/PriceInput';
 import { Screen } from '@/components/Screen';
@@ -12,6 +12,7 @@ import { aedFmt } from '@/lib/format';
 import { DEFAULT_COMMISSION_RATE, quote, toFils } from '@/lib/pricing';
 import { useStore } from '@/lib/store';
 import { color, radius, space, TOUCH } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 const ETAS = [10, 15, 20, 30, 45, 60];
 
@@ -37,9 +38,9 @@ export default function RequestOffer() {
   const q = okPrice ? quote(toFils(price)) : null;
 
   const back = (
-    <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t('back')} style={styles.back}>
+    <Press onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t('back')} style={styles.back}>
       <Ionicons name="arrow-back" size={26} color={color.text} style={{ transform: [{ scaleX: dir === 'rtl' ? -1 : 1 }] }} />
-    </Pressable>
+    </Press>
   );
 
   if (sent) {
@@ -95,9 +96,9 @@ export default function RequestOffer() {
         <Text variant="caption" tone="dim">{t('eta')}</Text>
         <View style={styles.chips}>
           {ETAS.map((m) => (
-            <Pressable key={m} onPress={() => setEta(m)} accessibilityRole="radio" accessibilityState={{ selected: eta === m }} style={[styles.chip, eta === m && { backgroundColor: color.ink, borderColor: color.ink }]}>
+            <Press key={m} onPress={() => setEta(m)} accessibilityRole="radio" accessibilityState={{ selected: eta === m }} style={[styles.chip, eta === m && { backgroundColor: color.ink, borderColor: color.ink }]}>
               <Text weight="medium" style={{ color: eta === m ? color.onInk : color.text }}>{t('etaMin', { m })}</Text>
-            </Pressable>
+            </Press>
           ))}
         </View>
       </View>

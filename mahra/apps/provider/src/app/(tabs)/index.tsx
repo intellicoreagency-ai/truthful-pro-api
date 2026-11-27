@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { StyleSheet, Switch, View } from 'react-native';
 import { Orb } from '@/components/Orb';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -11,6 +11,8 @@ import { aedFmt } from '@/lib/format';
 import { fmtCountdown, useNow } from '@/lib/useNow';
 import { useStore, type Incoming } from '@/lib/store';
 import { color, radius, space, TOUCH } from '@/theme/tokens';
+import { FadeIn } from '@/components/FadeIn';
+import { Press } from '@/components/Press';
 
 function RequestCard({ r, now }: { r: Incoming; now: number }) {
   const { t, lang } = useI18n();
@@ -94,18 +96,18 @@ export default function Opportunities() {
       )}
 
       {approved && !available && stats.missedThisWeek > 0 && (
-        <Pressable onPress={() => setAvailable(true)} accessibilityRole="button">
+        <Press onPress={() => setAvailable(true)} accessibilityRole="button">
           <Card style={{ backgroundColor: color.warnBg, borderColor: '#ECD49A', gap: 4 }}>
             <Text variant="heading" tone="warn">{t('missedTitle', { n: stats.missedThisWeek })}</Text>
             <Text tone="warn">{t('missedBody')}</Text>
           </Card>
-        </Pressable>
+        </Press>
       )}
 
       {approved && (
         <>
           <Text variant="heading">{t('openRequests')} ({available ? live.length : 0})</Text>
-          {available && live.length > 0 ? live.map((r) => <RequestCard key={r.id} r={r} now={now} />) : (
+          {available && live.length > 0 ? live.map((r, i) => <FadeIn key={r.id} delay={[0, 60, 110][Math.min(i, 2)]}><RequestCard r={r} now={now} /></FadeIn>) : (
             <Card><Text tone="dim">{available ? t('noRequests') : t('offlineNoRequests')}</Text></Card>
           )}
         </>

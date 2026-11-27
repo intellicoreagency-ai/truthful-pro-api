@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AgentBadge } from '@/components/AgentBadge';
 import { Backdrop } from '@/components/Backdrop';
@@ -11,6 +11,8 @@ import { agentById, nationality } from '@/data/agents';
 import { useI18n } from '@/i18n';
 import { fontFor } from '@/theme/fonts';
 import { color, radius, space, TOUCH } from '@/theme/tokens';
+import { FadeIn } from '@/components/FadeIn';
+import { Press } from '@/components/Press';
 
 type Msg = { id: string; from: 'user' | 'agent' | 'system'; text: string };
 
@@ -67,9 +69,9 @@ export default function Chat() {
       <Backdrop />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
-          <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t('back')} style={styles.back}>
+          <Press onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t('back')} style={styles.back}>
             <Ionicons name="arrow-back" size={24} color={color.text} style={{ transform: [{ scaleX: dir === 'rtl' ? -1 : 1 }] }} />
-          </Pressable>
+          </Press>
           <AgentBadge agent={agent} size={44} />
           <View style={{ flex: 1 }}>
             <Text weight="semibold">{agent.name[L]}</Text>
@@ -99,6 +101,7 @@ export default function Chat() {
                 </Text>
               </View>
             ) : (
+              <FadeIn style={{ alignSelf: item.from === 'user' ? 'flex-end' : 'flex-start', maxWidth: '86%' }}>
               <Glass
                 strong={item.from === 'user'}
                 r={radius.lg}
@@ -109,14 +112,15 @@ export default function Chat() {
               >
                 <Text>{item.text}</Text>
               </Glass>
+              </FadeIn>
             )
           }
         />
 
         <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, space.md) }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('attachPhoto')} style={styles.round}>
+          <Press accessibilityRole="button" accessibilityLabel={t('attachPhoto')} style={styles.round}>
             <Ionicons name="camera-outline" size={24} color={color.text} />
-          </Pressable>
+          </Press>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -127,7 +131,7 @@ export default function Chat() {
             returnKeyType="send"
             style={[styles.input, { fontFamily: fontFor(lang, 'regular') }]}
           />
-          <Pressable
+          <Press
             onPress={send}
             disabled={!draft.trim()}
             accessibilityRole="button"
@@ -135,7 +139,7 @@ export default function Chat() {
             style={[styles.round, { backgroundColor: color.gold, opacity: draft.trim() ? 1 : 0.5 }]}
           >
             <Ionicons name="send" size={20} color={color.ink} style={{ transform: [{ scaleX: dir === 'rtl' ? -1 : 1 }] }} />
-          </Pressable>
+          </Press>
         </View>
       </KeyboardAvoidingView>
     </View>

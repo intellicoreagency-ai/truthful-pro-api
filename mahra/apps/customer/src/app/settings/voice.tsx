@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Glass } from '@/components/Glass';
 import { SubPage } from '@/components/SubPage';
@@ -8,6 +8,7 @@ import { Text } from '@/components/Text';
 import { Toggle } from '@/components/Toggle';
 import { useTx } from '@/i18n';
 import { color, radius, space, TOUCH } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 /** إعدادات الصوت: صوت مهرة Veda ثابت؛ اللهجة الإماراتية مع المتحدث بالعربية؛ سرعة الكلام والاستماع. */
 export default function VoiceSettings() {
@@ -46,9 +47,9 @@ export default function VoiceSettings() {
         <Text weight="bold">{tx('سرعة الكلام', 'Speaking speed')}</Text>
         <View style={styles.seg}>
           {speeds.map((s, i) => (
-            <Pressable key={s} onPress={() => setSpeed(i)} accessibilityRole="radio" accessibilityState={{ selected: speed === i }} style={[styles.segBtn, speed === i && { backgroundColor: color.gold + '2E', borderColor: color.gold }]}>
+            <Press key={s} onPress={() => setSpeed(i)} accessibilityRole="radio" accessibilityState={{ selected: speed === i }} style={[styles.segBtn, speed === i && { backgroundColor: color.gold + '2E', borderColor: color.gold }]}>
               <Text weight="medium" tone={speed === i ? 'gold' : 'normal'}>{s}</Text>
-            </Pressable>
+            </Press>
           ))}
         </View>
       </Glass>

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { Orb } from '@/components/Orb';
@@ -10,6 +10,8 @@ import { LANGS, useI18n } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { fontFor } from '@/theme/fonts';
 import { color, radius, space, TOUCH } from '@/theme/tokens';
+import { FadeIn } from '@/components/FadeIn';
+import { Press } from '@/components/Press';
 
 const digits = (s: string) => s.replace(/\D/g, '');
 const valid = (s: string) => digits(s).length === 9;
@@ -41,9 +43,9 @@ export default function Login() {
       <View style={[styles.hero, { paddingTop: insets.top + space.lg }]}>
         <View style={styles.langRow}>
           {LANGS.map((l) => (
-            <Pressable key={l.code} onPress={() => setLang(l.code)} accessibilityRole="button" accessibilityState={{ selected: lang === l.code }} style={[styles.chip, lang === l.code && { borderColor: color.gold }]}>
+            <Press key={l.code} onPress={() => setLang(l.code)} accessibilityRole="button" accessibilityState={{ selected: lang === l.code }} style={[styles.chip, lang === l.code && { borderColor: color.gold }]}>
               <Text variant="caption" tone={lang === l.code ? 'gold' : 'onInkDim'} style={lang === l.code ? { color: color.gold } : undefined}>{l.label}</Text>
-            </Pressable>
+            </Press>
           ))}
         </View>
         <Orb on size={96} />
@@ -62,18 +64,18 @@ export default function Login() {
                   <TextInput value={phone} onChangeText={(v) => setPhone(digits(v).slice(0, 9))} inputMode="numeric" autoComplete="tel" placeholder="50 123 4567" placeholderTextColor="#8892AB" accessibilityLabel={t('phoneLabel')} style={[...input, { flex: 1, textAlign: 'left', writingDirection: 'ltr' }]} />
                 </View>
               </View>
-              <Pressable onPress={() => setHasWa((v) => !v)} accessibilityRole="checkbox" accessibilityState={{ checked: hasWa }} style={styles.check}>
+              <Press onPress={() => setHasWa((v) => !v)} accessibilityRole="checkbox" accessibilityState={{ checked: hasWa }} style={styles.check}>
                 <Ionicons name={hasWa ? 'checkbox' : 'square-outline'} size={28} color={hasWa ? color.ok : color.dim} />
                 <Text style={{ flex: 1 }}>{t('hasWhatsapp')}</Text>
-              </Pressable>
+              </Press>
               {!hasWa && (
-                <View style={{ gap: 6 }}>
+                <FadeIn style={{ gap: 6 }}>
                   <Text variant="caption" tone="dim">{t('whatsappLabel')}</Text>
                   <View style={styles.phoneRow}>
                     <Text weight="semibold">+971</Text>
-                    <TextInput value={wa} onChangeText={(v) => setWa(digits(v).slice(0, 9))} inputMode="numeric" placeholder="50 123 4567" placeholderTextColor="#8892AB" accessibilityLabel={t('whatsappLabel')} style={[...input, { flex: 1, textAlign: 'left', writingDirection: 'ltr' }]} />
+                    <TextInput value={wa} onChangeText={(v) => setWa(digits(v).slice(0, 9))} inputMode="numeric" autoComplete="tel" placeholder="50 123 4567" placeholderTextColor="#8892AB" accessibilityLabel={t('whatsappLabel')} style={[...input, { flex: 1, textAlign: 'left', writingDirection: 'ltr' }]} />
                   </View>
-                </View>
+                </FadeIn>
               )}
               {error && <Text variant="caption" tone="bad" accessibilityLiveRegion="polite">{error}</Text>}
               <Button label={t('sendCode')} onPress={sendCode} />

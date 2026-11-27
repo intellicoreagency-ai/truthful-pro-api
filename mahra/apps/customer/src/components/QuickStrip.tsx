@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { ComponentProps } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Glass } from './Glass';
 import { Text } from './Text';
 import { useI18n, type StringKey } from '@/i18n';
 import { color } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 type Icon = ComponentProps<typeof Ionicons>['name'];
 const ITEMS: { key: StringKey; icon: Icon; go: () => void }[] = [
@@ -22,10 +23,10 @@ export function QuickStrip() {
       {ITEMS.map((i, n) => (
         <View key={i.key} style={{ flex: 1, flexDirection: 'row' }}>
           {n > 0 && <View style={styles.sep} />}
-          <Pressable onPress={i.go} accessibilityRole="button" accessibilityLabel={t(i.key)} style={styles.item}>
+          <Press onPress={i.go} accessibilityRole="button" accessibilityLabel={t(i.key)} style={styles.item}>
             <Ionicons name={i.icon} size={22} color={color.gold} />
             <Text variant="caption" weight="medium" center numberOfLines={1}>{t(i.key)}</Text>
-          </Pressable>
+          </Press>
         </View>
       ))}
     </Glass>

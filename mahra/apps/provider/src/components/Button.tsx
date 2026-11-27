@@ -2,7 +2,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import { Text } from './Text';
-import { color, gradient, radius, TOUCH } from '@/theme/tokens';
+import { useReducedMotion } from '@/lib/useReducedMotion';
+import { color, easeOut, gradient, pressMs, radius, TOUCH } from '@/theme/tokens';
 
 type Props = {
   label: string;
@@ -20,7 +21,8 @@ const FG = { primary: color.ink, dark: color.onInk, secondary: color.text, ghost
 /** زر كبير (52pt) لليد الواحدة. الرئيسي ذهبي جوهري بحافة بيضاء وتوهج ناعم؛ الضغطة تصغّره (110ms). */
 export function Button({ label, onPress, kind = 'primary', disabled, loading, icon, style, hint }: Props) {
   const [scale] = useState(() => new Animated.Value(1));
-  const to = (v: number) => Animated.timing(scale, { toValue: v, duration: 110, useNativeDriver: true }).start();
+  const reduced = useReducedMotion();
+  const to = (v: number) => { if (!reduced) Animated.timing(scale, { toValue: v, duration: v < 1 ? pressMs.in : pressMs.out, easing: easeOut, useNativeDriver: true }).start(); };
   const off = disabled || loading;
   const content = loading ? <ActivityIndicator color={FG[kind]} /> : (
     <View style={styles.row}>

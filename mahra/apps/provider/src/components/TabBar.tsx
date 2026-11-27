@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
 import type { ComponentProps } from 'react';
-import { Pressable, StyleSheet, View, type PressableProps } from 'react-native';
+import { StyleSheet, View, type PressableProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './Text';
 import { useI18n, type StringKey } from '@/i18n';
 import { useStore } from '@/lib/store';
 import { color, TOUCH } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 type BtnProps = TabTriggerSlotProps & { icon: IconName; iconOn: IconName; label: string; badge?: number };
@@ -14,7 +15,7 @@ type BtnProps = TabTriggerSlotProps & { icon: IconName; iconOn: IconName; label:
 function TabButton({ icon, iconOn, label, badge, isFocused, ...rest }: BtnProps) {
   const on = !!isFocused;
   return (
-    <Pressable {...(rest as unknown as PressableProps)} accessibilityRole="tab" accessibilityLabel={badge ? `${label} (${badge})` : label} accessibilityState={{ selected: on }} style={styles.tab}>
+    <Press {...(rest as unknown as PressableProps)} accessibilityRole="tab" accessibilityLabel={badge ? `${label} (${badge})` : label} accessibilityState={{ selected: on }} style={styles.tab}>
       <View>
         <Ionicons name={on ? iconOn : icon} size={26} color={on ? color.ink : color.dim} />
         {!!badge && (
@@ -25,7 +26,7 @@ function TabButton({ icon, iconOn, label, badge, isFocused, ...rest }: BtnProps)
       </View>
       <Text variant="caption" weight={on ? 'semibold' : 'regular'} style={{ color: on ? color.ink : color.dim, fontSize: 12 }}>{label}</Text>
       {on && <View style={styles.bar} />}
-    </Pressable>
+    </Press>
   );
 }
 

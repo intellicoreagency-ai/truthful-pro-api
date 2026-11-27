@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { AgentCard } from '@/components/AgentCard';
 import { Glass } from '@/components/Glass';
 import { Pearl } from '@/components/Pearl';
@@ -12,6 +12,7 @@ import { DEMO_REQUESTS } from '@/data/requests';
 import { useI18n, type StringKey } from '@/i18n';
 import { useVoice, type VoiceState } from '@/lib/voice';
 import { color, space, TOUCH } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 const STATUS: Record<VoiceState, StringKey> = { idle: 'statusIdle', listening: 'statusListening', thinking: 'statusThinking', speaking: 'statusSpeaking' };
 /** الأربعة الأساسية كما في الموجّه: ميرا، منصور، سارة، جلال */
@@ -29,26 +30,26 @@ export default function Home() {
       <QuickStrip />
 
       <View style={styles.stage}>
-        <Pressable onPress={toggle} accessibilityRole="button" accessibilityLabel={active ? t('stop') : t('talkToMohra')} style={{ borderRadius: 200 }}>
+        <Press onPress={toggle} accessibilityRole="button" accessibilityLabel={active ? t('stop') : t('talkToMohra')} style={{ borderRadius: 200 }}>
           <Pearl size={236} state={state}>
             <View style={styles.micDisc}><Ionicons name="mic-outline" size={34} color={color.text} /></View>
           </Pearl>
-        </Pressable>
+        </Press>
 
         <Text variant="heading" tone={active ? 'gold' : 'dim'} accessibilityLiveRegion="polite" center>
           {active ? t(STATUS[state]) : t('listeningLive')}
         </Text>
 
         {active && (
-          <Pressable onPress={stop} accessibilityRole="button" accessibilityLabel={t('stop')} style={styles.stopBtn}>
+          <Press onPress={stop} accessibilityRole="button" accessibilityLabel={t('stop')} style={styles.stopBtn}>
             <Ionicons name="stop-circle-outline" size={22} color={color.text} />
             <Text weight="medium">{t('stop')}</Text>
-          </Pressable>
+          </Press>
         )}
       </View>
 
       {pending && (
-        <Pressable onPress={() => router.push({ pathname: '/request/[id]', params: { id: pending.id } })} accessibilityRole="button" accessibilityLabel={`${t('activeRequest')}: ${pending.title[L]}`}>
+        <Press onPress={() => router.push({ pathname: '/request/[id]', params: { id: pending.id } })} accessibilityRole="button" accessibilityLabel={`${t('activeRequest')}: ${pending.title[L]}`}>
           <Glass r={22} strong style={styles.active}>
             <View style={styles.dot} />
             <View style={{ flex: 1 }}>
@@ -57,14 +58,14 @@ export default function Home() {
             </View>
             <Text variant="caption" tone="dim">{t('offersReady', { n: pending.offers.length })}</Text>
           </Glass>
-        </Pressable>
+        </Press>
       )}
 
       <View style={styles.titleRow}>
         <Text variant="title">{t('studioWord')} <Text variant="title" tone="gold">{t('appName')}</Text> AI</Text>
-        <Pressable onPress={() => router.navigate('/specialists')} accessibilityRole="button" style={{ minHeight: TOUCH, justifyContent: 'center' }}>
+        <Press onPress={() => router.navigate('/specialists')} accessibilityRole="button" style={{ minHeight: TOUCH, justifyContent: 'center' }}>
           <Text variant="caption" tone="gold" weight="medium">{t('allSpecialists')}</Text>
-        </Pressable>
+        </Press>
       </View>
 
       <View style={styles.grid}>

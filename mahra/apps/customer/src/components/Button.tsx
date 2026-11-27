@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import { Text } from './Text';
 import { Glass } from './Glass';
-import { color, gradient, motion, radius, TOUCH } from '@/theme/tokens';
+import { useReducedMotion } from '@/lib/voice';
+import { color, easeOut, gradient, pressMs, radius, TOUCH } from '@/theme/tokens';
 
 type Props = {
   label: string;
@@ -22,7 +23,8 @@ type Props = {
 /** كل ضغطة تصغّر الزر قليلاً (120ms) لتأكيد الاستجابة؛ الزر الرئيسي بتوهج ذهبي ناعم. */
 export function Button({ label, onPress, kind = 'gold', tint, disabled, loading, icon, style, hint, small }: Props) {
   const [scale] = useState(() => new Animated.Value(1));
-  const to = (v: number) => Animated.timing(scale, { toValue: v, duration: motion.press, useNativeDriver: true }).start();
+  const reduced = useReducedMotion();
+  const to = (v: number) => { if (!reduced) Animated.timing(scale, { toValue: v, duration: v < 1 ? pressMs.in : pressMs.out, easing: easeOut, useNativeDriver: true }).start(); };
   const off = disabled || loading;
   const h = small ? 40 : TOUCH + 6;
   const fg = kind === 'cta' || kind === 'gold' ? color.deep : kind === 'tint' ? color.deep : color.text;

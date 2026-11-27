@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { COMMISSION_STATUS, DOC_STATUS, PROVIDER_STATUS } from '@/lib/strings';
 
@@ -60,7 +61,7 @@ export function Stat({ n, label, sub, tone, href }: { n: ReactNode; label: strin
     </>
   );
   const cls = `card stat ${tone ?? ''}`;
-  return href ? <a className={cls} href={href}>{body}</a> : <div className={cls}>{body}</div>;
+  return href ? <Link className={cls} href={href}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
 export function Check({ ok, children }: { ok: boolean; children: ReactNode }) {

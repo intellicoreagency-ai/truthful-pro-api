@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Glass } from '@/components/Glass';
 import { Screen } from '@/components/Screen';
@@ -12,6 +12,7 @@ import { Toggle } from '@/components/Toggle';
 import { LANGS, useI18n, useTx } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { color, radius, space, TOUCH } from '@/theme/tokens';
+import { Press } from '@/components/Press';
 
 type Icon = ComponentProps<typeof Ionicons>['name'];
 
@@ -24,7 +25,7 @@ function Bento({ icon, title, tint = color.gold, onPress, children }: { icon: Ic
     </Glass>
   );
   return onPress ? (
-    <Pressable style={styles.half} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>{body}</Pressable>
+    <Press style={styles.half} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>{body}</Press>
   ) : (
     <View style={styles.half}>{body}</View>
   );
@@ -94,10 +95,10 @@ export default function Profile() {
           {LANGS.map((l) => {
             const on = l.code === lang;
             return (
-              <Pressable key={l.code} onPress={() => setLang(l.code)} accessibilityRole="radio" accessibilityState={{ selected: on }} style={[styles.lang, on && { borderColor: color.gold, backgroundColor: color.gold + '22' }]}>
+              <Press key={l.code} onPress={() => setLang(l.code)} accessibilityRole="radio" accessibilityState={{ selected: on }} style={[styles.lang, on && { borderColor: color.gold, backgroundColor: color.gold + '22' }]}>
                 {on && <Ionicons name="checkmark" size={18} color={color.gold} />}
                 <Text tone={on ? 'gold' : 'normal'}>{l.label}</Text>
-              </Pressable>
+              </Press>
             );
           })}
         </View>

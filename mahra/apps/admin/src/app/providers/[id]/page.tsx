@@ -28,7 +28,7 @@ export default async function ProviderPage({
   return (
     <div className="stack">
       <p className="small">
-        <Link href="/providers" className="muted">← المزودون</Link>
+        <Link href="/providers" className="muted">→ المزودون</Link>
       </p>
       <PageHead title={p.company_name} sub={`انضم ${date(p.created_at)}`}>
         <span className="inline">
@@ -69,7 +69,7 @@ export default async function ProviderPage({
                   <input type="hidden" name="provider" value={p.id} />
                   <input type="hidden" name="status" value="approved" />
                   <label className="field">السبب (مطلوب)
-                    <input type="text" name="reason" required placeholder="مثال: تم الاتفاق على سداد العمولة" />
+                    <input type="text" name="reason" required autoComplete="off" placeholder="مثال: تم الاتفاق على سداد العمولة…" />
                   </label>
                   <label className="field">مهلة بلا إيقاف آلي (أيام)
                     <input type="number" name="override_days" min={1} max={60} defaultValue={7} />
@@ -86,7 +86,7 @@ export default async function ProviderPage({
                   <input type="hidden" name="provider" value={p.id} />
                   <input type="hidden" name="status" value="suspended" />
                   <label className="field">السبب (مطلوب)
-                    <input type="text" name="reason" required placeholder="مثال: شكوى من عميل قيد التحقيق" />
+                    <input type="text" name="reason" required autoComplete="off" placeholder="مثال: شكوى من عميل قيد التحقيق…" />
                   </label>
                   <button className="btn danger">إيقاف</button>
                 </form>
@@ -101,7 +101,11 @@ export default async function ProviderPage({
                   <input type="hidden" name="status" value="terminated" />
                   <p className="small muted">الإلغاء نهائي ولا يمكن إرجاع الحساب. يُسجَّل في سجل التدقيق.</p>
                   <label className="field">السبب (مطلوب)
-                    <input type="text" name="reason" required placeholder="غير كفء، مشكلة مع عميل، سوء أدب، اتفاق خارج التطبيق…" />
+                    <input type="text" name="reason" required autoComplete="off" placeholder="مثال: اتفاق خارج التطبيق…" />
+                  </label>
+                  <label className="confirm">
+                    <input type="checkbox" name="confirm" value="yes" required />
+                    <span>أؤكد أن الإلغاء نهائي ولا رجعة فيه</span>
                   </label>
                   <button className="btn danger">إلغاء الحساب</button>
                 </form>
@@ -162,7 +166,7 @@ export default async function ProviderPage({
                         <input type="hidden" name="provider" value={p.id} />
                         <input type="hidden" name="id" value={doc.id} />
                         <input type="hidden" name="decision" value="reject" />
-                        <input type="text" name="reason" required placeholder="سبب الرفض" aria-label="سبب الرفض" />
+                        <input type="text" name="reason" required autoComplete="off" placeholder="سبب الرفض…" aria-label="سبب الرفض" />
                         <button className="btn sm">رفض</button>
                       </form>
                     </div>
