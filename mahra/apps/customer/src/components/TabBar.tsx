@@ -17,6 +17,8 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 type ButtonProps = TabTriggerSlotProps & { icon: IconName; iconActive: IconName; label: string; compact: boolean };
 
 const WORDMARK = require('../../assets/ui/mohra-wordmark.png');
+/** الميكروفون الذهبي (صورة المالك بعد إزالة الخلفية) */
+const MIC = require('../../assets/ui/mohra-mic-gold.png');
 const ND = Platform.OS !== 'web';
 /** ارتفاع الزر المرتفع فوق الكبسولة (كما في Truthful) */
 const FAB_RISE = 34;
@@ -46,7 +48,7 @@ function TabButton({ icon, iconActive, label, isFocused, compact, ...rest }: But
 }
 
 /**
- * زر مهرة في المنتصف (مثل «+» في Truthful): دائرة مرتفعة بحلقة ذهبية وسماعة. الضغط يفتح الرئيسية ويبدأ الاستماع
+ * زر مهرة في المنتصف (مثل «+» في Truthful): دائرة مرتفعة بحلقة ذهبية وميكروفون. الضغط يفتح الرئيسية ويبدأ الاستماع
  * فوراً (أو يوقفه)، ويظهر في كل صفحات التبويبات. تحته اسم «مهرة» بالخط الخطي.
  */
 function CenterButton({ label }: { label: string }) {
@@ -62,8 +64,8 @@ function CenterButton({ label }: { label: string }) {
       <Press onPress={press} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: on }} style={styles.fabHit}>
         <View pointerEvents="none" style={styles.fabShadow}>
           <LinearGradient colors={on ? ['#BAE6FD', '#38BDF8', '#0EA5E9'] : GOLD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabRing}>
-            <LinearGradient colors={['#2748B8', '#0E1F55']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fab}>
-              <Ionicons name={on ? 'mic' : 'headset'} size={28} color="#FFFFFF" />
+            <LinearGradient colors={['#1B3A9A', '#0A1638']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fab}>
+              <Image source={MIC} style={styles.mic} resizeMode="contain" />
             </LinearGradient>
           </LinearGradient>
         </View>
@@ -126,6 +128,7 @@ const styles = StyleSheet.create({
   fabHit: { marginTop: -FAB_RISE, borderRadius: 34 },
   fabShadow: { borderRadius: 33, ...(Platform.select({ web: { boxShadow: '0 8px 18px rgba(39,72,184,0.5)' }, default: { shadowColor: '#2748B8', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.45, shadowRadius: 14, elevation: 10 } }) as object) },
   fabRing: { width: 66, height: 66, borderRadius: 33, padding: 3 },
-  fab: { flex: 1, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
+  mic: { width: 27, height: 50 },
+  fab: { flex: 1, borderRadius: 30, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   word: { width: 44, height: 18, marginTop: 2 },
 });
