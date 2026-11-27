@@ -27,7 +27,7 @@ export function Button({ label, onPress, kind = 'gold', tint, disabled, loading,
   const to = (v: number) => { if (!reduced) Animated.timing(scale, { toValue: v, duration: v < 1 ? pressMs.in : pressMs.out, easing: easeOut, useNativeDriver: true }).start(); };
   const off = disabled || loading;
   const h = small ? 40 : TOUCH + 6;
-  const fg = kind === 'cta' || kind === 'gold' ? color.deep : kind === 'tint' ? color.deep : color.text;
+  const fg = kind === 'cta' || kind === 'gold' ? '#070B14' : kind === 'tint' ? color.deep : color.text;
 
   const content = loading ? (
     <ActivityIndicator color={fg} />

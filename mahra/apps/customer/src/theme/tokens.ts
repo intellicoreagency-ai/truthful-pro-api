@@ -56,7 +56,8 @@ export const color = {
 
 /** تدرّج زر الدخول الرئيسي: أزرق ناعم ← لؤلؤي ← شمبانيا (المنتصف اللؤلؤي يمنع الاخضرار الطيني) */
 export const gradient = {
-  cta: ['#6B8CFF', '#D4AF6A', '#F3D999'] as const,
+  /** مواصفات التصميم الدقيقة: شمبانيا كريمي يساراً ← ذهبي 48% ← كوبالت ملكي يميناً؛ النص عليه #070B14 */
+  cta: ['#F3DFC1', '#D9B982', '#254EDB'] as const,
   gold: ['#F3DDA0', '#D9BC7E', '#B8924A'] as const,
 };
 
@@ -77,3 +78,15 @@ export const motion = {
 export const easeOut = Easing.bezier(0.23, 1, 0.32, 1);
 /** ضغطة سريعة (100ms) وإفلات أبطأ قليلاً (160ms): الاستجابة أسرع من الإرجاع. */
 export const pressMs = { in: 100, out: 160 } as const;
+
+/**
+ * زجاج الوكلاء الملوّن (مواصفات Spatial Glass): توهج الحافة والتعبئة والزر لكل وكيل.
+ * ميرا زمردي، منصور ياقوتي، سارة ذهبي وردي، جلال وخالد عنبري.
+ */
+export const glow = {
+  emerald: { rim: 'rgba(52,211,153,0.45)', tint: 'rgba(16,185,129,0.14)', btn: ['#166534', '#15803D'] as const, ink: '#34D399' },
+  sapphire: { rim: 'rgba(96,165,250,0.45)', tint: 'rgba(37,99,235,0.15)', btn: ['#1E3A8A', '#2563EB'] as const, ink: '#60A5FA' },
+  rose: { rim: 'rgba(232,181,158,0.45)', tint: 'rgba(201,138,112,0.14)', btn: ['#A8715A', '#C98A70'] as const, ink: '#E8B59E' },
+  amber: { rim: 'rgba(251,191,36,0.45)', tint: 'rgba(217,119,6,0.14)', btn: ['#92400E', '#B45309'] as const, ink: '#FBBF24' },
+} as const;
+export type Tone = keyof typeof glow;

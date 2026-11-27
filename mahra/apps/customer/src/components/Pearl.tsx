@@ -19,7 +19,7 @@ function wave(amp: number, cycles: number, phase: number): string {
 }
 const WAVES = { a: wave(58, 1.5, 0), b: wave(40, 2, 1.2), c: wave(26, 2.5, 2.4) };
 
-type Props = { size: number; state: VoiceState; children?: ReactNode };
+type Props = { size: number; state: VoiceState; children?: ReactNode; /** كرة زجاجية شفافة قزحية (استوديو مهرة) بدل اللؤلؤة المضيئة */ glassy?: boolean };
 
 /**
  * اللؤلؤة: هوية مهرة. كرة زجاجية بإضاءة داخلية وحافة قزحية (ذهبي، وردي، فيروزي).
@@ -29,7 +29,7 @@ type Props = { size: number; state: VoiceState; children?: ReactNode };
  *  speaking  موجات متوسطة
  * مع «تقليل الحركة»: لا حلقات ولا نبض؛ الحالة تظهر بنص الحالة المرافق.
  */
-export function Pearl({ size, state, children }: Props) {
+export function Pearl({ size, state, children, glassy }: Props) {
   const reduced = useReducedMotion();
   const uid = useId().replace(/:/g, '');
   const [breath] = useState(() => new Animated.Value(0));
@@ -91,7 +91,10 @@ export function Pearl({ size, state, children }: Props) {
         <Svg width={s} height={s} viewBox="0 0 300 300">
           <Defs>
             <RadialGradient id={`${uid}h`} cx="50%" cy="50%" r="50%"><Stop offset="0.56" stopColor={color.gold} stopOpacity="0.42" /><Stop offset="0.82" stopColor={color.cyan} stopOpacity="0.08" /><Stop offset="1" stopColor={color.cyan} stopOpacity="0" /></RadialGradient>
-            <RadialGradient id={`${uid}b`} cx="32%" cy="28%" r="78%"><Stop offset="0" stopColor="#FFFFFF" /><Stop offset="0.32" stopColor="#E2C07D" /><Stop offset="0.7" stopColor="#6B8CFF" /><Stop offset="1" stopColor="#0C111D" /></RadialGradient>
+            <RadialGradient id={`${uid}b`} cx="32%" cy="28%" r="78%">{(glassy
+              ? [[0, '#FFFFFF', 0.42], [0.34, '#E2C07D', 0.3], [0.68, '#38BDF8', 0.26], [1, '#0C111D', 0.72]]
+              : [[0, '#FFFFFF', 1], [0.32, '#E2C07D', 1], [0.7, '#6B8CFF', 1], [1, '#0C111D', 1]]
+            ).map(([o, c, op]) => <Stop key={String(o)} offset={String(o)} stopColor={String(c)} stopOpacity={String(op)} />)}</RadialGradient>
             <LinearGradient id={`${uid}r`} x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#F6DDA6" /><Stop offset="0.34" stopColor="#EAB9D3" /><Stop offset="0.62" stopColor={color.cyan} /><Stop offset="1" stopColor={color.gold} /></LinearGradient>
           </Defs>
           <Circle cx="150" cy="150" r="146" fill={`url(#${uid}h)`} />
@@ -108,11 +111,11 @@ export function Pearl({ size, state, children }: Props) {
       <Animated.View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', transform: [{ scaleY }] }]} pointerEvents="none">
         <Svg width={wv} height={s} viewBox={`0 0 ${W} 300`}>
           <Defs>
-            <LinearGradient id={`${uid}wg`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={W} y2="0"><Stop offset="0" stopColor={color.gold} stopOpacity="0" /><Stop offset="0.25" stopColor={color.goldBright} /><Stop offset="0.5" stopColor="#fff" /><Stop offset="0.75" stopColor={color.goldBright} /><Stop offset="1" stopColor={color.gold} stopOpacity="0" /></LinearGradient>
+            <LinearGradient id={`${uid}wg`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={W} y2="0"><Stop offset="0" stopColor="#E2C07D" stopOpacity="0" /><Stop offset="0.22" stopColor="#E2C07D" /><Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.9" /><Stop offset="0.78" stopColor="#38BDF8" /><Stop offset="1" stopColor="#38BDF8" stopOpacity="0" /></LinearGradient>
             <LinearGradient id={`${uid}wc`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={W} y2="0"><Stop offset="0" stopColor={color.cyan} stopOpacity="0" /><Stop offset="0.3" stopColor={color.cyan} /><Stop offset="0.7" stopColor={color.cyan} /><Stop offset="1" stopColor={color.cyan} stopOpacity="0" /></LinearGradient>
           </Defs>
           <Path d={WAVES.a} fill="none" stroke={`url(#${uid}wg)`} strokeWidth="2.8" strokeLinecap="round" strokeDasharray="0 6.4" />
-          <Path d={WAVES.b} fill="none" stroke={`url(#${uid}wc)`} strokeWidth="2.2" strokeLinecap="round" strokeDasharray="0 6" opacity={0.85 * hm + 0.1} />
+          <Path d={WAVES.b} fill="none" stroke={`url(#${uid}wg)`} strokeWidth="2.2" strokeLinecap="round" strokeDasharray="0 6" opacity={0.85 * hm + 0.1} />
           <Path d={WAVES.c} fill="none" stroke={`url(#${uid}wg)`} strokeWidth="1.6" strokeLinecap="round" strokeDasharray="0 7.2" opacity={0.6} />
         </Svg>
       </Animated.View>

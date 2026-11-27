@@ -1,18 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
 import type { ComponentProps } from 'react';
 import { StyleSheet, View, type PressableProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glass } from './Glass';
+import { Press } from './Press';
 import { Text } from './Text';
 import { useI18n, type StringKey } from '@/i18n';
-import { useVoice } from '@/lib/voice';
-import { color, radius, TOUCH } from '@/theme/tokens';
-import { Press } from '@/components/Press';
+import { color, radius } from '@/theme/tokens';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
-
 type ButtonProps = TabTriggerSlotProps & { icon: IconName; iconActive: IconName; label: string };
 
 function TabButton({ icon, iconActive, label, isFocused, ...rest }: ButtonProps) {
@@ -22,83 +19,43 @@ function TabButton({ icon, iconActive, label, isFocused, ...rest }: ButtonProps)
       accessibilityRole="tab"
       accessibilityLabel={label}
       accessibilityState={{ selected: !!isFocused }}
-      style={styles.tab}
+      style={[styles.tab, isFocused && styles.tabOn]}
     >
-      <Ionicons name={isFocused ? iconActive : icon} size={24} color={isFocused ? color.gold : color.textDim} />
-      <Text style={[styles.tabLabel, { color: isFocused ? color.gold : color.textDim }]}>{label}</Text>
+      <Ionicons name={isFocused ? iconActive : icon} size={24} color={isFocused ? color.goldBright : color.textDim} />
+      <Text style={[styles.tabLabel, { color: isFocused ? color.goldBright : color.textDim }]} numberOfLines={1}>{label}</Text>
     </Press>
   );
 }
 
+/** الترتيب كما في المواصفات: الرئيسية، الوكلاء، طلباتي، حسابي. */
 const TABS: { name: string; key: StringKey; icon: IconName; active: IconName }[] = [
   { name: 'home', key: 'tabHome', icon: 'home-outline', active: 'home' },
-  { name: 'requests', key: 'tabRequests', icon: 'receipt-outline', active: 'receipt' },
   { name: 'specialists', key: 'tabSpecialists', icon: 'people-outline', active: 'people' },
+  { name: 'requests', key: 'tabRequests', icon: 'receipt-outline', active: 'receipt' },
   { name: 'profile', key: 'tabProfile', icon: 'person-outline', active: 'person' },
 ];
 
-/**
- * شريط سفلي عائم. زر الميكروفون في الوسط أكبر عناصره ومتاح للإبهام من كل تبويب.
- * التبويبات تُعرَّف في _layout (TabList مخفي)، وهذا الشريط يستدعيها بالاسم.
- */
+/** دوك زجاجي عائم: كبسولة بأربعة أزرار، والتبويب النشط في مربع زجاجي مضيء. */
 export function TabBar() {
   const { t } = useI18n();
-  const { state, toggle } = useVoice();
   const insets = useSafeAreaInsets();
-  const active = state !== 'idle';
-
-  const onMic = () => {
-    router.navigate('/');
-    toggle();
-  };
-
-  const tab = (i: number) => {
-    const x = TABS[i];
-    return (
-      <TabTrigger key={x.name} name={x.name} asChild>
-        <TabButton icon={x.icon} iconActive={x.active} label={t(x.key)} />
-      </TabTrigger>
-    );
-  };
-
   return (
     <View style={[styles.wrap, { bottom: Math.max(insets.bottom, 12) }]} pointerEvents="box-none">
       <Glass strong r={radius.xl} style={styles.bar}>
-        {tab(0)}
-        {tab(1)}
-        <View style={styles.micSlot}>
-          <Press
-            onPress={onMic}
-            accessibilityRole="button"
-            accessibilityLabel={active ? t('stop') : t('talkToMohra')}
-            accessibilityState={{ selected: active }}
-            style={[styles.mic, active && { backgroundColor: color.aqua }]}
-          >
-            <Ionicons name={active ? 'stop' : 'mic'} size={28} color={color.ink} />
-          </Press>
-        </View>
-        {tab(2)}
-        {tab(3)}
+        {TABS.map((x) => (
+          <TabTrigger key={x.name} name={x.name} asChild>
+            <TabButton icon={x.icon} iconActive={x.active} label={t(x.key)} />
+          </TabTrigger>
+        ))}
       </Glass>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', start: 16, end: 16 },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, minHeight: 68, backgroundColor: 'rgba(11,16,29,0.88)', borderTopColor: 'rgba(235,208,142,0.8)' },
-  tab: { flex: 1, minHeight: TOUCH + 8, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  tabLabel: { fontSize: 12, lineHeight: 16 },
-  micSlot: { width: 76, alignItems: 'center' },
-  mic: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    marginTop: -26,
-    backgroundColor: color.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: color.ink,
-  },
+  wrap: { position: 'absolute', start: 20, end: 20 },
+  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 6, backgroundColor: 'rgba(9,13,26,0.72)' },
+  tab: { flex: 1, minHeight: 56, borderRadius: 20, alignItems: 'center', justifyContent: 'center', gap: 2, borderWidth: 1, borderColor: 'transparent' },
+  tabOn: { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.30)' },
+  tabLabel: { fontSize: 11, lineHeight: 15 },
 });

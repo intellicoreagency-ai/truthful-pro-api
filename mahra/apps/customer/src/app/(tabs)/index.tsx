@@ -1,45 +1,52 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
-import { AgentCard } from '@/components/AgentCard';
+import { BentoCard } from '@/components/BentoCard';
 import { Glass } from '@/components/Glass';
 import { Pearl } from '@/components/Pearl';
-import { QuickStrip } from '@/components/QuickStrip';
-import { Screen } from '@/components/Screen';
-import { Text } from '@/components/Text';
-import { agentById, type AgentId } from '@/data/agents';
-import { DEMO_REQUESTS } from '@/data/requests';
-import { useI18n, type StringKey } from '@/i18n';
-import { useVoice, type VoiceState } from '@/lib/voice';
-import { color, space, TOUCH } from '@/theme/tokens';
 import { Press } from '@/components/Press';
+import { Screen } from '@/components/Screen';
+import { StudioMic } from '@/components/StudioMic';
+import { Text } from '@/components/Text';
+import { LANGS, useI18n, useTx, type StringKey } from '@/i18n';
+import { useVoice, type VoiceState } from '@/lib/voice';
+import { color, space } from '@/theme/tokens';
 
 const STATUS: Record<VoiceState, StringKey> = { idle: 'statusIdle', listening: 'statusListening', thinking: 'statusThinking', speaking: 'statusSpeaking' };
-/** الأربعة الأساسية كما في الموجّه: ميرا، منصور، سارة، جلال */
-const FEATURED: AgentId[] = ['meera', 'mansour', 'sara', 'jalal'];
+const chat = (agentId: string) => () => router.push({ pathname: '/chat/[agentId]', params: { agentId } });
 
+/**
+ * استوديو مهرة AI: كبسولة عنوان عائمة، كرة زجاجية قزحية بميكروفون استوديو وموجات (ذهبية يساراً، فيروزية يميناً)،
+ * ثم شبكة 2×2 بتوهج حواف: ميرا زمردي، منصور ياقوتي، سارة وردي ذهبي، جلال وخالد عنبري.
+ * الضغط على الكرة يبدأ الاستماع ويوجّه الأمر الصوتي للوكيل المناسب.
+ */
 export default function Home() {
   const { t, lang } = useI18n();
+  const tx = useTx();
   const { state, toggle, stop } = useVoice();
   const active = state !== 'idle';
-  const pending = DEMO_REQUESTS.find((r) => r.status === 'offers');
-  const L = lang === 'ar' ? 'ar' : 'en';
+  const langLabel = LANGS.find((l) => l.code === lang)?.label ?? '';
 
   return (
     <Screen tabs>
-      <QuickStrip />
+      <Glass r={999} strong style={styles.header}>
+        <View style={styles.live} />
+        <Text variant="heading" weight="bold" style={{ flex: 1 }}>{tx('استوديو مهرة', 'Mohra')} AI</Text>
+        <Press onPress={() => router.navigate('/profile')} accessibilityRole="button" accessibilityLabel={t('language')} style={styles.langBadge}>
+          <Ionicons name="globe-outline" size={16} color={color.goldBright} />
+          <Text variant="caption" weight="semibold" style={{ color: color.goldBright }}>{langLabel}</Text>
+        </Press>
+      </Glass>
 
       <View style={styles.stage}>
         <Press onPress={toggle} accessibilityRole="button" accessibilityLabel={active ? t('stop') : t('talkToMohra')} style={{ borderRadius: 200 }}>
-          <Pearl size={236} state={state}>
-            <View style={styles.micDisc}><Ionicons name="mic-outline" size={34} color={color.text} /></View>
+          <Pearl size={236} state={state} glassy>
+            <StudioMic size={92} />
           </Pearl>
         </Press>
-
         <Text variant="heading" tone={active ? 'gold' : 'dim'} accessibilityLiveRegion="polite" center>
           {active ? t(STATUS[state]) : t('listeningLive')}
         </Text>
-
         {active && (
           <Press onPress={stop} accessibilityRole="button" accessibilityLabel={t('stop')} style={styles.stopBtn}>
             <Ionicons name="stop-circle-outline" size={22} color={color.text} />
@@ -48,42 +55,21 @@ export default function Home() {
         )}
       </View>
 
-      {pending && (
-        <Press onPress={() => router.push({ pathname: '/request/[id]', params: { id: pending.id } })} accessibilityRole="button" accessibilityLabel={`${t('activeRequest')}: ${pending.title[L]}`}>
-          <Glass r={22} strong style={styles.active}>
-            <View style={styles.dot} />
-            <View style={{ flex: 1 }}>
-              <Text variant="caption" tone="gold">{t('activeRequest')}</Text>
-              <Text weight="semibold">{pending.title[L]}</Text>
-            </View>
-            <Text variant="caption" tone="dim">{t('offersReady', { n: pending.offers.length })}</Text>
-          </Glass>
-        </Press>
-      )}
-
-      <View style={styles.titleRow}>
-        <Text variant="title">{t('studioWord')} <Text variant="title" tone="gold">{t('appName')}</Text> AI</Text>
-        <Press onPress={() => router.navigate('/specialists')} accessibilityRole="button" style={{ minHeight: TOUCH, justifyContent: 'center' }}>
-          <Text variant="caption" tone="gold" weight="medium">{t('allSpecialists')}</Text>
-        </Press>
-      </View>
-
       <View style={styles.grid}>
-        {FEATURED.map((id) => {
-          const a = agentById(id)!;
-          return <AgentCard key={id} agent={a} />;
-        })}
+        <BentoCard tone="emerald" icon="briefcase-outline" title={tx('ميرا · التوظيف والسيرة', 'Meera · Jobs and CV')} sub={tx('سيرتك الذاتية وطلبات العمل في الإمارات', 'Your CV and UAE job applications')} onPress={chat('meera')} />
+        <BentoCard tone="sapphire" icon="map-outline" title={tx('منصور · خرائط الإمارات', 'Mansour · UAE maps')} sub={tx('أقرب خدمة وطريق الوصول', 'Nearest service and directions')} onPress={chat('mansour')} />
+        <BentoCard tone="rose" icon="sparkles-outline" title={tx('سارة · رعاية المرافق', 'Sara · Facility care')} sub={tx('تنظيف الغرف والمكاتب والدراي كلين', 'Room, office and dry cleaning')} onPress={chat('sara')} />
+        <BentoCard tone="amber" icon="car-sport-outline" title={tx('جلال وم. خالد', 'Jalal and Eng. Khaled')} sub={tx('السيارات والمقاولات وعروض الأسعار', 'Cars, contracting and quotes')} onPress={chat('jalal')} />
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, minHeight: 56 },
+  live: { width: 9, height: 9, borderRadius: 5, backgroundColor: color.green },
+  langBadge: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, borderRadius: 99, borderWidth: 1, borderColor: 'rgba(235,208,142,0.5)', backgroundColor: 'rgba(235,208,142,0.10)' },
   stage: { alignItems: 'center', gap: space.md, paddingVertical: space.sm },
-  micDisc: { width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)', alignItems: 'center', justifyContent: 'center' },
-  stopBtn: { minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: 99, borderWidth: 1, borderColor: color.hairline, backgroundColor: color.glass },
-  active: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: 12 },
-  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: color.gold },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stopBtn: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: 99, borderWidth: 1, borderColor: color.hairline, backgroundColor: color.glass },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md, justifyContent: 'space-between' },
 });

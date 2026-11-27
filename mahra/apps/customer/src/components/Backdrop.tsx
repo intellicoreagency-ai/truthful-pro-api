@@ -16,7 +16,8 @@ export function Backdrop({ tone = 'gold' }: Props) {
     <View style={StyleSheet.absoluteFill} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Svg width="100%" height="100%" preserveAspectRatio="none">
         <Defs>
-          <LinearGradient id={`${id}b`} x1="0" y1="0" x2="0.35" y2="1"><Stop offset="0" stopColor="#070B14" /><Stop offset="0.5" stopColor="#0E172A" /><Stop offset="1" stopColor="#140D1B" /></LinearGradient>
+          <LinearGradient id={`${id}b`} x1="0" y1="0" x2="0.35" y2="1"><Stop offset="0" stopColor="#060913" /><Stop offset="0.5" stopColor="#0D1528" /><Stop offset="1" stopColor="#151024" /></LinearGradient>
+          <LinearGradient id={`${id}v`} x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.07" /><Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" /></LinearGradient>
           <RadialGradient id={`${id}1`} cx="0.82" cy="0.1" rx="0.7" ry="0.32"><Stop offset="0" stopColor={color.periwinkle} stopOpacity="0.30" /><Stop offset="1" stopColor={color.periwinkle} stopOpacity="0" /></RadialGradient>
           <RadialGradient id={`${id}2`} cx="0.16" cy="0.36" rx="0.7" ry="0.3"><Stop offset="0" stopColor={warm} stopOpacity="0.22" /><Stop offset="1" stopColor={warm} stopOpacity="0" /></RadialGradient>
           <RadialGradient id={`${id}3`} cx="0.5" cy="0.95" rx="0.8" ry="0.3"><Stop offset="0" stopColor={color.green} stopOpacity="0.17" /><Stop offset="1" stopColor={color.green} stopOpacity="0" /></RadialGradient>
@@ -25,6 +26,10 @@ export function Backdrop({ tone = 'gold' }: Props) {
         <Rect width="100%" height="100%" fill={`url(#${id}1)`} />
         <Rect width="100%" height="100%" fill={`url(#${id}2)`} />
         <Rect width="100%" height="100%" fill={`url(#${id}3)`} />
+        {/* أشعة ضوء معمارية رأسية خافتة */}
+        <Rect x="14%" width="3%" height="70%" fill={`url(#${id}v)`} />
+        <Rect x="49%" width="2%" height="55%" fill={`url(#${id}v)`} />
+        <Rect x="82%" width="3%" height="65%" fill={`url(#${id}v)`} />
       </Svg>
     </View>
   );
