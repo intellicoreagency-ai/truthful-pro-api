@@ -7,7 +7,7 @@ import { AgentBadge } from '@/components/AgentBadge';
 import { Backdrop } from '@/components/Backdrop';
 import { Glass } from '@/components/Glass';
 import { Text } from '@/components/Text';
-import { agentById } from '@/data/agents';
+import { agentById, nationality } from '@/data/agents';
 import { useI18n } from '@/i18n';
 import { fontFor } from '@/theme/fonts';
 import { color, radius, space, TOUCH } from '@/theme/tokens';
@@ -18,10 +18,10 @@ type Msg = { id: string; from: 'user' | 'agent' | 'system'; text: string };
 const SCRIPT = {
   ar: {
     jalal: [
-      'معك جلال، هلا والله. إذا إنت على شارع سريع، ابعد عن السير وشغّل الفلاشر أول شي، وبعدين قل لي شو صاير بالسيارة.',
-      'تمام. شو نوع السيارة وموديلها؟ وإذا تقدر، أرسل صورة للوحة العدادات أو للمكان اللي طالعة منه المشكلة.',
+      'هلا والله، معك جلال. إذا إنت على طريق سريع، ابعد عن السير وشغّل الأربع أول شي، وبعدين قل لي وش صاير بالسيارة.',
+      'تمام. وش نوع السيارة وموديلها؟ وإذا تقدر، أرسل لي صورة للوحة العدادات أو للمكان اللي يطلع منه الصوت.',
     ],
-    other: ['هلا والله. أسمعك، شو تحتاج بالضبط؟', 'فهمت عليك. بدبّر لك الخطوة اللي بعدها.'],
+    other: ['أهلاً بك، أسمعك. ما الذي تحتاجه بالضبط؟', 'فهمت عليك. سأرتب لك الخطوة التالية.'],
   },
   en: {
     jalal: [
@@ -74,7 +74,7 @@ export default function Chat() {
           <View style={{ flex: 1 }}>
             <Text weight="semibold">{agent.name[L]}</Text>
             <Text variant="caption" tone="dim" numberOfLines={1}>
-              {agent.role[L]}
+              {agent.role[L]} · {nationality(agent, L)}
             </Text>
           </View>
         </View>

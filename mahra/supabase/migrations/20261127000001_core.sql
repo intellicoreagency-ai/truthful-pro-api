@@ -24,7 +24,7 @@ create table agents (
   name_ar text not null,
   name_en text not null,
   gender char(1) not null check (gender in ('m','f')),
-  persona text,                                  -- الشخصية الصوتية/الجنسية (يحددها المالك)
+  dialect text not null check (dialect in ('jordanian','lebanese','syrian','egyptian','saudi')),  -- لهجة/جنسية الوكيل بالعربية (لا مغاربية)
   status text not null default 'soon' check (status in ('live','soon')),
   has_commission boolean not null default true
 );

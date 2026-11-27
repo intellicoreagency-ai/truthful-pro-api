@@ -4,7 +4,7 @@ import { AgentBadge } from '@/components/AgentBadge';
 import { Glass } from '@/components/Glass';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { AGENTS } from '@/data/agents';
+import { AGENTS, nationality } from '@/data/agents';
 import { useI18n } from '@/i18n';
 import { color, radius, space } from '@/theme/tokens';
 
@@ -38,7 +38,7 @@ export default function Specialists() {
                 </View>
               </View>
               <Text variant="caption" tone="gold">
-                {a.role[L]}
+                {a.role[L]} · {nationality(a, L)}
               </Text>
               <Text variant="caption" tone="dim">
                 {a.summary[L]}

@@ -1,22 +1,22 @@
 -- مهرة: بيانات مرجعية (الوكلاء وفئات الخدمة). المصدر: دليل الوكلاء v18.
--- الشخصية الصوتية (persona): طلال أردني، نورة لبنانية؛ الباقي يحدده المالك.
+-- dialect = لهجة الوكيل عند التحدث بالعربية (jordanian | lebanese | syrian | egyptian | saudi). مهرة إماراتية.
 
-insert into agents (id, name_ar, name_en, gender, persona, status, has_commission) values
-  ('jalal',   'جلال',   'Jalal',   'm', null,      'live', true),
-  ('layla',   'ليلى',   'Layla',   'f', null,      'soon', true),
-  ('noura',   'نورة',   'Noura',   'f', 'لبنانية', 'soon', false),
-  ('talal',   'طلال',   'Talal',   'm', 'أردني',   'soon', true),
-  ('khaled',  'خالد',   'Khaled',  'm', null,      'soon', true),
-  ('sara',    'سارة',   'Sara',    'f', null,      'soon', true),
-  ('rashid',  'راشد',   'Rashid',  'm', null,      'soon', true),
-  ('karim',   'كريم',   'Karim',   'm', null,      'soon', true),
-  ('reem',    'د. ريم', 'Dr Reem', 'f', null,      'soon', true),
-  ('dana',    'دانة',   'Dana',    'f', null,      'soon', true),
-  ('omar',    'أ. عمر', 'Mr Omar', 'm', null,      'soon', false),
-  ('tareq',   'طارق',   'Tareq',   'm', null,      'soon', true),
-  ('mansour', 'منصور',  'Mansour', 'm', null,      'soon', false),
-  ('faisal',  'فيصل',   'Faisal',  'm', null,      'soon', false),
-  ('meera',   'ميرا',   'Meera',   'f', null,      'soon', false);
+insert into agents (id, name_ar, name_en, gender, dialect, status, has_commission) values
+  ('jalal',   'جلال',   'Jalal',   'm', 'saudi',      'live', true),
+  ('layla',   'ليلى',   'Layla',   'f', 'syrian',      'soon', true),
+  ('noura',   'نورة',   'Noura',   'f', 'lebanese', 'soon', false),
+  ('talal',   'طلال',   'Talal',   'm', 'jordanian',   'soon', true),
+  ('khaled',  'خالد',   'Khaled',  'm', 'egyptian',      'soon', true),
+  ('sara',    'سارة',   'Sara',    'f', 'syrian',      'soon', true),
+  ('rashid',  'راشد',   'Rashid',  'm', 'saudi',      'soon', true),
+  ('karim',   'كريم',   'Karim',   'm', 'jordanian',      'soon', true),
+  ('reem',    'د. ريم', 'Dr Reem', 'f', 'lebanese',      'soon', true),
+  ('dana',    'دانة',   'Dana',    'f', 'jordanian',      'soon', true),
+  ('omar',    'أ. عمر', 'Mr Omar', 'm', 'egyptian',      'soon', false),
+  ('tareq',   'طارق',   'Tareq',   'm', 'egyptian',      'soon', true),
+  ('mansour', 'منصور',  'Mansour', 'm', 'syrian',      'soon', false),
+  ('faisal',  'فيصل',   'Faisal',  'm', 'saudi',      'soon', false),
+  ('meera',   'ميرا',   'Meera',   'f', 'lebanese',      'soon', false);
 
 -- المسار الأول: السيارات. عمولة 20% على السطحات والورش؛ الإنقاذ الطرقي كذلك.
 insert into service_categories (id, agent_id, name_ar, name_en, commission_rate, flow) values
