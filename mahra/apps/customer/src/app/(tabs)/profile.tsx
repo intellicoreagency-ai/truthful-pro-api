@@ -12,6 +12,7 @@ import { Text } from '@/components/Text';
 import { Toggle } from '@/components/Toggle';
 import { LANGS, useI18n, useTx } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { ltr } from '@/lib/bidi';
 import { color, glow, radius, space, TOUCH, type Tone } from '@/theme/tokens';
 
 type Icon = ComponentProps<typeof Ionicons>['name'];
@@ -65,7 +66,7 @@ export default function Profile() {
           <Text variant="title" weight="bold" center>{tx('محمود الأحمد', 'Mahmoud Al-Ahmad')}</Text>
           <View style={styles.member}>
             <Ionicons name="checkmark-circle" size={16} color={color.goldBright} />
-            <Text variant="caption" weight="semibold" tone="gold">{tx('عضوية مهرة الذكية • الإمارات العربية المتحدة', 'Mohra Smart Member • UAE')}</Text>
+            <Text variant="caption" font="label" weight="semibold" tone="gold">{tx('عضوية مهرة الذكية • الإمارات العربية المتحدة', 'Mohra Smart Member • UAE')}</Text>
           </View>
         </Glass>
       </View>
@@ -77,7 +78,7 @@ export default function Profile() {
               const on = l.code === lang;
               return (
                 <Press key={l.code} onPress={() => setLang(l.code)} accessibilityRole="radio" accessibilityState={{ selected: on }} style={[styles.lang, on && styles.langOn]}>
-                  <Text variant="caption" weight={on ? 'bold' : 'regular'} tone={on ? 'gold' : 'normal'}>{l.label}</Text>
+                  <Text variant="caption" font="label" weight={on ? 'bold' : 'regular'} tone={on ? 'gold' : 'normal'}>{l.label}</Text>
                 </Press>
               );
             })}
@@ -85,7 +86,7 @@ export default function Profile() {
         </Cell>
         <Cell title={tx('التواصل والواتساب', 'Contact and WhatsApp')}>
           <View style={styles.badges}><Badge icon="call-outline" /><Badge icon="logo-whatsapp" tone="emerald" /><Badge icon="location-outline" tone="sapphire" /></View>
-          <Text variant="caption" tone="dim" style={{ writingDirection: 'ltr' }}>+971 50 XXXXX • {tx('الشارقة، الإمارات', 'Sharjah, UAE')}</Text>
+          <Text variant="caption" tone="dim">{ltr('+971 50 XXXXX')} • {tx('الشارقة، الإمارات', 'Sharjah, UAE')}</Text>
           <Text variant="caption" tone="dim">{tx('واتساب مفعّل', 'WhatsApp active')}</Text>
         </Cell>
       </View>
@@ -96,8 +97,8 @@ export default function Profile() {
           <Text variant="caption" tone="dim">{tx('دبي • الشارقة • أبوظبي', 'Dubai • Sharjah • Abu Dhabi')}</Text>
           <Text variant="caption" weight="semibold" style={{ color: glow.sapphire.ink }}>{tx('4 عناوين مفعّلة', '4 active addresses')}</Text>
         </Cell>
-        <Cell tone="emerald" title={tx('السيرة الذاتية CV', 'CV')} onPress={() => router.push('/profile/cv')}>
-          <Text variant="caption" tone="dim">{tx('ملف CV مرفوع ومرتبط مع ميرا', 'CV uploaded and linked to Meera')}</Text>
+        <Cell tone="emerald" title={tx(`السيرة الذاتية ${ltr('CV')}`, 'CV')} onPress={() => router.push('/profile/cv')}>
+          <Text variant="caption" tone="dim">{tx(`ملف ${ltr('CV')} مرفوع ومرتبط مع ميرا`, 'CV uploaded and linked to Meera')}</Text>
           <View style={styles.badges}>
             <View style={styles.docBtn}><Ionicons name="document-text-outline" size={18} color={color.goldBright} /><Text variant="caption" weight="semibold" tone="gold">{tx('معاينة', 'Preview')}</Text></View>
             <View style={styles.docBtn}><Ionicons name="cloud-upload-outline" size={18} color={color.goldBright} /><Text variant="caption" weight="semibold" tone="gold">{tx('رفع', 'Upload')}</Text></View>

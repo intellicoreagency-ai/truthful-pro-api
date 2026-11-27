@@ -22,7 +22,7 @@ function TabButton({ icon, iconActive, label, isFocused, ...rest }: ButtonProps)
       style={[styles.tab, isFocused && styles.tabOn]}
     >
       <Ionicons name={isFocused ? iconActive : icon} size={24} color={isFocused ? color.goldBright : color.textDim} />
-      <Text style={[styles.tabLabel, { color: isFocused ? color.goldBright : color.textDim }]} numberOfLines={1}>{label}</Text>
+      <Text font="label" weight={isFocused ? 'semibold' : 'medium'} style={[styles.tabLabel, { color: isFocused ? color.goldBright : color.textDim }]} numberOfLines={1}>{label}</Text>
     </Press>
   );
 }

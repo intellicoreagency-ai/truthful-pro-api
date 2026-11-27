@@ -10,7 +10,7 @@ export function Pill({ label, tone, onPress, hint }: { label: string; tone: Tone
   return (
     <Press onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint} style={styles.wrap}>
       <LinearGradient colors={g.btn} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.pill}>
-        <Text weight="bold" style={{ color: '#FFFFFF' }}>{label}</Text>
+        <Text font="display" weight="semibold" style={{ color: '#FFFFFF' }}>{label}</Text>
       </LinearGradient>
     </Press>
   );

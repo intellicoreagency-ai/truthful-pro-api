@@ -1,6 +1,6 @@
 import { I18nManager, Platform, Text as RNText, type TextProps, type TextStyle } from 'react-native';
 import { useI18n } from '@/i18n';
-import { fontStyle, type FontWeight } from '@/theme/fonts';
+import { fontStyle, type FontRole, type FontWeight } from '@/theme/fonts';
 import { color } from '@/theme/tokens';
 
 type Variant = 'display' | 'title' | 'heading' | 'body' | 'caption';
@@ -16,6 +16,8 @@ const VARIANTS: Record<Variant, { size: number; weight: FontWeight }> = {
 type Props = TextProps & {
   variant?: Variant;
   weight?: FontWeight;
+  /** دور الخط: يُستنتج من النمط (عناوين=Cairo، نص=IBM Plex)؛ label للتسميات القصيرة (Tajawal) */
+  font?: FontRole;
   tone?: 'normal' | 'dim' | 'gold' | 'danger' | 'success';
   center?: boolean;
 };
@@ -32,7 +34,7 @@ const TONES = {
  * نص مهرة: يختار الخط حسب اللغة، ويحاذي حسب الاتجاه، ويحترم تكبير النص (حتى 1.6×).
  * على الويب يكفي attribute الاتجاه من الجذر؛ على الجوال نحدد المحاذاة صراحةً.
  */
-export function Text({ variant = 'body', weight, tone = 'normal', center, style, ...rest }: Props) {
+export function Text({ variant = 'body', weight, font, tone = 'normal', center, style, ...rest }: Props) {
   const { lang, dir } = useI18n();
   const v = VARIANTS[variant];
 
@@ -52,7 +54,7 @@ export function Text({ variant = 'body', weight, tone = 'normal', center, style,
       {...rest}
       style={[
         {
-          ...fontStyle(lang, weight ?? v.weight),
+          ...fontStyle(lang, weight ?? v.weight, font ?? (variant === 'body' || variant === 'caption' ? 'body' : 'display')),
           fontSize: v.size,
           lineHeight: Math.round(v.size * (lang === 'ar' ? 1.65 : lang === 'hi' ? 1.7 : 1.5)),
           color: TONES[tone],

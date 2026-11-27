@@ -17,7 +17,7 @@ export function BentoCard({ tone, icon, title, sub, onPress }: { tone: Tone; ico
         <View style={[styles.badge, { backgroundColor: g.tint, borderColor: g.rim }]}>
           <Ionicons name={icon} size={24} color={g.ink} />
         </View>
-        <Text weight="bold" style={{ color: '#FFFFFF' }}>{title}</Text>
+        <Text font="display" weight="semibold" style={{ color: '#FFFFFF' }}>{title}</Text>
         <Text variant="caption" tone="dim">{sub}</Text>
       </Glass>
     </Press>

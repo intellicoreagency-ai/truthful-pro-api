@@ -6,6 +6,7 @@ import { es } from './es';
 import { fr } from './fr';
 import { hi } from './hi';
 import { ru } from './ru';
+import { ltr } from '@/lib/bidi';
 import { zh } from './zh';
 
 export type Lang = 'ar' | 'en' | 'ru' | 'es' | 'fr' | 'zh' | 'hi';
@@ -48,7 +49,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     (key, vars) => {
       // الاحتياط: اللغة الحالية ← الإنجليزية ← العربية
       let s = dictionaries[lang][key] ?? en[key] ?? ar[key];
-      if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, String(v));
+      // القيم اللاتينية/الرقمية (مثل رقم الهاتف) تُعزل داخل الجملة العربية كي لا ينعكس ترتيبها
+      if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, lang === 'ar' && /^[\x20-\x7E]+$/.test(String(v)) ? ltr(v) : String(v));
       return s;
     },
     [lang],

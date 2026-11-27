@@ -133,7 +133,7 @@ export default function Login() {
           ) : (
             <Press onPress={faceId} accessibilityRole="button" accessibilityLabel={t('faceId')} style={styles.faceBtn}>
               <Ionicons name="scan-outline" size={22} color={color.goldBright} />
-              <Text variant="caption" weight="medium">{t('faceId')}</Text>
+              <Text variant="caption" font="label" weight="semibold">{t('faceId')}</Text>
             </Press>
           )}
         </Glass>

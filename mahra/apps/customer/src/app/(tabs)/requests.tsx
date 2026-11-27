@@ -7,6 +7,7 @@ import { Pill } from '@/components/Pill';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { useTx } from '@/i18n';
+import { ltr } from '@/lib/bidi';
 import { color, glow, space, type Tone } from '@/theme/tokens';
 
 type Icon = ComponentProps<typeof Ionicons>['name'];
@@ -49,7 +50,7 @@ export default function Requests() {
     <Screen tabs>
       <Glass r={999} strong style={styles.island}>
         <View style={styles.live} />
-        <Text variant="caption" weight="bold">{tx('استوديو مهرة', 'Mohra')} AI</Text>
+        <Text variant="caption" weight="bold">{tx('استوديو مهرة', 'Mohra')} {ltr('AI')}</Text>
       </Glass>
       <View style={styles.title}>
         <Ionicons name="notifications-outline" size={24} color={color.goldBright} />

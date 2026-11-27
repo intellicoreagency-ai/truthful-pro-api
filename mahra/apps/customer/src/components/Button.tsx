@@ -34,7 +34,7 @@ export function Button({ label, onPress, kind = 'gold', tint, disabled, loading,
   ) : (
     <View style={styles.row}>
       {icon}
-      <Text variant={small ? 'body' : 'heading'} weight="bold" style={{ color: fg }}>{label}</Text>
+      <Text variant={small ? 'body' : 'heading'} font="display" weight="semibold" style={{ color: fg }}>{label}</Text>
     </View>
   );
 

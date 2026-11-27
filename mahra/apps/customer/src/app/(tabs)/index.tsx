@@ -10,6 +10,7 @@ import { StudioMic } from '@/components/StudioMic';
 import { Text } from '@/components/Text';
 import { LANGS, useI18n, useTx, type StringKey } from '@/i18n';
 import { useVoice, type VoiceState } from '@/lib/voice';
+import { ltr } from '@/lib/bidi';
 import { color, space } from '@/theme/tokens';
 
 const STATUS: Record<VoiceState, StringKey> = { idle: 'statusIdle', listening: 'statusListening', thinking: 'statusThinking', speaking: 'statusSpeaking' };
@@ -31,10 +32,10 @@ export default function Home() {
     <Screen tabs>
       <Glass r={999} strong style={styles.header}>
         <View style={styles.live} />
-        <Text variant="heading" weight="bold" style={{ flex: 1 }}>{tx('استوديو مهرة', 'Mohra')} AI</Text>
+        <Text variant="heading" weight="bold" style={{ flex: 1 }}>{tx('استوديو مهرة', 'Mohra')} {ltr('AI')}</Text>
         <Press onPress={() => router.navigate('/profile')} accessibilityRole="button" accessibilityLabel={t('language')} style={styles.langBadge}>
           <Ionicons name="globe-outline" size={16} color={color.goldBright} />
-          <Text variant="caption" weight="semibold" style={{ color: color.goldBright }}>{langLabel}</Text>
+          <Text variant="caption" font="label" weight="semibold" style={{ color: color.goldBright }}>{langLabel}</Text>
         </Press>
       </Glass>
 
