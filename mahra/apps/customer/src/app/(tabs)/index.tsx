@@ -1,75 +1,83 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
-import { BentoCard } from '@/components/BentoCard';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { ExpertCard } from '@/components/ExpertCard';
 import { Glass } from '@/components/Glass';
-import { Pearl } from '@/components/Pearl';
 import { Press } from '@/components/Press';
 import { Screen } from '@/components/Screen';
-import { StudioMic } from '@/components/StudioMic';
 import { Text } from '@/components/Text';
-import { LANGS, useI18n, useTx, type StringKey } from '@/i18n';
+import { TintedOrb } from '@/components/TintedOrb';
+import { PRIORITY } from '@/data/home';
+import { THEME } from '@/data/theme';
+import { useI18n, useTx, type StringKey } from '@/i18n';
+import { useAccent } from '@/lib/accent';
 import { useVoice, type VoiceState } from '@/lib/voice';
 import { color, space } from '@/theme/tokens';
 
 const STATUS: Record<VoiceState, StringKey> = { idle: 'statusIdle', listening: 'statusListening', thinking: 'statusThinking', speaking: 'statusSpeaking' };
-const chat = (agentId: string) => () => router.push({ pathname: '/chat/[agentId]', params: { agentId } });
+const GAP = space.md;
 
 /**
- * الرئيسية: كبسولة «اختر مساعدك الشخصي» عائمة، كرة زجاجية قزحية بميكروفون استوديو وموجات (ذهبية يساراً، فيروزية يميناً)،
- * ثم شبكة 2×2 بتوهج حواف: ميرا زمردي، منصور ياقوتي، سارة وردي ذهبي، جلال وخالد عنبري.
- * الضغط على الكرة يبدأ الاستماع ويوجّه الأمر الصوتي للوكيل المناسب.
+ * الرئيسية (تصميم الاستوديو): شريط علوي، الكرة الصوتية، «اختر مساعدك الشخصي» موسّطاً، ثم الخمسة عشر وكيلاً
+ * بحسب أولوية الاحتياج. اختيار بطاقة يلوّن الأرضية والكرة وطابع الزجاج بلون الوكيل (ألوان Apple هادئة).
  */
 export default function Home() {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const tx = useTx();
-  const { state, toggle, stop } = useVoice();
+  const { state, toggle } = useVoice();
+  const { setAccent } = useAccent();
+  const [w, setW] = useState(358);
+  const [id, setId] = useState(PRIORITY[0]);
   const active = state !== 'idle';
-  const langLabel = LANGS.find((l) => l.code === lang)?.label ?? '';
+  const th = THEME[id];
+  const colW = (w - GAP) / 2;
+
+  useFocusEffect(useCallback(() => {
+    setAccent(th.accent);
+    return () => setAccent(null);
+  }, [th.accent, setAccent]));
 
   return (
     <Screen tabs>
-      <Glass r={999} strong style={styles.header}>
-        <View style={styles.live} />
-        <Text variant="heading" weight="bold" numberOfLines={1} style={{ flex: 1, fontSize: 16 }}>{t('chooseAssistant')}</Text>
-        <Press onPress={() => router.navigate('/profile')} accessibilityRole="button" accessibilityLabel={t('language')} style={styles.langBadge}>
-          <Ionicons name="globe-outline" size={16} color={color.goldBright} />
-          <Text variant="caption" font="label" weight="semibold" style={{ color: color.goldBright }}>{langLabel}</Text>
-        </Press>
+      <Glass r={36} clear style={styles.bar}>
+        <BarItem icon="briefcase-outline" label={tx('تحديث السيرة CV', 'Update CV')} onPress={() => router.push('/profile/cv')} />
+        <BarItem icon="settings-outline" label={tx('إعدادات الصوت', 'Voice settings')} onPress={() => router.push('/settings/voice')} />
+        <BarItem icon="person-outline" label={tx('الوكلاء', 'Agents')} accent={th.accent} onPress={() => router.navigate('/specialists')} />
       </Glass>
 
-      <View style={styles.stage}>
+      <View style={{ alignItems: 'center' }} onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
         <Press onPress={toggle} accessibilityRole="button" accessibilityLabel={active ? t('stop') : t('talkToMohra')} style={{ borderRadius: 200 }}>
-          <Pearl size={236} state={state} glassy>
-            <StudioMic size={92} />
-          </Pearl>
+          <TintedOrb width={Math.min(w, 400)} agent={id} accent={th.accent} state={state} />
         </Press>
-        <Text variant="heading" tone={active ? 'gold' : 'dim'} accessibilityLiveRegion="polite" center>
-          {active ? t(STATUS[state]) : t('listeningLive')}
-        </Text>
-        {active && (
-          <Press onPress={stop} accessibilityRole="button" accessibilityLabel={t('stop')} style={styles.stopBtn}>
-            <Ionicons name="stop-circle-outline" size={22} color={color.text} />
-            <Text weight="medium">{t('stop')}</Text>
-          </Press>
-        )}
+        {active && <Text variant="caption" weight="semibold" accessibilityLiveRegion="polite" center style={{ color: th.accent }}>{t(STATUS[state])}</Text>}
+      </View>
+
+      <View style={styles.titleWrap}>
+        <Text font="display" weight="bold" center style={styles.title}>{t('chooseAssistant')}</Text>
       </View>
 
       <View style={styles.grid}>
-        <BentoCard tone="emerald" icon="briefcase-outline" title={tx('ميرا · التوظيف والسيرة', 'Meera · Jobs and CV')} sub={tx('سيرتك الذاتية وطلبات العمل في الإمارات', 'Your CV and UAE job applications')} onPress={chat('meera')} />
-        <BentoCard tone="sapphire" icon="map-outline" title={tx('منصور · خرائط الإمارات', 'Mansour · UAE maps')} sub={tx('أقرب خدمة وطريق الوصول', 'Nearest service and directions')} onPress={chat('mansour')} />
-        <BentoCard tone="rose" icon="sparkles-outline" title={tx('سارة · رعاية المرافق', 'Sara · Facility care')} sub={tx('تنظيف الغرف والمكاتب والدراي كلين', 'Room, office and dry cleaning')} onPress={chat('sara')} />
-        <BentoCard tone="amber" icon="car-sport-outline" title={tx('جلال وم. خالد', 'Jalal and Eng. Khaled')} sub={tx('السيارات والمقاولات وعروض الأسعار', 'Cars, contracting and quotes')} onPress={chat('jalal')} />
+        {PRIORITY.map((k) => <ExpertCard key={k} id={k} width={colW} selected={k === id} onSelect={() => setId(k)} />)}
       </View>
     </Screen>
   );
 }
 
+function BarItem({ icon, label, onPress, accent }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; accent?: string }) {
+  const c = accent ?? color.textDim;
+  return (
+    <Press onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={styles.item}>
+      <Ionicons name={icon} size={26} color={c} />
+      <Text variant="caption" weight="medium" center style={{ fontSize: 11, lineHeight: 18, color: c }}>{label}</Text>
+    </Press>
+  );
+}
+
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, minHeight: 56 },
-  live: { width: 9, height: 9, borderRadius: 5, backgroundColor: color.green },
-  langBadge: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, borderRadius: 99, borderWidth: 1, borderColor: 'rgba(235,208,142,0.5)', backgroundColor: 'rgba(235,208,142,0.10)' },
-  stage: { alignItems: 'center', gap: space.md, paddingVertical: space.sm },
-  stopBtn: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: 99, borderWidth: 1, borderColor: color.hairline, backgroundColor: color.glass },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md, justifyContent: 'space-between' },
+  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingVertical: 10, backgroundColor: 'rgba(8,13,28,0.34)' },
+  item: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 4 },
+  titleWrap: { alignSelf: 'stretch', alignItems: 'center' },
+  title: { alignSelf: 'stretch', textAlign: 'center', color: '#FFFFFF', fontSize: 26, lineHeight: 42 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
 });

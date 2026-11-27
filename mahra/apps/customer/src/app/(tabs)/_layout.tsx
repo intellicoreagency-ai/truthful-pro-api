@@ -1,5 +1,6 @@
 import { TabList, Tabs, TabSlot, TabTrigger } from 'expo-router/ui';
 import { TabBar } from '@/components/TabBar';
+import { AccentProvider } from '@/lib/accent';
 
 /**
  * التبويبات الأربعة تُعرَّف هنا في TabList مخفي؛ الشريط المرئي (TabBar) يستدعيها بالاسم.
@@ -7,6 +8,7 @@ import { TabBar } from '@/components/TabBar';
  */
 export default function TabsLayout() {
   return (
+    <AccentProvider>
     <Tabs>
       <TabSlot />
       <TabBar />
@@ -17,5 +19,6 @@ export default function TabsLayout() {
         <TabTrigger name="profile" href="/profile" />
       </TabList>
     </Tabs>
+    </AccentProvider>
   );
 }

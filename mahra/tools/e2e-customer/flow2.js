@@ -17,7 +17,7 @@ const SP = process.argv[2] + '/v2/';
   await page.locator('input[inputmode="numeric"]').first().fill('1234');
   await page.getByRole('button', { name: 'تأكيد' }).click(); await W(1200);
   await shot('02-home');
-  log('home has 4 featured agents', (await page.locator('body').innerText()).includes('ميرا') && (await page.locator('body').innerText()).includes('منصور') && (await page.locator('body').innerText()).includes('سارة') && (await page.locator('body').innerText()).includes('جلال'));
+  { const body = await page.locator('body').innerText(); log('home shows top-6 priority agents', ['جلال','طلال','سارة','راشد','نورة','ليلى'].every((n) => body.includes(n))); }
   await page.getByRole('button', { name: 'تحدّث مع مهرة' }).first().click(); await W(900);
   await shot('03-listening');
   await page.getByRole('button', { name: 'إيقاف' }).last().click(); await W(300);

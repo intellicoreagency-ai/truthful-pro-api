@@ -5,14 +5,14 @@ import { AgentCard } from '@/components/AgentCard';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { AGENTS } from '@/data/agents';
+import { PRIORITY } from '@/data/home';
 import { useI18n } from '@/i18n';
 import { fontStyle } from '@/theme/fonts';
 import { color, space } from '@/theme/tokens';
 
 const GAP = space.md;
-/** الأربعة الرئيسيون كما في التصميم أولاً، ثم بقية الوكلاء بترتيب السجل */
-const FIRST = ['meera', 'mansour', 'sara', 'jalal'];
-const ORDERED = [...FIRST.map((id) => AGENTS.find((a) => a.id === id)!), ...AGENTS.filter((a) => !FIRST.includes(a.id))];
+/** الترتيب حسب أولوية الاحتياجات الشخصية (من الأكثر استعمالاً) */
+const ORDERED = PRIORITY.map((id) => AGENTS.find((a) => a.id === id)!);
 
 /** وكلاء مهرة: بحث حي بالاسم والاختصاص، وشبكة عمودين يُحسب عرضهما من الحاوية (عمود واحد على الشاشات الضيقة). */
 export default function Specialists() {
