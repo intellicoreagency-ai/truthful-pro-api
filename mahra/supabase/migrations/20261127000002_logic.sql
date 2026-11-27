@@ -40,18 +40,18 @@ language plpgsql stable as $$
 declare m text[] := '{}'; r providers%rowtype; kinds text[] := array['trade_license','tenancy_contract']; k text;
 begin
   select * into r from providers where id = p;
-  if r.phone is null or r.phone = '' then m := m || 'phone'; end if;
-  if r.whatsapp is null or r.whatsapp = '' then m := m || 'whatsapp'; end if;
-  if r.maps_url is null or r.maps_url = '' then m := m || 'maps_url'; end if;
-  if not exists (select 1 from provider_categories where provider_id = p) then m := m || 'categories'; end if;
-  if not exists (select 1 from provider_coverage where provider_id = p) then m := m || 'coverage'; end if;
+  if r.phone is null or r.phone = '' then m := array_append(m, 'phone'::text); end if;
+  if r.whatsapp is null or r.whatsapp = '' then m := array_append(m, 'whatsapp'::text); end if;
+  if r.maps_url is null or r.maps_url = '' then m := array_append(m, 'maps_url'::text); end if;
+  if not exists (select 1 from provider_categories where provider_id = p) then m := array_append(m, 'categories'::text); end if;
+  if not exists (select 1 from provider_coverage where provider_id = p) then m := array_append(m, 'coverage'::text); end if;
   foreach k in array kinds loop
     if not exists (
       select 1 from provider_documents d
       where d.provider_id = p and d.kind = k::doc_kind
         and (d.expires_on is null or d.expires_on >= current_date)
         and (case when require_accepted then d.status = 'accepted' else d.status in ('uploaded','accepted') end)
-    ) then m := m || k; end if;
+    ) then m := array_append(m, k::text); end if;
   end loop;
   return m;
 end $$;

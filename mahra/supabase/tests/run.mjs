@@ -83,6 +83,16 @@ async function makeAcceptedJob(providerIdx, price) {
   return { rid, jobId, off };
 }
 
+console.log('\n— حقول المزود الناقصة (كل فرع) —');
+const bare = uuid();
+await db.query(`insert into providers (id, company_name) values ($1, 'مزود فارغ')`, [bare]);
+const miss = (await one('select missing from provider_readiness where provider_id = $1', [bare])).missing;
+check('كل العناصر الناقصة تُرصد', ['phone', 'whatsapp', 'maps_url', 'categories', 'coverage', 'trade_license', 'tenancy_contract'].every((k) => miss.includes(k)), JSON.stringify(miss));
+await db.query(`update providers set phone = '+971500000999', maps_url = 'https://maps.example/x' where id = $1`, [bare]);
+const miss2 = (await one('select missing from provider_readiness where provider_id = $1', [bare])).missing;
+check('الواتساب وحده ناقص يُرصد دون خطأ', miss2.includes('whatsapp') && !miss2.includes('phone') && !miss2.includes('maps_url'), JSON.stringify(miss2));
+await db.query('delete from providers where id = $1', [bare]);
+
 console.log('\n— الطلب والعروض —');
 const rid = await newRequest();
 const n = await svc(async () => (await one('select dispatch_request($1, 6) as n', [rid])).n);
