@@ -4,6 +4,7 @@ export const en: Record<keyof typeof ar, string> = {
   appName: 'Mohra',
 
   loginTitle: 'Welcome to Mohra',
+  tagline: "Your smart personal assistant",
   signIn: 'Sign in',
   loginSub: 'Enter your phone number to begin',
   phoneLabel: 'Phone number',

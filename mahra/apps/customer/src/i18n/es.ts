@@ -4,6 +4,7 @@ import type { ar } from './ar';
 export const es: Record<keyof typeof ar, string> = {
   appName: "Mohra",
   loginTitle: "Bienvenido a Mohra",
+  tagline: "Tu asistente personal inteligente",
   signIn: "Iniciar sesión",
   loginSub: "Introduce tu número de teléfono para empezar",
   phoneLabel: "Número de teléfono",

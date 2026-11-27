@@ -4,6 +4,7 @@ import type { ar } from './ar';
 export const zh: Record<keyof typeof ar, string> = {
   appName: "穆赫拉",
   loginTitle: "欢迎使用穆赫拉",
+  tagline: "你的智能私人助手",
   signIn: "登录",
   loginSub: "输入手机号码开始使用",
   phoneLabel: "手机号码",
