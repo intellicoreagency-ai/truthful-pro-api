@@ -2,53 +2,51 @@ import { Platform, type TextStyle } from 'react-native';
 import type { Lang } from '@/i18n';
 
 export type FontWeight = 'regular' | 'medium' | 'semibold' | 'bold';
-/** أدوار الخطوط (مجموعة الخطوط المعتمدة من المالك، لا تُستبدل): */
+/** يُبقى الدور في الواجهة للتوافق؛ الخط الآن واحد لكل لغة (قرار المالك). */
 export type FontRole = 'body' | 'display' | 'label' | 'kufi';
 
 /**
- * body    IBM Plex Sans Arabic 400/500/600/700: النصوص الأساسية والبطاقات وحقول الإدخال وتفاصيل الوكلاء.
- * display Cairo 400/600/700/800: العناوين الكبيرة، الأزرار الرئيسية، أرقام الأسعار والدفعات.
- * kufi    Noto Kufi Arabic 400–700: خط تصميم Gemini المعتمد (صندوق الدخول).
- * label   Noto Kufi Arabic 400–700 (بدل Tajawal بقرار المالك): شريط التنقل السفلي، التسميات القصيرة، شارات الحالة.
- * الاحتياط: Noto Sans Arabic ثم خط النظام (SF Pro على آيفون).
+ * خط لكل أبجدية (قرار المالك):
+ *  العربية            Noto Kufi Arabic (كل الأوزان والأدوار)
+ *  الإنجليزية والإسبانية والفرنسية والروسية  Manrope (هندسي أنيق، يغطي اللاتينية والسيريلية)
+ *  الهندية            Noto Sans Devanagari
+ *  الصينية            خط النظام (PingFang SC على آيفون، Noto Sans CJK على أندرويد): ملفات CJK ضخمة (10MB للوزن)
  */
 export const fontSources = {
-  IBMPlexSansArabic_400Regular: require('@expo-google-fonts/ibm-plex-sans-arabic/400Regular/IBMPlexSansArabic_400Regular.ttf'),
-  IBMPlexSansArabic_500Medium: require('@expo-google-fonts/ibm-plex-sans-arabic/500Medium/IBMPlexSansArabic_500Medium.ttf'),
-  IBMPlexSansArabic_600SemiBold: require('@expo-google-fonts/ibm-plex-sans-arabic/600SemiBold/IBMPlexSansArabic_600SemiBold.ttf'),
-  IBMPlexSansArabic_700Bold: require('@expo-google-fonts/ibm-plex-sans-arabic/700Bold/IBMPlexSansArabic_700Bold.ttf'),
-  Cairo_400Regular: require('@expo-google-fonts/cairo/400Regular/Cairo_400Regular.ttf'),
-  Cairo_600SemiBold: require('@expo-google-fonts/cairo/600SemiBold/Cairo_600SemiBold.ttf'),
-  Cairo_700Bold: require('@expo-google-fonts/cairo/700Bold/Cairo_700Bold.ttf'),
-  Cairo_800ExtraBold: require('@expo-google-fonts/cairo/800ExtraBold/Cairo_800ExtraBold.ttf'),
   NotoKufiArabic_400Regular: require('@expo-google-fonts/noto-kufi-arabic/400Regular/NotoKufiArabic_400Regular.ttf'),
   NotoKufiArabic_500Medium: require('@expo-google-fonts/noto-kufi-arabic/500Medium/NotoKufiArabic_500Medium.ttf'),
   NotoKufiArabic_600SemiBold: require('@expo-google-fonts/noto-kufi-arabic/600SemiBold/NotoKufiArabic_600SemiBold.ttf'),
   NotoKufiArabic_700Bold: require('@expo-google-fonts/noto-kufi-arabic/700Bold/NotoKufiArabic_700Bold.ttf'),
-  NotoSansArabic_400Regular: require('@expo-google-fonts/noto-sans-arabic/400Regular/NotoSansArabic_400Regular.ttf'),
-  NotoSansArabic_600SemiBold: require('@expo-google-fonts/noto-sans-arabic/600SemiBold/NotoSansArabic_600SemiBold.ttf'),
-  NotoSansArabic_700Bold: require('@expo-google-fonts/noto-sans-arabic/700Bold/NotoSansArabic_700Bold.ttf'),
+  Manrope_400Regular: require('@expo-google-fonts/manrope/400Regular/Manrope_400Regular.ttf'),
+  Manrope_500Medium: require('@expo-google-fonts/manrope/500Medium/Manrope_500Medium.ttf'),
+  Manrope_600SemiBold: require('@expo-google-fonts/manrope/600SemiBold/Manrope_600SemiBold.ttf'),
+  Manrope_700Bold: require('@expo-google-fonts/manrope/700Bold/Manrope_700Bold.ttf'),
+  NotoSansDevanagari_400Regular: require('@expo-google-fonts/noto-sans-devanagari/400Regular/NotoSansDevanagari_400Regular.ttf'),
+  NotoSansDevanagari_500Medium: require('@expo-google-fonts/noto-sans-devanagari/500Medium/NotoSansDevanagari_500Medium.ttf'),
+  NotoSansDevanagari_600SemiBold: require('@expo-google-fonts/noto-sans-devanagari/600SemiBold/NotoSansDevanagari_600SemiBold.ttf'),
+  NotoSansDevanagari_700Bold: require('@expo-google-fonts/noto-sans-devanagari/700Bold/NotoSansDevanagari_700Bold.ttf'),
 };
 
-const FACE: Record<FontRole, Record<FontWeight, string>> = {
-  body: { regular: 'IBMPlexSansArabic_400Regular', medium: 'IBMPlexSansArabic_500Medium', semibold: 'IBMPlexSansArabic_600SemiBold', bold: 'IBMPlexSansArabic_700Bold' },
-  display: { regular: 'Cairo_400Regular', medium: 'Cairo_600SemiBold', semibold: 'Cairo_700Bold', bold: 'Cairo_800ExtraBold' },
-  kufi: { regular: 'NotoKufiArabic_400Regular', medium: 'NotoKufiArabic_500Medium', semibold: 'NotoKufiArabic_600SemiBold', bold: 'NotoKufiArabic_700Bold' },
-  label: { regular: 'NotoKufiArabic_400Regular', medium: 'NotoKufiArabic_500Medium', semibold: 'NotoKufiArabic_600SemiBold', bold: 'NotoKufiArabic_700Bold' },
-};
-const NOTO = 'NotoSansArabic_400Regular, NotoSansArabic_600SemiBold, NotoSansArabic_700Bold';
-const WEB_FALLBACK = `${NOTO}, "SF Pro Text", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
-const numeric: Record<FontWeight, TextStyle['fontWeight']> = { regular: '400', medium: '500', semibold: '600', bold: '700' };
-/** اللغات التي تغطيها المجموعة (عربية + لاتينية). الروسية والهندية والصينية يتولاها خط النظام. */
-const SUITE_LANGS: Lang[] = ['ar', 'en', 'es', 'fr'];
+const SUFFIX: Record<FontWeight, string> = { regular: '400Regular', medium: '500Medium', semibold: '600SemiBold', bold: '700Bold' };
+const NUMERIC: Record<FontWeight, TextStyle['fontWeight']> = { regular: '400', medium: '500', semibold: '600', bold: '700' };
+const SYSTEM = '"SF Pro Text", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+const CJK = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif';
 
-/** نمط الخط حسب اللغة والوزن والدور. letterSpacing صفر دائماً: التباعد يقطع الحروف العربية المتصلة. */
-export function fontStyle(lang: Lang, weight: FontWeight, role: FontRole = 'body'): TextStyle {
-  if (SUITE_LANGS.includes(lang)) {
-    const family = FACE[role][weight];
-    return { fontFamily: Platform.OS === 'web' ? `${family}, ${WEB_FALLBACK}` : family, letterSpacing: 0 };
+const FAMILY: Partial<Record<Lang, string>> = {
+  ar: 'NotoKufiArabic',
+  en: 'Manrope', es: 'Manrope', fr: 'Manrope', ru: 'Manrope',
+  hi: 'NotoSansDevanagari',
+};
+
+/** نمط الخط حسب اللغة والوزن. letterSpacing صفر دائماً (التباعد يقطع الحروف العربية المتصلة). */
+export function fontStyle(lang: Lang, weight: FontWeight, _role: FontRole = 'body'): TextStyle {
+  const family = FAMILY[lang];
+  if (family) {
+    const face = `${family}_${SUFFIX[weight]}`;
+    return { fontFamily: Platform.OS === 'web' ? `${face}, ${SYSTEM}` : face, letterSpacing: 0 };
   }
+  // الصينية: خط النظام
   return Platform.OS === 'web'
-    ? { fontFamily: WEB_FALLBACK, fontWeight: numeric[weight], letterSpacing: 0 }
-    : { fontWeight: numeric[weight], letterSpacing: 0 };
+    ? { fontFamily: CJK, fontWeight: NUMERIC[weight], letterSpacing: 0 }
+    : { fontWeight: NUMERIC[weight], letterSpacing: 0 };
 }

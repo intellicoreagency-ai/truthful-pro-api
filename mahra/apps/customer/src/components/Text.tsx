@@ -56,7 +56,7 @@ export function Text({ variant = 'body', weight, font, tone = 'normal', center, 
         {
           ...fontStyle(lang, weight ?? v.weight, font ?? (variant === 'body' || variant === 'caption' ? 'body' : 'display')),
           fontSize: v.size,
-          lineHeight: Math.round(v.size * (lang === 'ar' ? 1.65 : lang === 'hi' ? 1.7 : 1.5)),
+          lineHeight: Math.round(v.size * (lang === 'ar' ? 1.7 : lang === 'hi' ? 1.7 : 1.5)),
           color: TONES[tone],
           textAlign: align,
         },
