@@ -135,7 +135,7 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  langRow: { flexDirection: 'row', gap: space.sm, justifyContent: 'flex-end' },
+  langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, justifyContent: 'flex-end' },
   chip: { minHeight: 36, paddingHorizontal: 14, justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: color.hairline },
   hero: { alignItems: 'center', gap: space.sm, paddingVertical: space.sm },
   card: { padding: space.xl, gap: space.lg },

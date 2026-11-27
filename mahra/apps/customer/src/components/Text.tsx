@@ -54,7 +54,7 @@ export function Text({ variant = 'body', weight, tone = 'normal', center, style,
         {
           ...fontStyle(lang, weight ?? v.weight),
           fontSize: v.size,
-          lineHeight: Math.round(v.size * (lang === 'ar' ? 1.65 : 1.5)),
+          lineHeight: Math.round(v.size * (lang === 'ar' ? 1.65 : lang === 'hi' ? 1.7 : 1.5)),
           color: TONES[tone],
           textAlign: align,
         },

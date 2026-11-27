@@ -2,18 +2,26 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { getLocales } from 'expo-localization';
 import { ar } from './ar';
 import { en } from './en';
+import { es } from './es';
+import { fr } from './fr';
+import { hi } from './hi';
 import { ru } from './ru';
+import { zh } from './zh';
 
-export type Lang = 'ar' | 'en' | 'ru';
+export type Lang = 'ar' | 'en' | 'ru' | 'es' | 'fr' | 'zh' | 'hi';
 export type Dir = 'rtl' | 'ltr';
 export type StringKey = keyof typeof ar;
 
-const dictionaries: Record<Lang, Partial<Record<StringKey, string>>> = { ar, en, ru };
+const dictionaries: Record<Lang, Partial<Record<StringKey, string>>> = { ar, en, ru, es, fr, zh, hi };
 
 export const LANGS: { code: Lang; label: string }[] = [
   { code: 'ar', label: 'العربية' },
   { code: 'en', label: 'English' },
   { code: 'ru', label: 'Русский' },
+  { code: 'es', label: 'Español' },
+  { code: 'fr', label: 'Français' },
+  { code: 'zh', label: '中文' },
+  { code: 'hi', label: 'हिन्दी' },
 ];
 
 export const dirOf = (lang: Lang): Dir => (lang === 'ar' ? 'rtl' : 'ltr');
@@ -21,7 +29,7 @@ export const dirOf = (lang: Lang): Dir => (lang === 'ar' ? 'rtl' : 'ltr');
 function initialLang(): Lang {
   // العربية هي الأصل؛ تتبع لغة الجهاز فقط إن كانت من اللغات المدعومة.
   const code = getLocales()[0]?.languageCode;
-  return code === 'en' || code === 'ru' ? code : 'ar';
+  return LANGS.some((l) => l.code === code) ? (code as Lang) : 'ar';
 }
 
 type I18n = {
