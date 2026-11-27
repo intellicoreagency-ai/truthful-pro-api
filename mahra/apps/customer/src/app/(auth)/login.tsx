@@ -99,8 +99,8 @@ export default function Login() {
       <LinearGradient colors={['rgba(6,9,19,0)', '#060913']} style={{ position: 'absolute', top: IMG_H * s - 240 * s, start: 0, end: 0, height: 240 * s }} pointerEvents="none" />
 
       <ScrollView contentContainerStyle={{ paddingTop: CARD_TOP * s, paddingBottom: 40 + insets.bottom, paddingHorizontal: CARD_SIDE * s }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Glass r={12} strong style={[styles.card, { minHeight: (1118 - CARD_TOP) * s + 8, justifyContent: 'space-evenly' }]}>
-          <LinearGradient pointerEvents="none" colors={['rgba(255,238,205,0)', 'rgba(255,238,205,0.20)', 'rgba(255,238,205,0)']} locations={[0.28, 0.56, 0.84]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <Glass r={12} blur={10} style={[styles.card, { minHeight: (1118 - CARD_TOP) * s + 8, justifyContent: 'space-evenly' }]}>
+          <LinearGradient pointerEvents="none" colors={['rgba(255,238,205,0)', 'rgba(255,238,205,0.24)', 'rgba(255,238,205,0)']} locations={[0.28, 0.56, 0.84]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
           <T variant="title" weight="bold" center style={{ fontSize: 26, lineHeight: 40 }}>{step === 'phone' ? t('loginTitle') : t('codeTitle')}</T>
           <T variant="caption" tone="dim" center style={{ fontSize: 15, marginTop: -6 }}>{step === 'phone' ? t('tagline') : t('codeSub', { phone: `+${cc} ${digits(phone)}` })}</T>
 
@@ -145,23 +145,22 @@ export default function Login() {
             </LinearGradient>
           </Press>
 
-          {step === 'code' && (
+          {step === 'code' ? (
             <Press onPress={() => { setStep('phone'); setCode(''); setMsg(null); }} accessibilityRole="button" style={styles.pill}>
               <T variant="caption" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('changeNumber')}</T>
             </Press>
+          ) : (
+            <View style={styles.alt}>
+              <View style={styles.rule} />
+              <T variant="caption" tone="dim">{t('orSignUp')}</T>
+              <View style={styles.altRow}>
+                <Press onPress={biometric} accessibilityRole="button" accessibilityLabel={t('faceId')} style={styles.altBtn}><Ionicons name="finger-print-outline" size={26} color={color.goldBright} /></Press>
+                <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('google')} style={styles.altBtn}><GoogleG /></Press>
+                <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('apple')} style={styles.altBtn}><Ionicons name="logo-apple" size={26} color="#fff" /></Press>
+              </View>
+            </View>
           )}
         </Glass>
-
-        {step === 'phone' && (
-          <View style={styles.alt}>
-            <T variant="caption" tone="dim">{t('orSignUp')}</T>
-            <View style={styles.altRow}>
-              <Press onPress={biometric} accessibilityRole="button" accessibilityLabel={t('faceId')} style={styles.altBtn}><Ionicons name="finger-print-outline" size={26} color={color.goldBright} /></Press>
-              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('google')} style={styles.altBtn}><GoogleG /></Press>
-              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('apple')} style={styles.altBtn}><Ionicons name="logo-apple" size={26} color="#fff" /></Press>
-            </View>
-          </View>
-        )}
       </ScrollView>
 
       <View style={[styles.langWrap, { top: insets.top + 8 }]}>
@@ -185,7 +184,7 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#060913' },
-  card: { padding: space.lg, gap: space.md, backgroundColor: 'rgba(150,160,190,0.14)' },
+  card: { padding: space.lg, gap: space.md, backgroundColor: 'rgba(170,180,205,0.06)' },
   field: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', borderTopColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.12)' },
   ccBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4, paddingEnd: space.sm, borderEndWidth: 1, borderEndColor: 'rgba(255,255,255,0.2)' },
   ccList: { padding: 4 },
@@ -195,11 +194,11 @@ const styles = StyleSheet.create({
   check: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 44 },
   ctaWrap: { marginTop: space.xs },
   cta: { minHeight: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 8px 26px rgba(235,208,142,0.40), 0 0 24px rgba(255,240,210,0.28), inset 0 1px 0 rgba(255,255,255,0.9)' } as object) : { shadowColor: '#EBD08E', shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } }) },
-  rule: { height: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginVertical: 2 },
+  rule: { alignSelf: 'stretch', height: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginVertical: 2 },
   pill: { alignSelf: 'stretch', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.10)' },
-  alt: { alignItems: 'center', gap: space.md, marginTop: space.xl },
+  alt: { alignSelf: 'stretch', alignItems: 'center', gap: space.sm },
   altRow: { flexDirection: 'row', gap: space.md },
-  altBtn: { width: 54, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.12)' },
+  altBtn: { width: 54, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.10)' },
   langWrap: { position: 'absolute', end: 16, alignItems: 'flex-end', gap: 6 },
   langBtn: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, borderRadius: 99, borderWidth: 1, borderColor: 'rgba(235,208,142,0.5)', backgroundColor: 'rgba(10,16,34,0.6)' },
   langMenu: { padding: 6 },
