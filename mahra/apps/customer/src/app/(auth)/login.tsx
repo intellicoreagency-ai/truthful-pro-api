@@ -15,7 +15,7 @@ import { useReducedMotion } from '@/lib/voice';
 import { fontStyle } from '@/theme/fonts';
 import { color, radius, space } from '@/theme/tokens';
 
-/** كل نص في الشاشة بخط Noto Kufi Arabic (خط تصميم Gemini المعتمد من المالك). */
+/** كل نص في الشاشة بالخط العربي المعتمد (خط تطبيق Truthful). */
 const T = (props: ComponentProps<typeof Text>) => <Text font="kufi" {...props} />;
 
 const BG = require('../../../assets/ui/login-bg.jpg');

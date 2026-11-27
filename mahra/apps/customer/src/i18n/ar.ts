@@ -22,10 +22,11 @@ export const ar = {
   codeInvalid: 'الرمز 4 أرقام.',
 
   // التبويبات
-  tabHome: 'الرئيسية',
+  tabHome: "مهرة",
   tabRequests: 'طلباتي',
   tabSpecialists: 'الوكلاء',
   tabProfile: 'حسابي',
+  tabHistory: "معاملاتي",
   chooseAssistant: "اختر مساعدك الشخصي",
   searchAgent: "ابحث عن وكيل",
   talkToMe: "تحدث معي",

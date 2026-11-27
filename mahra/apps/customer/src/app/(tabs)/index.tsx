@@ -76,7 +76,7 @@ function Chip({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; 
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 8, minHeight: 60, backgroundColor: 'rgba(20,34,66,0.5)' },
+  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 8, minHeight: 60, backgroundColor: 'rgba(20,34,66,0.26)' },
   bell: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
   wordmark: { height: 44, width: 120 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 },

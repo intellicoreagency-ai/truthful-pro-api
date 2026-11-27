@@ -1,51 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import type { ComponentProps } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Glass } from '@/components/Glass';
-import { Pill } from '@/components/Pill';
+import { Press } from '@/components/Press';
+import { RequestCard, chatWith, type RequestItem } from '@/components/RequestCard';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { useTx } from '@/i18n';
-import { THEME } from '@/data/theme';
-import type { AgentId } from '@/data/agents';
+import { useI18n, useTx } from '@/i18n';
 import { color, space } from '@/theme/tokens';
 
-type Icon = ComponentProps<typeof Ionicons>['name'];
-type Card = { id: string; agent: AgentId; icon: Icon; title: [string, string]; line: [string, string]; pill: [string, string]; go: () => void };
-
-const chat = (agentId: string) => () => router.push({ pathname: '/chat/[agentId]', params: { agentId } });
-
 /**
- * طلباتي وخدماتي (مواصفات Spatial Glass): كبسولة Dynamic Island، عنوان بجرس، قسم «النشطة والمتابعة»
- * وقسم «مكتملة وسجل المعاملات»؛ لكل بطاقة لون الوكيل الذي قدّم الخدمة (من THEME) وزر كبسولة زجاجي بلونه.
+ * طلباتي وخدماتي: قسم «النشطة والمتابعة» فقط، وبعده مدخل «سجل المعاملات» الذي يفتح صفحة خاصة به.
  * الطلب الأول (سطحة) هو مسار المقارنة الحقيقي بين العروض.
  */
 export default function Requests() {
   const tx = useTx();
-  const active: Card[] = [
-    { id: 'tow', agent: 'jalal', icon: 'car-sport-outline', title: ['سطحة لسيارتي', 'Tow truck for my car'], line: ['الشيخ زايد • 3 عروض بأسعار نهائية. جلال', 'Sheikh Zayed • 3 final-price offers. Jalal'], pill: ['قارن العروض', 'Compare offers'], go: () => router.push({ pathname: '/request/[id]', params: { id: 'r1' } }) },
-    { id: 'cv', agent: 'meera', icon: 'briefcase-outline', title: ['السيرة الذاتية والتقديمات الذكية', 'CV and smart applications'], line: ['تحديث الملف المهني والتقديم أونلاين وإنديد. وكيلة التوظيف ميرا', 'Update your profile and apply online and on Indeed. Recruiter Meera'], pill: ['تواصل الآن', 'Contact now'], go: chat('meera') },
-    { id: 'inspect', agent: 'khaled', icon: 'business-outline', title: ['معاينة المقاولة والكوتيشن والمواعيد', 'Contracting inspection, quotes and slots'], line: ['معاينة ميدانية، اعتماد عرض السعر، والمواعيد. المهندس خالد', 'Site inspection, quote approval and slots. Eng. Khaled'], pill: ['تحديث / موافقة الآن', 'Update / approve now'], go: chat('khaled') },
+  const { dir } = useI18n();
+  const active: RequestItem[] = [
+    { id: 'tow', agent: 'jalal', title: ['سطحة لسيارتي', 'Tow truck for my car'], line: ['الشيخ زايد • 3 عروض بأسعار نهائية. جلال', 'Sheikh Zayed • 3 final-price offers. Jalal'], pill: ['قارن العروض', 'Compare offers'], go: () => router.push({ pathname: '/request/[id]', params: { id: 'r1' } }) },
+    { id: 'cv', agent: 'meera', title: ['السيرة الذاتية والتقديمات الذكية', 'CV and smart applications'], line: ['تحديث الملف المهني والتقديم أونلاين وإنديد. وكيلة التوظيف ميرا', 'Update your profile and apply online and on Indeed. Recruiter Meera'], pill: ['تواصل الآن', 'Contact now'], go: chatWith('meera') },
+    { id: 'inspect', agent: 'khaled', title: ['معاينة المقاولة والكوتيشن والمواعيد', 'Contracting inspection, quotes and slots'], line: ['معاينة ميدانية، اعتماد عرض السعر، والمواعيد. المهندس خالد', 'Site inspection, quote approval and slots. Eng. Khaled'], pill: ['تحديث / موافقة الآن', 'Update / approve now'], go: chatWith('khaled') },
   ];
-  const done: Card[] = [
-    { id: 'clean', agent: 'sara', icon: 'sparkles-outline', title: ['تنظيف ودراي كلين الغرف والمكاتب', 'Room and office cleaning, dry cleaning'], line: ['ترتيب، تنظيف، وخدمة دراي كلين. سارة', 'Tidying, cleaning and dry cleaning. Sara'], pill: ['تكرار الطلب', 'Repeat order'], go: chat('sara') },
-    { id: 'hist', agent: 'jalal', icon: 'folder-open-outline', title: ['سجل المحادثات والملفات', 'Chats and files history'], line: ['آخر 5 محادثات و3 ملفات. جلال، فيصل، ميرا', 'Last 5 chats and 3 files. Jalal, Faisal, Meera'], pill: ['فتح السجل', 'Open history'], go: chat('mansour') },
-  ];
-
-  const render = (c: Card) => {
-    const ac = THEME[c.agent].accent;
-    return (
-      <Glass key={c.id} r={26} clear blur={22} tint={ac + '1A'} style={[styles.card, { borderColor: ac + '77' }]}>
-        <View style={styles.head}>
-          <View style={[styles.badge, { backgroundColor: ac + '26', borderColor: ac + '88' }]}><Ionicons name={c.icon} size={22} color={ac} /></View>
-          <Text weight="bold" style={{ flex: 1, color: '#FFFFFF' }}>{tx(c.title[0], c.title[1])}</Text>
-        </View>
-        <Text variant="caption" tone="dim">{tx(c.line[0], c.line[1])}</Text>
-        <Pill accent={ac} label={tx(c.pill[0], c.pill[1])} onPress={c.go} />
-      </Glass>
-    );
-  };
 
   return (
     <Screen tabs>
@@ -56,17 +31,20 @@ export default function Requests() {
       </View>
 
       <Text variant="heading" weight="bold">{tx('النشطة والمتابعة', 'Active and follow-ups')}</Text>
-      {active.map(render)}
+      {active.map((c) => <RequestCard key={c.id} c={c} />)}
 
-      <Text variant="heading" weight="bold">{tx('مكتملة وسجل المعاملات', 'Completed and history')}</Text>
-      {done.map(render)}
+      <Press onPress={() => router.push('/history')} accessibilityRole="button" accessibilityLabel={tx('سجل المعاملات', 'Transaction history')}>
+        <Glass r={26} clear blur={14} style={styles.history}>
+          <Ionicons name="time-outline" size={24} color={color.goldBright} />
+          <Text weight="bold" style={{ flex: 1, color: '#FFFFFF' }}>{tx('سجل المعاملات', 'Transaction history')}</Text>
+          <Ionicons name={dir === 'rtl' ? 'chevron-back' : 'chevron-forward'} size={22} color={color.textDim} />
+        </Glass>
+      </Press>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   title: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  card: { padding: space.lg, gap: space.md },
-  head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  badge: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  history: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, minHeight: 72 },
 });

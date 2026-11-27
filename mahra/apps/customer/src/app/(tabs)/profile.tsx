@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   member: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(235,208,142,0.5)', borderRadius: 99, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: 'rgba(235,208,142,0.10)' },
   row: { flexDirection: 'row', gap: space.md, alignItems: 'stretch' },
   half: { flex: 1 },
-  cell: { padding: space.md, gap: space.sm, flex: 1, minHeight: 150 },
+  cell: { padding: space.md, gap: space.sm, flex: 1, minHeight: 224 },
   badge: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   badges: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   docBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: 'rgba(235,208,142,0.5)', borderRadius: 14, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: 'rgba(235,208,142,0.10)' },

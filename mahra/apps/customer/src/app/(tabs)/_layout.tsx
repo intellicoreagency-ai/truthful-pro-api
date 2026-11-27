@@ -17,6 +17,7 @@ export default function TabsLayout() {
         <TabTrigger name="requests" href="/requests" />
         <TabTrigger name="specialists" href="/specialists" />
         <TabTrigger name="profile" href="/profile" />
+        <TabTrigger name="history" href="/history" />
       </TabList>
     </Tabs>
     </AccentProvider>

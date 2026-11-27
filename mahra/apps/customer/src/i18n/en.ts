@@ -22,10 +22,11 @@ export const en: Record<keyof typeof ar, string> = {
   phoneInvalid: "Check the number.",
   codeInvalid: 'The code is 4 digits.',
 
-  tabHome: 'Home',
+  tabHome: "Mohra",
   tabRequests: 'Requests',
   tabSpecialists: 'Specialists',
   tabProfile: 'Account',
+  tabHistory: "Transactions",
   chooseAssistant: "Choose your personal assistant",
   searchAgent: "Search for an agent",
   talkToMe: "Talk to me",

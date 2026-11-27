@@ -16,7 +16,7 @@ type Props = {
 /** هيكل الشاشة: خلفية + منطقة آمنة + تمرير. الحشوة الجانبية 16 دائماً (لا تمرير أفقي). */
 export function Screen({ children, tone = 'gold', tabs = false, scroll = true, contentStyle }: Props) {
   const insets = useSafeAreaInsets();
-  const padBottom = (tabs ? 112 : 24) + insets.bottom;
+  const padBottom = (tabs ? 134 : 24) + insets.bottom;
   const body: ViewStyle = { paddingTop: insets.top + space.lg, paddingBottom: padBottom, paddingHorizontal: space.lg, gap: space.lg };
 
   return (

@@ -59,7 +59,7 @@ export default function Specialists() {
 
 const styles = StyleSheet.create({
   title: { alignSelf: 'stretch', textAlign: 'center', color: '#FFFFFF', fontSize: 26, lineHeight: 42 },
-  search: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, minHeight: 52, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.26)', borderTopColor: 'rgba(255,255,255,0.45)', backgroundColor: 'rgba(20,34,66,0.5)' },
+  search: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, minHeight: 52, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.26)', borderTopColor: 'rgba(255,255,255,0.45)', backgroundColor: 'rgba(20,34,66,0.26)' },
   input: { flex: 1, minWidth: 0, minHeight: 48, color: color.text, fontSize: 16 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
 });

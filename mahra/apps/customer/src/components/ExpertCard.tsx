@@ -29,7 +29,7 @@ export function ExpertCard({ id, width, selected, onSelect }: { id: AgentId; wid
   return (
     <Press onPress={onSelect} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={`${a.name[L]}. ${a.role[L]}`} style={[{ width, height: CARD_H, borderRadius: 24 }, glow]}>
       <Glass r={28} clear blur={22} style={[styles.card, { borderColor: selected ? th.accent + 'CC' : 'rgba(255,255,255,0.30)' }]}>
-        <LinearGradient colors={[th.accent + '66', th.accent + '14']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.head}>
+        <LinearGradient colors={[th.accent + '3D', th.accent + '0A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.head}>
           <Text font="display" weight="semibold" numberOfLines={1} style={{ color: '#FFFFFF', fontSize: 16, lineHeight: 26, flexShrink: 1 }}>{a.name[L]}</Text>
           <Image source={PIC[id]} style={styles.pic} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
         </LinearGradient>
@@ -37,7 +37,7 @@ export function ExpertCard({ id, width, selected, onSelect }: { id: AgentId; wid
           <Text variant="caption" weight="semibold" center numberOfLines={2} style={{ color: '#FFFFFF', fontSize: 13, lineHeight: 21, minHeight: 42 }}>{a.role[L]}</Text>
           <Text variant="caption" tone="dim" center numberOfLines={3} style={{ fontSize: 12, lineHeight: 19, minHeight: 57 }}>{tx(...c.sub)}</Text>
           <Press onPress={() => router.push({ pathname: '/chat/[agentId]', params: { agentId: id } })} accessibilityRole="button" accessibilityLabel={tx(...CTA[id])} style={{ alignSelf: 'stretch', marginTop: 'auto' }}>
-            <LinearGradient colors={[th.accent + '55', th.accent + '26']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[styles.cta, { borderColor: th.accent + '99' }]}>
+            <LinearGradient colors={[th.accent + '38', th.accent + '18']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[styles.cta, { borderColor: th.accent + '99' }]}>
               <Text font="display" weight="semibold" center numberOfLines={1} style={{ color: '#FFFFFF', fontSize: 14 }}>{tx(...CTA[id])}</Text>
             </LinearGradient>
           </Press>
@@ -48,7 +48,7 @@ export function ExpertCard({ id, width, selected, onSelect }: { id: AgentId; wid
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.07)' },
+  card: { flex: 1, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.025)' },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm, paddingHorizontal: space.md, paddingVertical: 10 },
   pic: { width: PIC_SIZE, height: PIC_SIZE, borderRadius: PIC_SIZE * 0.24 },
   body: { flex: 1, paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.md, gap: 6 },

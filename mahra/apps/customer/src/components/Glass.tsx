@@ -16,9 +16,9 @@ export function Glass({ strong, r = radius.lg, tint, tone, blur, clear, style, c
     default: { shadowColor: g ? g.rim : '#000', shadowOpacity: g ? 0.5 : 0.55, shadowRadius: g ? 18 : 20, shadowOffset: { width: 0, height: g ? 6 : 16 }, elevation: 8 },
   })!;
   return (
-    <View {...rest} style={[{ borderRadius: r, overflow: 'hidden', borderWidth: 1, borderColor: g ? g.rim : 'rgba(255,255,255,0.22)', borderTopWidth: 1.5, borderTopColor: g ? g.rim : 'rgba(255,255,255,0.48)', backgroundColor: tint ?? g?.tint ?? 'transparent' }, shadow, style]}>
-      <BlurView intensity={blur ?? (clear ? 8 : strong ? 42 : 28)} tint="dark" style={[StyleSheet.absoluteFill, { borderRadius: r }]} />
-      <LinearGradient colors={clear ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)'] : ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.03)']} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: r }]} pointerEvents="none" />
+    <View {...rest} style={[{ borderRadius: r, overflow: 'hidden', borderWidth: 1, borderColor: g ? g.rim : 'rgba(255,255,255,0.22)', borderTopWidth: 1.5, borderTopColor: g ? g.rim : 'rgba(255,255,255,0.48)', backgroundColor: tint ?? (g ? g.tint.replace(/0\.1[45]\)/, '0.08)') : 'rgba(255,255,255,0.025)') }, shadow, style]}>
+      <BlurView intensity={blur ?? (clear ? 8 : strong ? 22 : 12)} tint="dark" style={[StyleSheet.absoluteFill, { borderRadius: r }]} />
+      <LinearGradient colors={clear ? ['rgba(255,255,255,0.025)', 'rgba(255,255,255,0.01)'] : ['rgba(255,255,255,0.045)', 'rgba(255,255,255,0.008)']} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: r }]} pointerEvents="none" />
       {children}
     </View>
   );

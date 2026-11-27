@@ -9,7 +9,7 @@ export function Pill({ label, tone, accent, onPress, hint }: { label: string; to
   const ink = accent ?? glow[tone ?? 'sapphire'].ink;
   return (
     <Press onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint} style={styles.wrap}>
-      <LinearGradient colors={[ink + '55', ink + '22']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[styles.pill, { borderColor: ink + '99' }]}>
+      <LinearGradient colors={[ink + '38', ink + '18']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[styles.pill, { borderColor: ink + '99' }]}>
         <Text font="display" weight="semibold" style={{ color: '#FFFFFF' }}>{label}</Text>
       </LinearGradient>
     </Press>
