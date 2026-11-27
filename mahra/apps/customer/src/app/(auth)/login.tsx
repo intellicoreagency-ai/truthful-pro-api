@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { Image, Platform, ScrollView, StyleSheet, TextInput, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import { FadeIn } from '@/components/FadeIn';
 import { Glass } from '@/components/Glass';
 import { Press } from '@/components/Press';
 import { Text } from '@/components/Text';
@@ -22,7 +21,15 @@ const CARD_TOP = 440;
 const CARD_SIDE = 100;
 
 const digits = (s: string) => s.replace(/\D/g, '');
-const validPhone = (s: string) => digits(s).length === 9;
+/** رموز الدول الشائعة بين مقيمي الإمارات؛ الافتراضي +971 (يسار الرقم). */
+const COUNTRIES: { iso: string; cc: string }[] = [
+  { iso: 'AE', cc: '971' }, { iso: 'SA', cc: '966' }, { iso: 'EG', cc: '20' }, { iso: 'JO', cc: '962' }, { iso: 'LB', cc: '961' },
+  { iso: 'SY', cc: '963' }, { iso: 'KW', cc: '965' }, { iso: 'QA', cc: '974' }, { iso: 'BH', cc: '973' }, { iso: 'OM', cc: '968' },
+  { iso: 'IN', cc: '91' }, { iso: 'PK', cc: '92' }, { iso: 'RU', cc: '7' }, { iso: 'CN', cc: '86' }, { iso: 'FR', cc: '33' },
+  { iso: 'ES', cc: '34' }, { iso: 'GB', cc: '44' }, { iso: 'US', cc: '1' },
+];
+/** الإمارات 9 أرقام بلا صفر؛ غيرها من 6 إلى 12 رقماً. */
+const validPhone = (s: string, cc: string) => (cc === '971' ? digits(s).length === 9 : digits(s).length >= 6 && digits(s).length <= 12);
 
 function GoogleG() {
   return (
@@ -47,7 +54,8 @@ export default function Login() {
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [phone, setPhone] = useState('');
   const [hasWa, setHasWa] = useState(false);
-  const [wa, setWa] = useState('');
+  const [cc, setCc] = useState('971');
+  const [ccOpen, setCcOpen] = useState(false);
   const [code, setCode] = useState('');
   const [langOpen, setLangOpen] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'bad' | 'info'; text: string } | null>(null);
@@ -57,14 +65,16 @@ export default function Login() {
   const onLayout = (e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width);
 
   const sendCode = () => {
-    if (!validPhone(phone)) return setMsg({ tone: 'bad', text: t('phoneInvalid') });
-    if (!hasWa && !validPhone(wa)) return setMsg({ tone: 'bad', text: t('whatsappRequired') });
+    if (!validPhone(phone, cc)) return setMsg({ tone: 'bad', text: t('phoneInvalid') });
+    // واتساب إجباري (قرار المالك): خانة تأكيد تحت الرقم، والرقم نفسه هو رقم الواتساب
+    if (!hasWa) return setMsg({ tone: 'bad', text: t('whatsappRequired') });
     setMsg(null);
     setStep('code');
   };
   const verify = () => {
     if (digits(code).length !== 4) return setMsg({ tone: 'bad', text: t('codeInvalid') });
-    signIn(`+971${digits(phone)}`, hasWa ? `+971${digits(phone)}` : `+971${digits(wa)}`);
+    const full = `+${cc}${digits(phone)}`;
+    signIn(full, full);
   };
   const biometric = async () => {
     if (Platform.OS === 'web') return setMsg({ tone: 'info', text: t('faceIdUnavailable') });
@@ -83,30 +93,34 @@ export default function Login() {
         <Glass r={12} strong style={styles.card}>
           <LinearGradient pointerEvents="none" colors={['rgba(255,238,205,0)', 'rgba(255,238,205,0.20)', 'rgba(255,238,205,0)']} locations={[0.28, 0.56, 0.84]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
           <Text variant="title" font="body" weight="medium" center style={{ fontSize: 24, lineHeight: 38 }}>{step === 'phone' ? t('signIn') : t('codeTitle')}</Text>
-          {step === 'code' && <Text variant="caption" tone="dim" center>{t('codeSub', { phone: `+971 ${digits(phone)}` })}</Text>}
+          {step === 'code' && <Text variant="caption" tone="dim" center>{t('codeSub', { phone: `+${cc} ${digits(phone)}` })}</Text>}
 
           {step === 'phone' ? (
             <>
               {field('call-outline', (
                 <View style={styles.phoneRow}>
-                  <Text weight="semibold" tone="dim">+971</Text>
-                  <TextInput value={phone} onChangeText={(v) => setPhone(digits(v).slice(0, 9))} placeholder={t('phonePlaceholder')} placeholderTextColor={color.textMuted} inputMode="numeric" autoComplete="tel" accessibilityLabel={t('phoneLabel')} style={[styles.input, font]} />
+                  <Press onPress={() => setCcOpen((v) => !v)} accessibilityRole="button" accessibilityLabel={`${t('countryCode')} +${cc}`} accessibilityState={{ expanded: ccOpen }} style={styles.ccBtn}>
+                    <Text weight="semibold" tone="dim">+{cc}</Text>
+                    <Ionicons name={ccOpen ? 'chevron-up' : 'chevron-down'} size={14} color={color.textDim} />
+                  </Press>
+                  <TextInput value={phone} onChangeText={(v) => setPhone(digits(v).slice(0, cc === '971' ? 9 : 12))} placeholder={t('phonePlaceholder')} placeholderTextColor={color.textMuted} inputMode="numeric" autoComplete="tel" accessibilityLabel={t('phoneLabel')} style={[styles.input, font]} />
                 </View>
               ))}
+              {ccOpen && (
+                <Glass r={14} strong style={styles.ccList}>
+                  <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                    {COUNTRIES.map((c) => (
+                      <Press key={c.iso} onPress={() => { setCc(c.cc); setCcOpen(false); }} accessibilityRole="button" accessibilityState={{ selected: c.cc === cc }} style={styles.ccItem}>
+                        <Text variant="caption" weight={c.cc === cc ? 'bold' : 'regular'} tone={c.cc === cc ? 'gold' : 'normal'} style={{ writingDirection: 'ltr' }}>{c.iso}   +{c.cc}</Text>
+                      </Press>
+                    ))}
+                  </ScrollView>
+                </Glass>
+              )}
               <Press onPress={() => setHasWa((v) => !v)} accessibilityRole="checkbox" accessibilityState={{ checked: hasWa }} style={styles.check}>
                 <Ionicons name={hasWa ? 'checkbox' : 'square-outline'} size={24} color={hasWa ? color.goldBright : color.textDim} />
                 <Text variant="caption" style={{ flex: 1 }}>{t('hasWhatsapp')}</Text>
               </Press>
-              {!hasWa && (
-                <FadeIn>
-                  {field('logo-whatsapp', (
-                    <View style={styles.phoneRow}>
-                      <Text weight="semibold" tone="dim">+971</Text>
-                      <TextInput value={wa} onChangeText={(v) => setWa(digits(v).slice(0, 9))} placeholder={t('phonePlaceholder')} placeholderTextColor={color.textMuted} inputMode="numeric" autoComplete="tel" accessibilityLabel={t('whatsappLabel')} style={[styles.input, font]} />
-                    </View>
-                  ))}
-                </FadeIn>
-              )}
             </>
           ) : (
             field('keypad-outline', (
@@ -175,6 +189,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#060913' },
   card: { padding: space.lg, gap: space.md, backgroundColor: 'rgba(150,160,190,0.14)' },
   field: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', borderTopColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.12)' },
+  ccBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4, paddingEnd: space.sm, borderEndWidth: 1, borderEndColor: 'rgba(255,255,255,0.2)' },
+  ccList: { padding: 4 },
+  ccItem: { minHeight: 40, paddingHorizontal: 14, justifyContent: 'center', alignItems: 'flex-start' },
   phoneRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, direction: 'ltr' },
   input: { flex: 1, minWidth: 0, minHeight: 44, color: color.text, fontSize: 17, textAlign: 'left', writingDirection: 'ltr' },
   check: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 44 },
