@@ -7,11 +7,12 @@ export type AgentId =
   | 'jalal' | 'layla' | 'noura' | 'talal' | 'khaled' | 'sara' | 'rashid' | 'karim'
   | 'reem' | 'dana' | 'omar' | 'tareq' | 'mansour' | 'faisal' | 'meera';
 
-/** اللهجات المعتمدة للوكلاء (العربية): لا مغاربية. مهرة وحدها إماراتية وليست في هذه القائمة. */
-export type Dialect = 'jordanian' | 'lebanese' | 'syrian' | 'egyptian' | 'saudi';
+/** لهجات الوكلاء بالعربية: خمس لهجات، بلا مغاربية. الاستثناء الوحيد: راشد إماراتي (يمثل جهة إماراتية وحيدة). مهرة نفسها إماراتية. */
+export type Dialect = 'emirati' | 'jordanian' | 'lebanese' | 'syrian' | 'egyptian' | 'saudi';
 
 /** الجنسية بحسب جنس الوكيل: [مذكر, مؤنث] */
 export const DIALECT_LABEL: Record<Dialect, { ar: [string, string]; en: string }> = {
+  emirati: { ar: ['إماراتي', 'إماراتية'], en: 'Emirati' },
   jordanian: { ar: ['أردني', 'أردنية'], en: 'Jordanian' },
   lebanese: { ar: ['لبناني', 'لبنانية'], en: 'Lebanese' },
   syrian: { ar: ['سوري', 'سورية'], en: 'Syrian' },
@@ -59,8 +60,8 @@ export const AGENTS: Agent[] = [
     summary: { ar: 'معاينة، عروض مرحلية، ومتابعة المشروع حتى الاكتمال.', en: 'Site visits, staged quotes and project follow-through.' },
     icon: 'business-outline', accent: '#C9A24E', gender: 'm', dialect: 'egyptian', status: 'soon', hasCommission: true },
   { id: 'rashid', name: { ar: 'راشد', en: 'Rashid' }, role: { ar: 'المعاملات والخدمات الحكومية', en: 'Paperwork and government services' },
-    summary: { ar: 'يشرح الخطوات والمتطلبات ويجهز المستندات.', en: 'Explains steps and requirements and prepares documents.' },
-    icon: 'document-text-outline', accent: '#9AA8D6', gender: 'm', dialect: 'saudi', status: 'soon', hasCommission: true },
+    summary: { ar: 'يستقبل طلبك ويجهز مستنداتك ويسلّمه لـ«تروثفل لخدمات التخليص»، الجهة الوحيدة لهذه المعاملات.', en: 'Takes your request, prepares your documents and hands it to Truthful Clearance Services, our only provider for these transactions.' },
+    icon: 'document-text-outline', accent: '#9AA8D6', gender: 'm', dialect: 'emirati', status: 'soon', hasCommission: true },
   { id: 'karim', name: { ar: 'كريم', en: 'Karim' }, role: { ar: 'التنقل والسفر', en: 'Transport and travel' },
     summary: { ar: 'رحلات، مشاوير، وحجوزات مرتبة.', en: 'Trips, rides and organised bookings.' },
     icon: 'airplane-outline', accent: '#7FD1B9', gender: 'm', dialect: 'saudi', status: 'soon', hasCommission: true },

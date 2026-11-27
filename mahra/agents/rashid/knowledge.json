@@ -1,0 +1,5606 @@
+{
+  "provider": "Truthful Clearance Services LLC (تروثفل لخدمات التخليص ذ.م.م), Dubai",
+  "source": {
+    "repo": "intellicoreagency-ai/truthful-pro-api",
+    "branch": "claude/glass-step5-transaction-details",
+    "commit": "a53d8f094729f67cea417746863133ef989fdfe9",
+    "files": [
+      "mobile/src/services.ts",
+      "mobile/src/serviceDetails.ts",
+      "mobile/src/catalogue/categories.ts"
+    ]
+  },
+  "caveat": "المحتوى مرجعي (contentStatus=reference). المتطلبات تتغير بحسب الحالة، ولا تُعرض رسوم أو مدد قبل التحقق من الجهة الرسمية. لا أسعار معتمدة (feeStatus=not-verified).",
+  "categories": [
+    {
+      "id": "residency",
+      "title": {
+        "ar": "الإقامة والتأشيرات",
+        "en": "Residency & Visas"
+      },
+      "description": {
+        "ar": "إصدار وتجديد الإقامات والتأشيرات وشؤون الجوازات",
+        "en": "Issue and renew residency, visas and passport matters"
+      }
+    },
+    {
+      "id": "emirates-id",
+      "title": {
+        "ar": "الهوية الإماراتية",
+        "en": "Emirates ID"
+      },
+      "description": {
+        "ar": "إصدار وتجديد وتحديث بطاقة الهوية",
+        "en": "Issue, renew and update your Emirates ID"
+      }
+    },
+    {
+      "id": "business",
+      "title": {
+        "ar": "تأسيس الشركات والرخص التجارية",
+        "en": "Company Setup & Trade Licences"
+      },
+      "description": {
+        "ar": "تأسيس الشركات وإصدار الرخص وتجديدها وتعديلها",
+        "en": "Form companies, issue, renew and amend licences"
+      }
+    },
+    {
+      "id": "labour",
+      "title": {
+        "ar": "الموارد البشرية والعمالة",
+        "en": "Human Resources & Labour"
+      },
+      "description": {
+        "ar": "معاملات وزارة الموارد البشرية والتوطين",
+        "en": "Ministry of Human Resources and Emiratisation (MOHRE)"
+      }
+    },
+    {
+      "id": "ejari",
+      "title": {
+        "ar": "إيجاري",
+        "en": "Ejari"
+      },
+      "description": {
+        "ar": "تسجيل عقود الإيجار وتجديدها وإلغاؤها",
+        "en": "Register, renew and cancel tenancy contracts"
+      }
+    },
+    {
+      "id": "notary",
+      "title": {
+        "ar": "كاتب العدل",
+        "en": "Notary Public"
+      },
+      "description": {
+        "ar": "التوكيلات والإقرارات وتوثيق المحررات",
+        "en": "Powers of attorney, declarations and notarisation"
+      }
+    },
+    {
+      "id": "courts",
+      "title": {
+        "ar": "المحاكم والخدمات القانونية",
+        "en": "Courts & Legal Services"
+      },
+      "description": {
+        "ar": "متابعة القضايا والطلبات أمام المحاكم",
+        "en": "Follow cases and applications with the courts"
+      }
+    },
+    {
+      "id": "translation",
+      "title": {
+        "ar": "الترجمة القانونية",
+        "en": "Legal Translation"
+      },
+      "description": {
+        "ar": "ترجمة معتمدة للمستندات الرسمية",
+        "en": "Certified translation of official documents"
+      }
+    },
+    {
+      "id": "attestation",
+      "title": {
+        "ar": "تصديق المستندات",
+        "en": "Document Attestation"
+      },
+      "description": {
+        "ar": "تصديق الشهادات والمستندات من الجهات المختصة",
+        "en": "Attest certificates and documents with the authorities"
+      }
+    },
+    {
+      "id": "rta",
+      "title": {
+        "ar": "هيئة الطرق والمواصلات",
+        "en": "Roads & Transport Authority"
+      },
+      "description": {
+        "ar": "معاملات المركبات والرخص (RTA)",
+        "en": "Vehicle and licensing transactions (RTA)"
+      }
+    },
+    {
+      "id": "tax",
+      "title": {
+        "ar": "الضرائب",
+        "en": "Tax"
+      },
+      "description": {
+        "ar": "التسجيل في ضريبة الشركات",
+        "en": "Corporate tax registration"
+      }
+    },
+    {
+      "id": "bank",
+      "title": {
+        "ar": "الحسابات البنكية",
+        "en": "Bank Accounts"
+      },
+      "description": {
+        "ar": "تجهيز ملف فتح حساب الشركة",
+        "en": "Prepare the company account opening file"
+      }
+    },
+    {
+      "id": "customs",
+      "title": {
+        "ar": "الجمارك",
+        "en": "Customs"
+      },
+      "description": {
+        "ar": "التسجيل الجمركي والمعاملات المرتبطة به",
+        "en": "Customs registration and related transactions"
+      }
+    }
+  ],
+  "services": [
+    {
+      "id": "immigration-visas",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "residency",
+        "title": {
+          "ar": "الإقامة والتأشيرات",
+          "en": "Residency & Visas"
+        }
+      },
+      "name": {
+        "ar": "خدمات التأشيرات والهجرة والجوازات",
+        "en": "Immigration & Visa Services"
+      },
+      "description": {
+        "ar": "تأشيرات الموظفين والإقامة وشؤون الجوازات",
+        "en": "Immigration and visa processing"
+      },
+      "about": {
+        "ar": "إدارة معاملات التأشيرات والإقامة للشركات وموظفيها لدى الجهات المعنية بالإقامة وشؤون الأجانب.",
+        "en": "Assistance with visa and residency transactions for companies and their employees through the relevant immigration authorities."
+      },
+      "actions": [
+        {
+          "id": "issue-residency",
+          "name": {
+            "ar": "إصدار إقامة جديدة",
+            "en": "New Residency Issuance"
+          },
+          "documents": [
+            {
+              "id": "signatory",
+              "ar": "الهوية الإماراتية للمخوّل بالتوقيع",
+              "en": "Emirates ID of the Authorized Signatory",
+              "optional": false
+            },
+            {
+              "id": "trade",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "employment",
+              "ar": "عقد العمل أو عرض العمل",
+              "en": "Employment Contract or Job Offer",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "صورة جواز السفر",
+              "en": "Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "photo",
+              "ar": "صورة شخصية حديثة بخلفية بيضاء",
+              "en": "Recent Personal Photo (White Background)",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "renew-residency",
+          "name": {
+            "ar": "تجديد الإقامة",
+            "en": "Residency Renewal"
+          },
+          "documents": [
+            {
+              "id": "signatory",
+              "ar": "الهوية الإماراتية للمخوّل بالتوقيع",
+              "en": "Emirates ID of the Authorized Signatory",
+              "optional": false
+            },
+            {
+              "id": "trade",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "صورة جواز السفر",
+              "en": "Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "residency",
+              "ar": "نسخة الإقامة الحالية عند الحاجة",
+              "en": "Current Residency Copy, if applicable",
+              "optional": true
+            },
+            {
+              "id": "photo",
+              "ar": "صورة شخصية حديثة بخلفية بيضاء",
+              "en": "Recent Personal Photo (White Background)",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "cancel-residency",
+          "name": {
+            "ar": "إلغاء الإقامة",
+            "en": "Residency Cancellation"
+          },
+          "documents": [
+            {
+              "id": "signatory",
+              "ar": "الهوية الإماراتية للمخوّل بالتوقيع",
+              "en": "Emirates ID of the Authorized Signatory",
+              "optional": false
+            },
+            {
+              "id": "trade",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "صورة جواز السفر",
+              "en": "Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "residency",
+              "ar": "نسخة الإقامة الحالية عند الحاجة",
+              "en": "Current Residency Copy, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "transfer-residency",
+          "name": {
+            "ar": "نقل الإقامة (تغيير جهة العمل)",
+            "en": "Residency Transfer (Change of Employer)"
+          },
+          "documents": [
+            {
+              "id": "signatory",
+              "ar": "الهوية الإماراتية للمخوّل بالتوقيع",
+              "en": "Emirates ID of the Authorized Signatory",
+              "optional": false
+            },
+            {
+              "id": "trade",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "employment",
+              "ar": "عقد العمل أو عرض العمل",
+              "en": "Employment Contract or Job Offer",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "صورة جواز السفر",
+              "en": "Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "residency",
+              "ar": "نسخة الإقامة الحالية عند الحاجة",
+              "en": "Current Residency Copy, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-residency",
+          "name": {
+            "ar": "تعديل بيانات الإقامة",
+            "en": "Update Residency Details"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "صورة جواز السفر",
+              "en": "Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "residency",
+              "ar": "نسخة الإقامة الحالية عند الحاجة",
+              "en": "Current Residency Copy, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "issue-entry-visa",
+          "name": {
+            "ar": "إصدار تأشيرة دخول",
+            "en": "Entry Visa Issuance"
+          },
+          "documents": [
+            {
+              "id": "signatory",
+              "ar": "الهوية الإماراتية للمخوّل بالتوقيع",
+              "en": "Emirates ID of the Authorized Signatory",
+              "optional": false
+            },
+            {
+              "id": "trade",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "صورة جواز السفر",
+              "en": "Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "photo",
+              "ar": "صورة شخصية حديثة بخلفية بيضاء",
+              "en": "Recent Personal Photo (White Background)",
+              "optional": false
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "signatory",
+          "ar": "الهوية الإماراتية للمخوّل بالتوقيع",
+          "en": "Emirates ID of the Authorized Signatory",
+          "optional": false
+        },
+        {
+          "id": "trade",
+          "ar": "الرخصة التجارية السارية",
+          "en": "Valid Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "employment",
+          "ar": "عقد العمل أو عرض العمل",
+          "en": "Employment Contract or Job Offer",
+          "optional": false
+        },
+        {
+          "id": "passport",
+          "ar": "صورة جواز السفر",
+          "en": "Passport Copy",
+          "optional": false
+        },
+        {
+          "id": "photo",
+          "ar": "صورة شخصية حديثة بخلفية بيضاء",
+          "en": "Recent Personal Photo (White Background)",
+          "optional": false
+        },
+        {
+          "id": "residency",
+          "ar": "نسخة الإقامة الحالية عند الحاجة",
+          "en": "Current Residency Copy, if applicable",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "moa-amendments",
+      "audience": "company",
+      "legacyAliasOf": "trade-licenses",
+      "category": {
+        "id": "business",
+        "title": {
+          "ar": "تأسيس الشركات والرخص التجارية",
+          "en": "Company Setup & Trade Licences"
+        }
+      },
+      "name": {
+        "ar": "عقد تأسيس الشركات وتعديلاته",
+        "en": "Company Incorporation & Amendments"
+      },
+      "description": {
+        "ar": "إعداد وتوثيق وتعديل عقود تأسيس الشركات",
+        "en": "MOA and company amendments"
+      },
+      "about": {
+        "ar": "إعداد وتوثيق وتعديل عقود تأسيس الشركات",
+        "en": "MOA and company amendments"
+      },
+      "actions": [
+        {
+          "id": "prepare-moa",
+          "name": {
+            "ar": "إعداد عقد التأسيس",
+            "en": "Prepare MOA"
+          },
+          "documents": [
+            {
+              "id": "owners",
+              "ar": "هويات / جوازات الشركاء",
+              "en": "Partners’ IDs or Passports",
+              "optional": false
+            },
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية القائمة إن وجدت",
+              "en": "Existing Trade Licence, if any",
+              "optional": true
+            },
+            {
+              "id": "authority",
+              "ar": "وكالة أو تفويض عند الحاجة",
+              "en": "Authorization or POA if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-company",
+          "name": {
+            "ar": "تعديل بيانات الشركة",
+            "en": "Amend Company Details"
+          },
+          "documents": [
+            {
+              "id": "owners",
+              "ar": "هويات / جوازات الشركاء",
+              "en": "Partners’ IDs or Passports",
+              "optional": false
+            },
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية القائمة إن وجدت",
+              "en": "Existing Trade Licence, if any",
+              "optional": true
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي عند التعديل",
+              "en": "Current MOA for amendments",
+              "optional": true
+            },
+            {
+              "id": "authority",
+              "ar": "وكالة أو تفويض عند الحاجة",
+              "en": "Authorization or POA if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-partners",
+          "name": {
+            "ar": "إضافة أو انسحاب شريك",
+            "en": "Add or Remove a Partner"
+          },
+          "documents": [
+            {
+              "id": "owners",
+              "ar": "هويات / جوازات الشركاء",
+              "en": "Partners’ IDs or Passports",
+              "optional": false
+            },
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية القائمة إن وجدت",
+              "en": "Existing Trade Licence, if any",
+              "optional": true
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي عند التعديل",
+              "en": "Current MOA for amendments",
+              "optional": true
+            },
+            {
+              "id": "authority",
+              "ar": "وكالة أو تفويض عند الحاجة",
+              "en": "Authorization or POA if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-activity",
+          "name": {
+            "ar": "تغيير أو إضافة نشاط",
+            "en": "Change or Add a Business Activity"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية القائمة إن وجدت",
+              "en": "Existing Trade Licence, if any",
+              "optional": true
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي عند التعديل",
+              "en": "Current MOA for amendments",
+              "optional": true
+            },
+            {
+              "id": "authority",
+              "ar": "وكالة أو تفويض عند الحاجة",
+              "en": "Authorization or POA if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-capital",
+          "name": {
+            "ar": "تعديل رأس المال",
+            "en": "Modify Share Capital"
+          },
+          "documents": [
+            {
+              "id": "owners",
+              "ar": "هويات / جوازات الشركاء",
+              "en": "Partners’ IDs or Passports",
+              "optional": false
+            },
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية القائمة إن وجدت",
+              "en": "Existing Trade Licence, if any",
+              "optional": true
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي عند التعديل",
+              "en": "Current MOA for amendments",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "close-company",
+          "name": {
+            "ar": "حل وتصفية الشركة",
+            "en": "Dissolve and Liquidate Company"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية القائمة إن وجدت",
+              "en": "Existing Trade Licence, if any",
+              "optional": true
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي عند التعديل",
+              "en": "Current MOA for amendments",
+              "optional": true
+            },
+            {
+              "id": "authority",
+              "ar": "وكالة أو تفويض عند الحاجة",
+              "en": "Authorization or POA if applicable",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "owners",
+          "ar": "هويات / جوازات الشركاء",
+          "en": "Partners’ IDs or Passports",
+          "optional": false
+        },
+        {
+          "id": "licence",
+          "ar": "الرخصة التجارية القائمة إن وجدت",
+          "en": "Existing Trade Licence, if any",
+          "optional": true
+        },
+        {
+          "id": "moa",
+          "ar": "عقد التأسيس الحالي عند التعديل",
+          "en": "Current MOA for amendments",
+          "optional": true
+        },
+        {
+          "id": "authority",
+          "ar": "وكالة أو تفويض عند الحاجة",
+          "en": "Authorization or POA if applicable",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "bank-account",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "bank",
+        "title": {
+          "ar": "الحسابات البنكية",
+          "en": "Bank Accounts"
+        }
+      },
+      "name": {
+        "ar": "خدمات فتح الحسابات البنكية للشركات",
+        "en": "Bank Account Opening for Companies"
+      },
+      "description": {
+        "ar": "المساعدة في تجهيز متطلبات الحسابات البنكية",
+        "en": "Corporate banking assistance"
+      },
+      "about": {
+        "ar": "المساعدة في تجهيز متطلبات الحسابات البنكية",
+        "en": "Corporate banking assistance"
+      },
+      "actions": [
+        {
+          "id": "open-account",
+          "name": {
+            "ar": "فتح حساب بنكي جديد",
+            "en": "Open a New Bank Account"
+          },
+          "documents": [
+            {
+              "id": "trade",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس",
+              "en": "Memorandum of Association",
+              "optional": false
+            },
+            {
+              "id": "owners",
+              "ar": "هويات / جوازات المفوضين",
+              "en": "Signatories’ IDs or Passports",
+              "optional": false
+            },
+            {
+              "id": "bank",
+              "ar": "مستندات البنك حسب متطلباته",
+              "en": "Bank-Specific Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "activate-account",
+          "name": {
+            "ar": "تفعيل حساب حالي",
+            "en": "Activate an Existing Account"
+          },
+          "documents": [
+            {
+              "id": "trade",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "owners",
+              "ar": "هويات / جوازات المفوضين",
+              "en": "Signatories’ IDs or Passports",
+              "optional": false
+            },
+            {
+              "id": "bank",
+              "ar": "مستندات البنك حسب متطلباته",
+              "en": "Bank-Specific Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-account",
+          "name": {
+            "ar": "تحديث بيانات الحساب",
+            "en": "Update Account Details"
+          },
+          "documents": [
+            {
+              "id": "trade",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "owners",
+              "ar": "هويات / جوازات المفوضين",
+              "en": "Signatories’ IDs or Passports",
+              "optional": false
+            },
+            {
+              "id": "bank",
+              "ar": "مستندات البنك حسب متطلباته",
+              "en": "Bank-Specific Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-signatories",
+          "name": {
+            "ar": "إضافة أو حذف مفوضين",
+            "en": "Add or Remove Signatories"
+          },
+          "documents": [
+            {
+              "id": "owners",
+              "ar": "هويات / جوازات المفوضين",
+              "en": "Signatories’ IDs or Passports",
+              "optional": false
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس",
+              "en": "Memorandum of Association",
+              "optional": false
+            },
+            {
+              "id": "bank",
+              "ar": "مستندات البنك حسب متطلباته",
+              "en": "Bank-Specific Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "issue-cards",
+          "name": {
+            "ar": "إصدار بطاقات الشركة",
+            "en": "Request Company Cards"
+          },
+          "documents": [
+            {
+              "id": "owners",
+              "ar": "هويات / جوازات المفوضين",
+              "en": "Signatories’ IDs or Passports",
+              "optional": false
+            },
+            {
+              "id": "bank",
+              "ar": "مستندات البنك حسب متطلباته",
+              "en": "Bank-Specific Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "close-account",
+          "name": {
+            "ar": "إغلاق حساب الشركة",
+            "en": "Close Company Account"
+          },
+          "documents": [
+            {
+              "id": "owners",
+              "ar": "هويات / جوازات المفوضين",
+              "en": "Signatories’ IDs or Passports",
+              "optional": false
+            },
+            {
+              "id": "bank",
+              "ar": "مستندات البنك حسب متطلباته",
+              "en": "Bank-Specific Documents",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "trade",
+          "ar": "الرخصة التجارية",
+          "en": "Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "moa",
+          "ar": "عقد التأسيس",
+          "en": "Memorandum of Association",
+          "optional": false
+        },
+        {
+          "id": "owners",
+          "ar": "هويات / جوازات المفوضين",
+          "en": "Signatories’ IDs or Passports",
+          "optional": false
+        },
+        {
+          "id": "bank",
+          "ar": "مستندات البنك حسب متطلباته",
+          "en": "Bank-Specific Documents",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "الموافقة على فتح الحساب وقرارات الامتثال من اختصاص البنك.",
+          "en": "Account approval and compliance decisions rest with the bank."
+        },
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "ejari-companies",
+      "audience": "company",
+      "legacyAliasOf": "commercial-ejari",
+      "category": {
+        "id": "ejari",
+        "title": {
+          "ar": "إيجاري",
+          "en": "Ejari"
+        }
+      },
+      "name": {
+        "ar": "خدمات إيجاري للعقارات التجارية",
+        "en": "Ejari Services for Companies"
+      },
+      "description": {
+        "ar": "توثيق وإدارة عقود الإيجار التجاري",
+        "en": "Commercial tenancy documentation"
+      },
+      "about": {
+        "ar": "توثيق وإدارة عقود الإيجار التجاري",
+        "en": "Commercial tenancy documentation"
+      },
+      "actions": [
+        {
+          "id": "register-tenancy",
+          "name": {
+            "ar": "تسجيل عقد إيجار جديد",
+            "en": "Register a Tenancy Contract"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner/Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "contract",
+              "ar": "عقد الإيجار التجاري",
+              "en": "Commercial Tenancy Contract",
+              "optional": false
+            },
+            {
+              "id": "property",
+              "ar": "بيانات العقار أو إثبات الملكية عند الحاجة",
+              "en": "Property Evidence, if required",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "renew-tenancy",
+          "name": {
+            "ar": "تجديد عقد الإيجار",
+            "en": "Renew a Tenancy Contract"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner/Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "contract",
+              "ar": "عقد الإيجار التجاري",
+              "en": "Commercial Tenancy Contract",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "amend-tenancy",
+          "name": {
+            "ar": "تعديل بيانات العقد",
+            "en": "Amend Tenancy Details"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner/Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "contract",
+              "ar": "عقد الإيجار التجاري",
+              "en": "Commercial Tenancy Contract",
+              "optional": false
+            },
+            {
+              "id": "property",
+              "ar": "بيانات العقار أو إثبات الملكية عند الحاجة",
+              "en": "Property Evidence, if required",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "cancel-tenancy",
+          "name": {
+            "ar": "إلغاء عقد الإيجار",
+            "en": "Cancel a Tenancy Contract"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner/Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "contract",
+              "ar": "عقد الإيجار التجاري",
+              "en": "Commercial Tenancy Contract",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "issue-certificate",
+          "name": {
+            "ar": "إصدار شهادة إيجاري",
+            "en": "Request an Ejari Certificate"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner/Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "contract",
+              "ar": "عقد الإيجار التجاري",
+              "en": "Commercial Tenancy Contract",
+              "optional": false
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "الرخصة التجارية",
+          "en": "Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "id",
+          "ar": "هوية المالك أو المفوض",
+          "en": "Owner/Authorized Person ID",
+          "optional": false
+        },
+        {
+          "id": "contract",
+          "ar": "عقد الإيجار التجاري",
+          "en": "Commercial Tenancy Contract",
+          "optional": false
+        },
+        {
+          "id": "property",
+          "ar": "بيانات العقار أو إثبات الملكية عند الحاجة",
+          "en": "Property Evidence, if required",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "rta-companies",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "rta",
+        "title": {
+          "ar": "هيئة الطرق والمواصلات",
+          "en": "Roads & Transport Authority"
+        }
+      },
+      "name": {
+        "ar": "خدمات هيئة الطرق والمواصلات (RTA)",
+        "en": "RTA Services for Companies"
+      },
+      "description": {
+        "ar": "معاملات المركبات والنقل للشركات",
+        "en": "Vehicle and transport services"
+      },
+      "about": {
+        "ar": "معاملات المركبات والنقل للشركات",
+        "en": "Vehicle and transport services"
+      },
+      "actions": [
+        {
+          "id": "register-vehicle",
+          "name": {
+            "ar": "تسجيل مركبة جديدة",
+            "en": "Register a New Vehicle"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المفوض",
+              "en": "Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "vehicle",
+              "ar": "ملكية المركبة أو ملفها",
+              "en": "Vehicle Registration / File",
+              "optional": false
+            },
+            {
+              "id": "approval",
+              "ar": "تفويض عند الحاجة",
+              "en": "Authorization, if required",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "renew-vehicle",
+          "name": {
+            "ar": "تجديد ملكية مركبة",
+            "en": "Renew Vehicle Registration"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المفوض",
+              "en": "Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "vehicle",
+              "ar": "ملكية المركبة أو ملفها",
+              "en": "Vehicle Registration / File",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "transfer-vehicle",
+          "name": {
+            "ar": "نقل ملكية مركبة",
+            "en": "Transfer Vehicle Ownership"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "هوية المفوض",
+              "en": "Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "vehicle",
+              "ar": "ملكية المركبة أو ملفها",
+              "en": "Vehicle Registration / File",
+              "optional": false
+            },
+            {
+              "id": "approval",
+              "ar": "تفويض عند الحاجة",
+              "en": "Authorization, if required",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "cancel-vehicle",
+          "name": {
+            "ar": "إلغاء تسجيل مركبة",
+            "en": "Deregister a Vehicle"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "هوية المفوض",
+              "en": "Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "vehicle",
+              "ar": "ملكية المركبة أو ملفها",
+              "en": "Vehicle Registration / File",
+              "optional": false
+            },
+            {
+              "id": "approval",
+              "ar": "تفويض عند الحاجة",
+              "en": "Authorization, if required",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "manage-fleet",
+          "name": {
+            "ar": "إدارة أسطول المركبات",
+            "en": "Manage Company Fleet"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "vehicle",
+              "ar": "ملكية المركبة أو ملفها",
+              "en": "Vehicle Registration / File",
+              "optional": false
+            },
+            {
+              "id": "approval",
+              "ar": "تفويض عند الحاجة",
+              "en": "Authorization, if required",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "issue-traffic-card",
+          "name": {
+            "ar": "إصدار بطاقة المرور للشركة",
+            "en": "Request Company Traffic Card"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المفوض",
+              "en": "Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "approval",
+              "ar": "تفويض عند الحاجة",
+              "en": "Authorization, if required",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "الرخصة التجارية السارية",
+          "en": "Valid Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "id",
+          "ar": "هوية المفوض",
+          "en": "Authorized Person ID",
+          "optional": false
+        },
+        {
+          "id": "vehicle",
+          "ar": "ملكية المركبة أو ملفها",
+          "en": "Vehicle Registration / File",
+          "optional": false
+        },
+        {
+          "id": "approval",
+          "ar": "تفويض عند الحاجة",
+          "en": "Authorization, if required",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "courts-legal-companies",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "courts",
+        "title": {
+          "ar": "المحاكم والخدمات القانونية",
+          "en": "Courts & Legal Services"
+        }
+      },
+      "name": {
+        "ar": "المحاكم والخدمات القانونية للشركات",
+        "en": "Court & Legal Services for Companies"
+      },
+      "description": {
+        "ar": "متابعة المعاملات القضائية للشركات",
+        "en": "Corporate legal procedures"
+      },
+      "about": {
+        "ar": "متابعة المعاملات القضائية للشركات",
+        "en": "Corporate legal procedures"
+      },
+      "actions": [
+        {
+          "id": "file-claim",
+          "name": {
+            "ar": "رفع دعوى تجارية",
+            "en": "Commercial Lawsuit Enquiry"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "contracts",
+              "ar": "العقود والمستندات المتعلقة بالقضية",
+              "en": "Case-Related Contracts / Records",
+              "optional": false
+            },
+            {
+              "id": "poa",
+              "ar": "وكالة قانونية عند اللزوم",
+              "en": "Power of Attorney, if needed",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "enforce-judgment",
+          "name": {
+            "ar": "تنفيذ الأحكام",
+            "en": "Judgment Enforcement Enquiry"
+          },
+          "documents": [
+            {
+              "id": "notice",
+              "ar": "إشعار المحكمة إن وجد",
+              "en": "Court Notice, if available",
+              "optional": true
+            },
+            {
+              "id": "contracts",
+              "ar": "العقود والمستندات المتعلقة بالقضية",
+              "en": "Case-Related Contracts / Records",
+              "optional": false
+            },
+            {
+              "id": "poa",
+              "ar": "وكالة قانونية عند اللزوم",
+              "en": "Power of Attorney, if needed",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "respond-notice",
+          "name": {
+            "ar": "الرد على الإنذارات القانونية",
+            "en": "Respond to Legal Notices"
+          },
+          "documents": [
+            {
+              "id": "notice",
+              "ar": "إشعار المحكمة إن وجد",
+              "en": "Court Notice, if available",
+              "optional": true
+            },
+            {
+              "id": "contracts",
+              "ar": "العقود والمستندات المتعلقة بالقضية",
+              "en": "Case-Related Contracts / Records",
+              "optional": false
+            },
+            {
+              "id": "poa",
+              "ar": "وكالة قانونية عند اللزوم",
+              "en": "Power of Attorney, if needed",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "review-cheque",
+          "name": {
+            "ar": "قضايا الشيكات",
+            "en": "Cheque Case Enquiry"
+          },
+          "documents": [
+            {
+              "id": "contracts",
+              "ar": "العقود والمستندات المتعلقة بالقضية",
+              "en": "Case-Related Contracts / Records",
+              "optional": false
+            },
+            {
+              "id": "notice",
+              "ar": "إشعار المحكمة إن وجد",
+              "en": "Court Notice, if available",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "collect-claims",
+          "name": {
+            "ar": "تحصيل المطالبات المالية",
+            "en": "Debt and Claims Enquiry"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "contracts",
+              "ar": "العقود والمستندات المتعلقة بالقضية",
+              "en": "Case-Related Contracts / Records",
+              "optional": false
+            },
+            {
+              "id": "notice",
+              "ar": "إشعار المحكمة إن وجد",
+              "en": "Court Notice, if available",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "settle-dispute",
+          "name": {
+            "ar": "التسوية الودية",
+            "en": "Amicable Settlement Enquiry"
+          },
+          "documents": [
+            {
+              "id": "contracts",
+              "ar": "العقود والمستندات المتعلقة بالقضية",
+              "en": "Case-Related Contracts / Records",
+              "optional": false
+            },
+            {
+              "id": "notice",
+              "ar": "إشعار المحكمة إن وجد",
+              "en": "Court Notice, if available",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "الرخصة التجارية",
+          "en": "Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "contracts",
+          "ar": "العقود والمستندات المتعلقة بالقضية",
+          "en": "Case-Related Contracts / Records",
+          "optional": false
+        },
+        {
+          "id": "notice",
+          "ar": "إشعار المحكمة إن وجد",
+          "en": "Court Notice, if available",
+          "optional": true
+        },
+        {
+          "id": "poa",
+          "ar": "وكالة قانونية عند اللزوم",
+          "en": "Power of Attorney, if needed",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "الخدمات القانونية تُنفّذ حسب اختصاص الجهات والمختصين المرخصين.",
+          "en": "Legal services are subject to relevant authorities and licensed professionals."
+        },
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "corporate-tax",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "tax",
+        "title": {
+          "ar": "الضرائب",
+          "en": "Tax"
+        }
+      },
+      "name": {
+        "ar": "التسجيل في ضريبة الشركات",
+        "en": "Corporate Tax Registration"
+      },
+      "description": {
+        "ar": "إجراءات التسجيل لدى الهيئة الاتحادية للضرائب",
+        "en": "FTA corporate tax registration"
+      },
+      "about": {
+        "ar": "إجراءات التسجيل لدى الهيئة الاتحادية للضرائب",
+        "en": "FTA corporate tax registration"
+      },
+      "actions": [
+        {
+          "id": "register-tax",
+          "name": {
+            "ar": "التسجيل في ضريبة الشركات",
+            "en": "Corporate Tax Registration"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "رخصة تجارية سارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس أو شهادة التأسيس",
+              "en": "MOA / Incorporation Certificate",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هويات أو جوازات المالكين أو المفوضين",
+              "en": "Owners’ or Signatories’ IDs",
+              "optional": false
+            },
+            {
+              "id": "authority",
+              "ar": "تفويض للممثل عند الحاجة",
+              "en": "Representative Authorization, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-tax",
+          "name": {
+            "ar": "تعديل بيانات التسجيل",
+            "en": "Amend Tax Registration"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "رخصة تجارية سارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هويات أو جوازات المالكين أو المفوضين",
+              "en": "Owners’ or Signatories’ IDs",
+              "optional": false
+            },
+            {
+              "id": "authority",
+              "ar": "تفويض للممثل عند الحاجة",
+              "en": "Representative Authorization, if applicable",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "رخصة تجارية سارية",
+          "en": "Valid Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "moa",
+          "ar": "عقد التأسيس أو شهادة التأسيس",
+          "en": "MOA / Incorporation Certificate",
+          "optional": false
+        },
+        {
+          "id": "id",
+          "ar": "هويات أو جوازات المالكين أو المفوضين",
+          "en": "Owners’ or Signatories’ IDs",
+          "optional": false
+        },
+        {
+          "id": "authority",
+          "ar": "تفويض للممثل عند الحاجة",
+          "en": "Representative Authorization, if applicable",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "الرسوم والمدة لا تُعرض كأرقام إلا بعد التحقق من الجهة الرسمية.",
+          "en": "Exact fees and timelines are not displayed until verified with the authority."
+        },
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "mohre-company-registration",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "labour",
+        "title": {
+          "ar": "الموارد البشرية والعمالة",
+          "en": "Human Resources & Labour"
+        }
+      },
+      "name": {
+        "ar": "خدمات وزارة العمل",
+        "en": "Ministry of Labour Services"
+      },
+      "description": {
+        "ar": "تسجيل المنشأة وإدارة ملفها لدى وزارة الموارد البشرية (تسهيل)",
+        "en": "Establishment registration and file management with MOHRE (TAS-HEEL)"
+      },
+      "about": {
+        "ar": "تسجيل المنشأة وإدارة ملفها لدى وزارة الموارد البشرية (تسهيل)",
+        "en": "Establishment registration and file management with MOHRE (TAS-HEEL)"
+      },
+      "actions": [
+        {
+          "id": "register-company",
+          "name": {
+            "ar": "تسجيل منشأة جديدة",
+            "en": "Register an Establishment"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner / Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس إن طُلب",
+              "en": "MOA, if requested",
+              "optional": true
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المنشأة",
+              "en": "Additional Establishment Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-company",
+          "name": {
+            "ar": "تحديث بيانات المنشأة",
+            "en": "Update Establishment Details"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner / Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المنشأة",
+              "en": "Additional Establishment Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "add-delegate",
+          "name": {
+            "ar": "إضافة مفوض",
+            "en": "Add an Authorized User"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner / Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المنشأة",
+              "en": "Additional Establishment Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "cancel-company-file",
+          "name": {
+            "ar": "إلغاء أو إيقاف ملف المنشأة",
+            "en": "Cancel or Suspend Establishment File"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner / Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المنشأة",
+              "en": "Additional Establishment Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "manage-permissions",
+          "name": {
+            "ar": "إدارة صلاحيات المنشأة",
+            "en": "Manage Establishment Permissions"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner / Authorized Person ID",
+              "optional": false
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المنشأة",
+              "en": "Additional Establishment Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "link-company",
+          "name": {
+            "ar": "ربط المنشأة بالنظام",
+            "en": "Link Establishment to the System"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner / Authorized Person ID",
+              "optional": false
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "الرخصة التجارية",
+          "en": "Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "id",
+          "ar": "هوية المالك أو المفوض",
+          "en": "Owner / Authorized Person ID",
+          "optional": false
+        },
+        {
+          "id": "moa",
+          "ar": "عقد التأسيس إن طُلب",
+          "en": "MOA, if requested",
+          "optional": true
+        },
+        {
+          "id": "extra",
+          "ar": "مستندات إضافية حسب نوع المنشأة",
+          "en": "Additional Establishment Documents",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "commercial-ejari",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "ejari",
+        "title": {
+          "ar": "إيجاري",
+          "en": "Ejari"
+        }
+      },
+      "name": {
+        "ar": "إيجاري تجاري (مقر الشركة)",
+        "en": "Commercial Ejari (Company Premises)"
+      },
+      "description": {
+        "ar": "تسجيل وتجديد وتعديل وإلغاء إيجاري للعقارات التجارية",
+        "en": "Register, renew, amend or cancel a commercial Ejari"
+      },
+      "about": {
+        "ar": "تسجيل وتجديد وتعديل وإلغاء إيجاري للعقارات التجارية",
+        "en": "Register, renew, amend or cancel a commercial Ejari"
+      },
+      "actions": [
+        {
+          "id": "issue-ejari",
+          "name": {
+            "ar": "إصدار إيجاري تجاري",
+            "en": "Issue Commercial Ejari"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية صاحب المنشأة",
+              "en": "Establishment Owner ID",
+              "optional": false
+            },
+            {
+              "id": "contract",
+              "ar": "عقد الإيجار الموقّع",
+              "en": "Signed Tenancy Agreement",
+              "optional": false
+            },
+            {
+              "id": "owner",
+              "ar": "مستندات مالك العقار عند الحاجة",
+              "en": "Landlord Documents, if required",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "renew-ejari",
+          "name": {
+            "ar": "تجديد إيجاري تجاري",
+            "en": "Renew Commercial Ejari"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية صاحب المنشأة",
+              "en": "Establishment Owner ID",
+              "optional": false
+            },
+            {
+              "id": "contract",
+              "ar": "عقد الإيجار الموقّع",
+              "en": "Signed Tenancy Agreement",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "amend-contract",
+          "name": {
+            "ar": "تعديل بيانات العقد",
+            "en": "Amend Contract Details"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "هوية صاحب المنشأة",
+              "en": "Establishment Owner ID",
+              "optional": false
+            },
+            {
+              "id": "contract",
+              "ar": "عقد الإيجار الموقّع",
+              "en": "Signed Tenancy Agreement",
+              "optional": false
+            },
+            {
+              "id": "owner",
+              "ar": "مستندات مالك العقار عند الحاجة",
+              "en": "Landlord Documents, if required",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "cancel-ejari",
+          "name": {
+            "ar": "إلغاء إيجاري تجاري",
+            "en": "Cancel Commercial Ejari"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "هوية صاحب المنشأة",
+              "en": "Establishment Owner ID",
+              "optional": false
+            },
+            {
+              "id": "contract",
+              "ar": "عقد الإيجار الموقّع",
+              "en": "Signed Tenancy Agreement",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "amend-tenant",
+          "name": {
+            "ar": "تحديث بيانات المستأجر",
+            "en": "Update Tenant Details"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية صاحب المنشأة",
+              "en": "Establishment Owner ID",
+              "optional": false
+            },
+            {
+              "id": "contract",
+              "ar": "عقد الإيجار الموقّع",
+              "en": "Signed Tenancy Agreement",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "issue-copy",
+          "name": {
+            "ar": "إصدار نسخة معتمدة",
+            "en": "Request a Certified Copy"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "هوية صاحب المنشأة",
+              "en": "Establishment Owner ID",
+              "optional": false
+            },
+            {
+              "id": "contract",
+              "ar": "عقد الإيجار الموقّع",
+              "en": "Signed Tenancy Agreement",
+              "optional": false
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "الرخصة التجارية",
+          "en": "Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "id",
+          "ar": "هوية صاحب المنشأة",
+          "en": "Establishment Owner ID",
+          "optional": false
+        },
+        {
+          "id": "contract",
+          "ar": "عقد الإيجار الموقّع",
+          "en": "Signed Tenancy Agreement",
+          "optional": false
+        },
+        {
+          "id": "owner",
+          "ar": "مستندات مالك العقار عند الحاجة",
+          "en": "Landlord Documents, if required",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "labor-employment",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "labour",
+        "title": {
+          "ar": "الموارد البشرية والعمالة",
+          "en": "Human Resources & Labour"
+        }
+      },
+      "name": {
+        "ar": "خدمات العمل والعمال",
+        "en": "Employment & Labour Services"
+      },
+      "description": {
+        "ar": "تصاريح العمل وعقود الموظفين ونظام حماية الأجور",
+        "en": "Work permits, employment contracts and wage protection"
+      },
+      "about": {
+        "ar": "تصاريح العمل وعقود الموظفين ونظام حماية الأجور",
+        "en": "Work permits, employment contracts and wage protection"
+      },
+      "actions": [
+        {
+          "id": "issue-permit",
+          "name": {
+            "ar": "إصدار تصريح عمل",
+            "en": "Issue a Work Permit"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "owner-id",
+              "ar": "هوية صاحب المنشأة",
+              "en": "Owner Emirates ID",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "جواز سفر العامل وصورة شخصية",
+              "en": "Worker Passport and Personal Photo",
+              "optional": false
+            },
+            {
+              "id": "offer",
+              "ar": "عرض العمل أو العقد إن وجد",
+              "en": "Job Offer or Employment Contract, if available",
+              "optional": true
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المعاملة",
+              "en": "Additional Case Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "renew-permit",
+          "name": {
+            "ar": "تجديد تصريح العمل",
+            "en": "Renew a Work Permit"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "جواز سفر العامل وصورة شخصية",
+              "en": "Worker Passport and Personal Photo",
+              "optional": false
+            },
+            {
+              "id": "permit",
+              "ar": "نسخة تصريح العمل الحالي",
+              "en": "Current Work Permit",
+              "optional": false
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المعاملة",
+              "en": "Additional Case Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-permit",
+          "name": {
+            "ar": "تعديل بيانات تصريح العمل",
+            "en": "Amend Work Permit Details"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "جواز سفر العامل وصورة شخصية",
+              "en": "Worker Passport and Personal Photo",
+              "optional": false
+            },
+            {
+              "id": "permit",
+              "ar": "نسخة تصريح العمل الحالي",
+              "en": "Current Work Permit",
+              "optional": false
+            },
+            {
+              "id": "offer",
+              "ar": "عرض العمل أو العقد إن وجد",
+              "en": "Job Offer or Employment Contract, if available",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "cancel-permit",
+          "name": {
+            "ar": "إلغاء تصريح العمل",
+            "en": "Cancel a Work Permit"
+          },
+          "documents": [
+            {
+              "id": "owner-id",
+              "ar": "هوية صاحب المنشأة",
+              "en": "Owner Emirates ID",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "جواز سفر العامل وصورة شخصية",
+              "en": "Worker Passport and Personal Photo",
+              "optional": false
+            },
+            {
+              "id": "permit",
+              "ar": "نسخة تصريح العمل الحالي",
+              "en": "Current Work Permit",
+              "optional": false
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المعاملة",
+              "en": "Additional Case Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-worker",
+          "name": {
+            "ar": "تعديل بيانات العامل",
+            "en": "Update Worker Details"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "جواز سفر العامل وصورة شخصية",
+              "en": "Worker Passport and Personal Photo",
+              "optional": false
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المعاملة",
+              "en": "Additional Case Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "transfer-worker",
+          "name": {
+            "ar": "نقل العامل",
+            "en": "Transfer a Worker"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "جواز سفر العامل وصورة شخصية",
+              "en": "Worker Passport and Personal Photo",
+              "optional": false
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المعاملة",
+              "en": "Additional Case Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "manage-establishment",
+          "name": {
+            "ar": "إصدار أو تجديد تصريح منشأة",
+            "en": "Issue or Renew an Establishment Permit"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "owner-id",
+              "ar": "هوية صاحب المنشأة",
+              "en": "Owner Emirates ID",
+              "optional": false
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المعاملة",
+              "en": "Additional Case Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "register-wps",
+          "name": {
+            "ar": "التسجيل في نظام حماية الأجور",
+            "en": "Register for WPS"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "owner-id",
+              "ar": "هوية صاحب المنشأة",
+              "en": "Owner Emirates ID",
+              "optional": false
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المعاملة",
+              "en": "Additional Case Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "issue-contract",
+          "name": {
+            "ar": "إصدار عقد عمل",
+            "en": "Issue an Employment Contract"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية السارية",
+              "en": "Valid Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "جواز سفر العامل وصورة شخصية",
+              "en": "Worker Passport and Personal Photo",
+              "optional": false
+            },
+            {
+              "id": "extra",
+              "ar": "مستندات إضافية حسب نوع المعاملة",
+              "en": "Additional Case Documents",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "الرخصة التجارية السارية",
+          "en": "Valid Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "owner-id",
+          "ar": "هوية صاحب المنشأة",
+          "en": "Owner Emirates ID",
+          "optional": false
+        },
+        {
+          "id": "passport",
+          "ar": "جواز سفر العامل وصورة شخصية",
+          "en": "Worker Passport and Personal Photo",
+          "optional": false
+        },
+        {
+          "id": "permit",
+          "ar": "نسخة تصريح العمل الحالي",
+          "en": "Current Work Permit",
+          "optional": false
+        },
+        {
+          "id": "offer",
+          "ar": "عرض العمل أو العقد إن وجد",
+          "en": "Job Offer or Employment Contract, if available",
+          "optional": true
+        },
+        {
+          "id": "extra",
+          "ar": "مستندات إضافية حسب نوع المعاملة",
+          "en": "Additional Case Documents",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "قد تختلف الوثائق بحسب نوع التصريح ووضع العامل والمنشأة.",
+          "en": "Documents vary by permit type and worker / company circumstances."
+        },
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "company-formation",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "business",
+        "title": {
+          "ar": "تأسيس الشركات والرخص التجارية",
+          "en": "Company Setup & Trade Licences"
+        }
+      },
+      "name": {
+        "ar": "تأسيس الشركات",
+        "en": "Company Formation"
+      },
+      "description": {
+        "ar": "تأسيس شركة جديدة في دبي وإصدار رخصتها الأولى",
+        "en": "Set up a new company in Dubai and issue its first licence"
+      },
+      "about": {
+        "ar": "مسار تأسيس شركة جديدة في البر الرئيسي لدبي، من اختيار النشاط والشكل القانوني إلى إصدار الرخصة الأولى.",
+        "en": "Set up a new Dubai mainland business, from choosing the activity and legal form to issuing its first licence."
+      },
+      "actions": [
+        {
+          "id": "form-company",
+          "name": {
+            "ar": "تأسيس شركة جديدة",
+            "en": "Form a New Company"
+          },
+          "documents": [
+            {
+              "id": "trade-name-1",
+              "ar": "1. الاسم التجاري المقترح (الأولوية الأولى)",
+              "en": "1. Proposed trade name (first preference)",
+              "optional": false
+            },
+            {
+              "id": "trade-name-2",
+              "ar": "2. الاسم التجاري المقترح",
+              "en": "2. Proposed trade name",
+              "optional": false
+            },
+            {
+              "id": "trade-name-3",
+              "ar": "3. الاسم التجاري المقترح",
+              "en": "3. Proposed trade name",
+              "optional": false
+            },
+            {
+              "id": "partners",
+              "ar": "جوازات الشركاء",
+              "en": "Partners’ Passport Copies",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "الهويات الإماراتية إن وجدت",
+              "en": "Emirates IDs, if any",
+              "optional": true
+            },
+            {
+              "id": "approval",
+              "ar": "الموافقة الأولية إذا طُلبت",
+              "en": "Initial Approval, if required",
+              "optional": true
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس عند انطباقه",
+              "en": "MOA, where applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "choose-activity",
+          "name": {
+            "ar": "اختيار النشاط التجاري",
+            "en": "Choose a Business Activity"
+          },
+          "documents": []
+        },
+        {
+          "id": "choose-structure",
+          "name": {
+            "ar": "اختيار الشكل القانوني",
+            "en": "Choose a Legal Form"
+          },
+          "documents": []
+        },
+        {
+          "id": "reserve-name",
+          "name": {
+            "ar": "حجز الاسم التجاري",
+            "en": "Reserve a Trade Name"
+          },
+          "documents": [
+            {
+              "id": "trade-name-1",
+              "ar": "1. الاسم التجاري المقترح (الأولوية الأولى)",
+              "en": "1. Proposed trade name (first preference)",
+              "optional": false
+            },
+            {
+              "id": "trade-name-2",
+              "ar": "2. الاسم التجاري المقترح",
+              "en": "2. Proposed trade name",
+              "optional": false
+            },
+            {
+              "id": "trade-name-3",
+              "ar": "3. الاسم التجاري المقترح",
+              "en": "3. Proposed trade name",
+              "optional": false
+            },
+            {
+              "id": "partners",
+              "ar": "جوازات الشركاء",
+              "en": "Partners’ Passport Copies",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "الهويات الإماراتية إن وجدت",
+              "en": "Emirates IDs, if any",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "review-initial-approval",
+          "name": {
+            "ar": "الموافقة المبدئية للتأسيس",
+            "en": "Initial Approval for Company Formation"
+          },
+          "documents": [
+            {
+              "id": "partners",
+              "ar": "جوازات الشركاء",
+              "en": "Partners’ Passport Copies",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "الهويات الإماراتية إن وجدت",
+              "en": "Emirates IDs, if any",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "prepare-moa",
+          "name": {
+            "ar": "إعداد عقد تأسيس شركة جديدة",
+            "en": "Prepare the New Company MOA"
+          },
+          "documents": [
+            {
+              "id": "partners",
+              "ar": "جوازات الشركاء",
+              "en": "Partners’ Passport Copies",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "الهويات الإماراتية إن وجدت",
+              "en": "Emirates IDs, if any",
+              "optional": true
+            },
+            {
+              "id": "approval",
+              "ar": "الموافقة الأولية إذا طُلبت",
+              "en": "Initial Approval, if required",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "issue-licence",
+          "name": {
+            "ar": "إصدار الرخصة الأولى للشركة",
+            "en": "Issue the Company’s First Licence"
+          },
+          "documents": [
+            {
+              "id": "partners",
+              "ar": "جوازات الشركاء",
+              "en": "Partners’ Passport Copies",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "الهويات الإماراتية إن وجدت",
+              "en": "Emirates IDs, if any",
+              "optional": true
+            },
+            {
+              "id": "approval",
+              "ar": "الموافقة الأولية إذا طُلبت",
+              "en": "Initial Approval, if required",
+              "optional": true
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس عند انطباقه",
+              "en": "MOA, where applicable",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "trade-name-1",
+          "ar": "1. الاسم التجاري المقترح (الأولوية الأولى)",
+          "en": "1. Proposed trade name (first preference)",
+          "optional": false
+        },
+        {
+          "id": "trade-name-2",
+          "ar": "2. الاسم التجاري المقترح",
+          "en": "2. Proposed trade name",
+          "optional": false
+        },
+        {
+          "id": "trade-name-3",
+          "ar": "3. الاسم التجاري المقترح",
+          "en": "3. Proposed trade name",
+          "optional": false
+        },
+        {
+          "id": "partners",
+          "ar": "جوازات الشركاء",
+          "en": "Partners’ Passport Copies",
+          "optional": false
+        },
+        {
+          "id": "id",
+          "ar": "الهويات الإماراتية إن وجدت",
+          "en": "Emirates IDs, if any",
+          "optional": true
+        },
+        {
+          "id": "approval",
+          "ar": "الموافقة الأولية إذا طُلبت",
+          "en": "Initial Approval, if required",
+          "optional": true
+        },
+        {
+          "id": "moa",
+          "ar": "عقد التأسيس عند انطباقه",
+          "en": "MOA, where applicable",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "يرجى إدخال ثلاثة أسماء تجارية مقترحة حسب الأولوية. حجز الاسم يخضع لتوافره وموافقة دائرة الاقتصاد والسياحة بدبي.",
+          "en": "Enter three proposed trade names in order of preference. Reservation is subject to availability and approval by Dubai Department of Economy and Tourism."
+        },
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "trade-licenses",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "business",
+        "title": {
+          "ar": "تأسيس الشركات والرخص التجارية",
+          "en": "Company Setup & Trade Licences"
+        }
+      },
+      "name": {
+        "ar": "الرخص التجارية",
+        "en": "Trade Licences"
+      },
+      "description": {
+        "ar": "تجديد وتعديل وإلغاء رخص الشركات القائمة في دبي",
+        "en": "Renew, amend or cancel a licence for an existing Dubai business"
+      },
+      "about": {
+        "ar": "معاملات الرخص التجارية للشركات القائمة في البر الرئيسي لدبي، بما فيها التجديد وتعديلات بيانات الشركة وعقد التأسيس والإلغاء.",
+        "en": "Licence services for existing Dubai mainland businesses, including renewal, company and MOA amendments, and cancellation."
+      },
+      "actions": [
+        {
+          "id": "renew-licence",
+          "name": {
+            "ar": "تجديد الرخصة التجارية",
+            "en": "Renew the Trade Licence"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "tenancy",
+              "ar": "عقد إيجار أو إيجاري عند الحاجة",
+              "en": "Tenancy or Ejari Record, if applicable",
+              "optional": true
+            },
+            {
+              "id": "activity",
+              "ar": "مستندات النشاط أو الموافقات الخاصة به عند الحاجة",
+              "en": "Activity documents or approvals, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "review-renewal",
+          "name": {
+            "ar": "مراجعة متطلبات التجديد",
+            "en": "Review Renewal Requirements"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "tenancy",
+              "ar": "عقد إيجار أو إيجاري عند الحاجة",
+              "en": "Tenancy or Ejari Record, if applicable",
+              "optional": true
+            },
+            {
+              "id": "activity",
+              "ar": "مستندات النشاط أو الموافقات الخاصة به عند الحاجة",
+              "en": "Activity documents or approvals, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "review-renewal-payment",
+          "name": {
+            "ar": "متابعة إذن دفع التجديد",
+            "en": "Follow Up on a Renewal Payment Voucher"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "voucher",
+              "ar": "إذن دفع التجديد إن صدر",
+              "en": "Renewal payment voucher, if issued",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-licence",
+          "name": {
+            "ar": "تعديل بيانات الرخصة",
+            "en": "Amend Licence Details"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "amend-trade-name",
+          "name": {
+            "ar": "تعديل الاسم التجاري",
+            "en": "Change the Trade Name"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "resolution",
+              "ar": "قرار الشركاء أو الجهة المخوّلة عند الحاجة",
+              "en": "Shareholders’ or authorized body resolution, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-activity",
+          "name": {
+            "ar": "إضافة أو تعديل أو حذف نشاط تجاري",
+            "en": "Add, Change or Remove a Business Activity"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "activity",
+              "ar": "مستندات النشاط أو الموافقات الخاصة به عند الحاجة",
+              "en": "Activity documents or approvals, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-location",
+          "name": {
+            "ar": "تغيير موقع الشركة",
+            "en": "Change the Business Location"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "tenancy",
+              "ar": "عقد إيجار أو إيجاري عند الحاجة",
+              "en": "Tenancy or Ejari Record, if applicable",
+              "optional": true
+            },
+            {
+              "id": "activity",
+              "ar": "مستندات النشاط أو الموافقات الخاصة به عند الحاجة",
+              "en": "Activity documents or approvals, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-manager",
+          "name": {
+            "ar": "تعديل بيانات المدير أو تغييره",
+            "en": "Change the Manager or Their Details"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "resolution",
+              "ar": "قرار الشركاء أو الجهة المخوّلة عند الحاجة",
+              "en": "Shareholders’ or authorized body resolution, if applicable",
+              "optional": true
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي أو ملحق التعديل عند الحاجة",
+              "en": "Current MOA or amendment appendix, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-contact",
+          "name": {
+            "ar": "تحديث بيانات اتصال الشركة",
+            "en": "Update Business Contact Details"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "amend-moa",
+          "name": {
+            "ar": "تعديل عقد التأسيس أو إعداد ملحق تعديل",
+            "en": "Amend the MOA or Prepare an Appendix"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي أو ملحق التعديل عند الحاجة",
+              "en": "Current MOA or amendment appendix, if applicable",
+              "optional": true
+            },
+            {
+              "id": "resolution",
+              "ar": "قرار الشركاء أو الجهة المخوّلة عند الحاجة",
+              "en": "Shareholders’ or authorized body resolution, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "add-partner",
+          "name": {
+            "ar": "إضافة شريك",
+            "en": "Add a Partner"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي أو ملحق التعديل عند الحاجة",
+              "en": "Current MOA or amendment appendix, if applicable",
+              "optional": true
+            },
+            {
+              "id": "owners",
+              "ar": "هويات أو جوازات الشركاء المعنيين عند الحاجة",
+              "en": "Relevant partners’ IDs or passports, if applicable",
+              "optional": true
+            },
+            {
+              "id": "resolution",
+              "ar": "قرار الشركاء أو الجهة المخوّلة عند الحاجة",
+              "en": "Shareholders’ or authorized body resolution, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "remove-partner",
+          "name": {
+            "ar": "انسحاب أو إخراج شريك",
+            "en": "Remove or Exit a Partner"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي أو ملحق التعديل عند الحاجة",
+              "en": "Current MOA or amendment appendix, if applicable",
+              "optional": true
+            },
+            {
+              "id": "owners",
+              "ar": "هويات أو جوازات الشركاء المعنيين عند الحاجة",
+              "en": "Relevant partners’ IDs or passports, if applicable",
+              "optional": true
+            },
+            {
+              "id": "resolution",
+              "ar": "قرار الشركاء أو الجهة المخوّلة عند الحاجة",
+              "en": "Shareholders’ or authorized body resolution, if applicable",
+              "optional": true
+            },
+            {
+              "id": "sale",
+              "ar": "عقد التنازل أو البيع عند انطباقه",
+              "en": "Transfer or sale agreement, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "transfer-shares",
+          "name": {
+            "ar": "نقل الحصص أو تعديل نسبها",
+            "en": "Transfer Shares or Change Ownership Percentages"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي أو ملحق التعديل عند الحاجة",
+              "en": "Current MOA or amendment appendix, if applicable",
+              "optional": true
+            },
+            {
+              "id": "owners",
+              "ar": "هويات أو جوازات الشركاء المعنيين عند الحاجة",
+              "en": "Relevant partners’ IDs or passports, if applicable",
+              "optional": true
+            },
+            {
+              "id": "resolution",
+              "ar": "قرار الشركاء أو الجهة المخوّلة عند الحاجة",
+              "en": "Shareholders’ or authorized body resolution, if applicable",
+              "optional": true
+            },
+            {
+              "id": "sale",
+              "ar": "عقد التنازل أو البيع عند انطباقه",
+              "en": "Transfer or sale agreement, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-capital",
+          "name": {
+            "ar": "زيادة أو تخفيض رأس المال",
+            "en": "Increase or Reduce Share Capital"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي أو ملحق التعديل عند الحاجة",
+              "en": "Current MOA or amendment appendix, if applicable",
+              "optional": true
+            },
+            {
+              "id": "resolution",
+              "ar": "قرار الشركاء أو الجهة المخوّلة عند الحاجة",
+              "en": "Shareholders’ or authorized body resolution, if applicable",
+              "optional": true
+            },
+            {
+              "id": "audit",
+              "ar": "تقرير مدقق الحسابات عند انطباقه",
+              "en": "Auditor’s report, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-beneficial-owner",
+          "name": {
+            "ar": "إضافة أو تعديل المستفيد الحقيقي",
+            "en": "Add or Update a Beneficial Owner"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "owners",
+              "ar": "هويات أو جوازات الشركاء المعنيين عند الحاجة",
+              "en": "Relevant partners’ IDs or passports, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "issue-commercial-permit",
+          "name": {
+            "ar": "إصدار تصريح تجاري",
+            "en": "Issue a Commercial Permit"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "activity",
+              "ar": "مستندات النشاط أو الموافقات الخاصة به عند الحاجة",
+              "en": "Activity documents or approvals, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "cancel-licence",
+          "name": {
+            "ar": "إلغاء رخصة الشركة أو الفرع",
+            "en": "Cancel a Company or Branch Licence"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "cancellation",
+              "ar": "مستندات الإلغاء أو التصفية حسب الشكل القانوني",
+              "en": "Cancellation or liquidation documents, depending on legal form",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "close-company",
+          "name": {
+            "ar": "حل الشركة وتصفيتها",
+            "en": "Dissolve and Liquidate the Company"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Authorized Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "moa",
+              "ar": "عقد التأسيس الحالي أو ملحق التعديل عند الحاجة",
+              "en": "Current MOA or amendment appendix, if applicable",
+              "optional": true
+            },
+            {
+              "id": "resolution",
+              "ar": "قرار الشركاء أو الجهة المخوّلة عند الحاجة",
+              "en": "Shareholders’ or authorized body resolution, if applicable",
+              "optional": true
+            },
+            {
+              "id": "cancellation",
+              "ar": "مستندات الإلغاء أو التصفية حسب الشكل القانوني",
+              "en": "Cancellation or liquidation documents, depending on legal form",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "id",
+          "ar": "هوية المالك أو المفوض",
+          "en": "Owner or Authorized Signatory ID",
+          "optional": false
+        },
+        {
+          "id": "licence",
+          "ar": "نسخة الرخصة الحالية",
+          "en": "Current Trade Licence Copy",
+          "optional": false
+        },
+        {
+          "id": "tenancy",
+          "ar": "عقد إيجار أو إيجاري عند الحاجة",
+          "en": "Tenancy or Ejari Record, if applicable",
+          "optional": true
+        },
+        {
+          "id": "moa",
+          "ar": "عقد التأسيس الحالي أو ملحق التعديل عند الحاجة",
+          "en": "Current MOA or amendment appendix, if applicable",
+          "optional": true
+        },
+        {
+          "id": "owners",
+          "ar": "هويات أو جوازات الشركاء المعنيين عند الحاجة",
+          "en": "Relevant partners’ IDs or passports, if applicable",
+          "optional": true
+        },
+        {
+          "id": "resolution",
+          "ar": "قرار الشركاء أو الجهة المخوّلة عند الحاجة",
+          "en": "Shareholders’ or authorized body resolution, if applicable",
+          "optional": true
+        },
+        {
+          "id": "activity",
+          "ar": "مستندات النشاط أو الموافقات الخاصة به عند الحاجة",
+          "en": "Activity documents or approvals, if applicable",
+          "optional": true
+        },
+        {
+          "id": "voucher",
+          "ar": "إذن دفع التجديد إن صدر",
+          "en": "Renewal payment voucher, if issued",
+          "optional": true
+        },
+        {
+          "id": "audit",
+          "ar": "تقرير مدقق الحسابات عند انطباقه",
+          "en": "Auditor’s report, if applicable",
+          "optional": true
+        },
+        {
+          "id": "sale",
+          "ar": "عقد التنازل أو البيع عند انطباقه",
+          "en": "Transfer or sale agreement, if applicable",
+          "optional": true
+        },
+        {
+          "id": "cancellation",
+          "ar": "مستندات الإلغاء أو التصفية حسب الشكل القانوني",
+          "en": "Cancellation or liquidation documents, depending on legal form",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تُراجع الرخصة والنشاط والشكل القانوني لتحديد المستندات والموافقات اللازمة لدى الجهة المختصة.",
+          "en": "Required documents and approvals depend on the licence, activity and legal form."
+        },
+        {
+          "ar": "الرسوم والمدة لا تُعرض كأرقام إلا بعد التحقق من الجهة الرسمية.",
+          "en": "Exact fees and timelines are not displayed until verified with the authority."
+        },
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "review-required",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "customs",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "customs",
+        "title": {
+          "ar": "الجمارك",
+          "en": "Customs"
+        }
+      },
+      "name": {
+        "ar": "الخدمات الجمركية",
+        "en": "Customs Services"
+      },
+      "description": {
+        "ar": "المعاملات الجمركية للشركات",
+        "en": "Business customs services"
+      },
+      "about": {
+        "ar": "المعاملات الجمركية للشركات",
+        "en": "Business customs services"
+      },
+      "actions": [
+        {
+          "id": "register-customs",
+          "name": {
+            "ar": "التسجيل الجمركي للشركة",
+            "en": "Customs Registration Enquiry"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "file-declaration",
+          "name": {
+            "ar": "تقديم بيان جمركي",
+            "en": "Customs Declaration Enquiry"
+          },
+          "documents": [
+            {
+              "id": "invoice",
+              "ar": "الفاتورة التجارية إن وجدت",
+              "en": "Commercial Invoice, if available",
+              "optional": true
+            },
+            {
+              "id": "shipment",
+              "ar": "مستندات الشحنة إن وجدت",
+              "en": "Shipment Documents, if available",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "review-declaration",
+          "name": {
+            "ar": "متابعة بيان جمركي",
+            "en": "Follow Up a Customs Declaration"
+          },
+          "documents": [
+            {
+              "id": "declaration",
+              "ar": "نسخة البيان الجمركي إن وجد",
+              "en": "Customs Declaration, if available",
+              "optional": true
+            },
+            {
+              "id": "shipment",
+              "ar": "مستندات الشحنة إن وجدت",
+              "en": "Shipment Documents, if available",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "الرخصة التجارية",
+          "en": "Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "invoice",
+          "ar": "الفاتورة التجارية إن وجدت",
+          "en": "Commercial Invoice, if available",
+          "optional": true
+        },
+        {
+          "id": "shipment",
+          "ar": "مستندات الشحنة إن وجدت",
+          "en": "Shipment Documents, if available",
+          "optional": true
+        },
+        {
+          "id": "declaration",
+          "ar": "نسخة البيان الجمركي إن وجد",
+          "en": "Customs Declaration, if available",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "review-required",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "notary-companies",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "notary",
+        "title": {
+          "ar": "كاتب العدل",
+          "en": "Notary Public"
+        }
+      },
+      "name": {
+        "ar": "كاتب العدل للشركات",
+        "en": "Notary Public for Companies"
+      },
+      "description": {
+        "ar": "عقود الشركة والتوثيق",
+        "en": "Corporate notarization services"
+      },
+      "about": {
+        "ar": "عقود الشركة والتوثيق",
+        "en": "Corporate notarization services"
+      },
+      "actions": [
+        {
+          "id": "notarize-contract",
+          "name": {
+            "ar": "توثيق عقد شركة",
+            "en": "Notarize a Company Contract"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المفوض",
+              "en": "Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "instrument",
+              "ar": "المستند المراد توثيقه",
+              "en": "Document for Notarization",
+              "optional": false
+            },
+            {
+              "id": "authority",
+              "ar": "إثبات صلاحية التوقيع عند الحاجة",
+              "en": "Proof of Signing Authority, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "notarize-poa",
+          "name": {
+            "ar": "توثيق وكالة تجارية",
+            "en": "Notarize a Company Power of Attorney"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "هوية المفوض",
+              "en": "Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "instrument",
+              "ar": "المستند المراد توثيقه",
+              "en": "Document for Notarization",
+              "optional": false
+            },
+            {
+              "id": "authority",
+              "ar": "إثبات صلاحية التوقيع عند الحاجة",
+              "en": "Proof of Signing Authority, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "notarize-resolution",
+          "name": {
+            "ar": "توثيق قرار الشركاء",
+            "en": "Notarize a Shareholder Resolution"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المفوض",
+              "en": "Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "instrument",
+              "ar": "المستند المراد توثيقه",
+              "en": "Document for Notarization",
+              "optional": false
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "الرخصة التجارية",
+          "en": "Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "id",
+          "ar": "هوية المفوض",
+          "en": "Signatory ID",
+          "optional": false
+        },
+        {
+          "id": "instrument",
+          "ar": "المستند المراد توثيقه",
+          "en": "Document for Notarization",
+          "optional": false
+        },
+        {
+          "id": "authority",
+          "ar": "إثبات صلاحية التوقيع عند الحاجة",
+          "en": "Proof of Signing Authority, if applicable",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "review-required",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "legal-translation-companies",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "translation",
+        "title": {
+          "ar": "الترجمة القانونية",
+          "en": "Legal Translation"
+        }
+      },
+      "name": {
+        "ar": "الترجمة القانونية للشركات",
+        "en": "Corporate Legal Translation"
+      },
+      "description": {
+        "ar": "ترجمة مستندات الشركة",
+        "en": "Corporate legal translation"
+      },
+      "about": {
+        "ar": "ترجمة مستندات الشركة",
+        "en": "Corporate legal translation"
+      },
+      "actions": [
+        {
+          "id": "translate-document",
+          "name": {
+            "ar": "ترجمة قانونية معتمدة",
+            "en": "Certified Legal Translation"
+          },
+          "documents": [
+            {
+              "id": "source",
+              "ar": "المستند المطلوب ترجمته",
+              "en": "Document to Translate",
+              "optional": false
+            },
+            {
+              "id": "language",
+              "ar": "اللغة المطلوبة",
+              "en": "Target Language",
+              "optional": false
+            },
+            {
+              "id": "identity",
+              "ar": "مستند إثبات الهوية عند الحاجة",
+              "en": "ID, if requested",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "translate-contract",
+          "name": {
+            "ar": "ترجمة عقد شركة",
+            "en": "Translate a Company Contract"
+          },
+          "documents": [
+            {
+              "id": "source",
+              "ar": "المستند المطلوب ترجمته",
+              "en": "Document to Translate",
+              "optional": false
+            },
+            {
+              "id": "language",
+              "ar": "اللغة المطلوبة",
+              "en": "Target Language",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "translate-incorporation",
+          "name": {
+            "ar": "ترجمة مستند تأسيس",
+            "en": "Translate an Incorporation Document"
+          },
+          "documents": [
+            {
+              "id": "source",
+              "ar": "المستند المطلوب ترجمته",
+              "en": "Document to Translate",
+              "optional": false
+            },
+            {
+              "id": "language",
+              "ar": "اللغة المطلوبة",
+              "en": "Target Language",
+              "optional": false
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "source",
+          "ar": "المستند المطلوب ترجمته",
+          "en": "Document to Translate",
+          "optional": false
+        },
+        {
+          "id": "identity",
+          "ar": "مستند إثبات الهوية عند الحاجة",
+          "en": "ID, if requested",
+          "optional": true
+        },
+        {
+          "id": "language",
+          "ar": "اللغة المطلوبة",
+          "en": "Target Language",
+          "optional": false
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "residency-individuals",
+      "audience": "individual",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "residency",
+        "title": {
+          "ar": "الإقامة والتأشيرات",
+          "en": "Residency & Visas"
+        }
+      },
+      "name": {
+        "ar": "الإقامة والتأشيرات",
+        "en": "Residency & Visas"
+      },
+      "description": {
+        "ar": "إصدار وتجديد الإقامات والتأشيرات",
+        "en": "Residency and visa services"
+      },
+      "about": {
+        "ar": "إصدار وتجديد الإقامات والتأشيرات",
+        "en": "Residency and visa services"
+      },
+      "actions": [
+        {
+          "id": "issue-residency",
+          "name": {
+            "ar": "إصدار إقامة",
+            "en": "Issue Residency"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "نسخة جواز السفر",
+              "en": "Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "photo",
+              "ar": "صورة شخصية حديثة",
+              "en": "Recent Personal Photo",
+              "optional": false
+            },
+            {
+              "id": "support",
+              "ar": "عقد عمل أو مستند الكفيل حسب الحالة",
+              "en": "Employment / Sponsor Evidence, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "renew-residency",
+          "name": {
+            "ar": "تجديد الإقامة",
+            "en": "Renew Residency"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "نسخة جواز السفر",
+              "en": "Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "نسخة الهوية الإماراتية إن وجدت",
+              "en": "Emirates ID Copy, if available",
+              "optional": true
+            },
+            {
+              "id": "photo",
+              "ar": "صورة شخصية حديثة",
+              "en": "Recent Personal Photo",
+              "optional": false
+            },
+            {
+              "id": "support",
+              "ar": "عقد عمل أو مستند الكفيل حسب الحالة",
+              "en": "Employment / Sponsor Evidence, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-residency",
+          "name": {
+            "ar": "تعديل بيانات الإقامة",
+            "en": "Update Residency Details"
+          },
+          "documents": [
+            {
+              "id": "amend-passport",
+              "ar": "جواز سفر المكفول",
+              "en": "Sponsored Person Passport",
+              "optional": false
+            },
+            {
+              "id": "photo",
+              "ar": "صورة شخصية حديثة",
+              "en": "Recent Personal Photo",
+              "optional": false
+            },
+            {
+              "id": "establishment",
+              "ar": "بطاقة المنشأة للمستثمر أو الشريك حسب الحالة",
+              "en": "Establishment Card for Investor or Partner, if applicable",
+              "optional": true
+            },
+            {
+              "id": "profession",
+              "ar": "خطاب تغيير المهنة إذا كان الكفيل جهة حكومية",
+              "en": "Profession Change Letter for Government Sponsor, if applicable",
+              "optional": true
+            },
+            {
+              "id": "employment",
+              "ar": "عقد العمل أو بطاقة العمل إذا كان الكفيل من القطاع الخاص",
+              "en": "Employment Contract or Labour Card for Private Sponsor, if applicable",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "passport",
+          "ar": "نسخة جواز السفر",
+          "en": "Passport Copy",
+          "optional": false
+        },
+        {
+          "id": "id",
+          "ar": "نسخة الهوية الإماراتية إن وجدت",
+          "en": "Emirates ID Copy, if available",
+          "optional": true
+        },
+        {
+          "id": "photo",
+          "ar": "صورة شخصية حديثة",
+          "en": "Recent Personal Photo",
+          "optional": false
+        },
+        {
+          "id": "support",
+          "ar": "عقد عمل أو مستند الكفيل حسب الحالة",
+          "en": "Employment / Sponsor Evidence, if applicable",
+          "optional": true
+        },
+        {
+          "id": "amend-passport",
+          "ar": "جواز سفر المكفول",
+          "en": "Sponsored Person Passport",
+          "optional": false
+        },
+        {
+          "id": "establishment",
+          "ar": "بطاقة المنشأة للمستثمر أو الشريك حسب الحالة",
+          "en": "Establishment Card for Investor or Partner, if applicable",
+          "optional": true
+        },
+        {
+          "id": "profession",
+          "ar": "خطاب تغيير المهنة إذا كان الكفيل جهة حكومية",
+          "en": "Profession Change Letter for Government Sponsor, if applicable",
+          "optional": true
+        },
+        {
+          "id": "employment",
+          "ar": "عقد العمل أو بطاقة العمل إذا كان الكفيل من القطاع الخاص",
+          "en": "Employment Contract or Labour Card for Private Sponsor, if applicable",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "emirates-id",
+      "audience": "individual",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "emirates-id",
+        "title": {
+          "ar": "الهوية الإماراتية",
+          "en": "Emirates ID"
+        }
+      },
+      "name": {
+        "ar": "الهوية الإماراتية",
+        "en": "Emirates ID"
+      },
+      "description": {
+        "ar": "إصدار وتجديد وتعديل بيانات الهوية",
+        "en": "Emirates ID services"
+      },
+      "about": {
+        "ar": "إصدار وتجديد وتعديل بيانات الهوية",
+        "en": "Emirates ID services"
+      },
+      "actions": [
+        {
+          "id": "issue-id",
+          "name": {
+            "ar": "إصدار هوية إماراتية",
+            "en": "Apply for an Emirates ID"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "جواز السفر",
+              "en": "Passport",
+              "optional": false
+            },
+            {
+              "id": "photo",
+              "ar": "صورة شخصية حديثة وفق معايير الهيئة؛ مختلفة عن صورة البطاقة الحالية عند التجديد",
+              "en": "Recent ICAO-compliant photo; different from the current card photo when renewing",
+              "optional": false
+            },
+            {
+              "id": "residency",
+              "ar": "صورة إذن الدخول أو الإقامة أو الكنسلة حسب الحالة",
+              "en": "Entry permit, residence or residence cancellation copy, according to case",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "renew-id",
+          "name": {
+            "ar": "تجديد الهوية",
+            "en": "Renew an Emirates ID"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "جواز السفر",
+              "en": "Passport",
+              "optional": false
+            },
+            {
+              "id": "photo",
+              "ar": "صورة شخصية حديثة وفق معايير الهيئة؛ مختلفة عن صورة البطاقة الحالية عند التجديد",
+              "en": "Recent ICAO-compliant photo; different from the current card photo when renewing",
+              "optional": false
+            },
+            {
+              "id": "cancellation",
+              "ar": "صورة الكنسلة إذا كانت الإقامة ملغاة",
+              "en": "Residence cancellation copy, if residence is cancelled",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "replace-id",
+          "name": {
+            "ar": "بدل فاقد أو تالف للهوية",
+            "en": "Replace a Lost or Damaged Emirates ID"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "جواز السفر",
+              "en": "Passport",
+              "optional": false
+            },
+            {
+              "id": "photo",
+              "ar": "صورة شخصية حديثة وفق معايير الهيئة؛ مختلفة عن صورة البطاقة الحالية عند التجديد",
+              "en": "Recent ICAO-compliant photo; different from the current card photo when renewing",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "amend-id",
+          "name": {
+            "ar": "تحديث الهاتف والبريد والعنوان",
+            "en": "Update Contact Details and Address"
+          },
+          "documents": []
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "passport",
+          "ar": "جواز السفر",
+          "en": "Passport",
+          "optional": false
+        },
+        {
+          "id": "photo",
+          "ar": "صورة شخصية حديثة وفق معايير الهيئة؛ مختلفة عن صورة البطاقة الحالية عند التجديد",
+          "en": "Recent ICAO-compliant photo; different from the current card photo when renewing",
+          "optional": false
+        },
+        {
+          "id": "residency",
+          "ar": "صورة إذن الدخول أو الإقامة أو الكنسلة حسب الحالة",
+          "en": "Entry permit, residence or residence cancellation copy, according to case",
+          "optional": false
+        },
+        {
+          "id": "cancellation",
+          "ar": "صورة الكنسلة إذا كانت الإقامة ملغاة",
+          "en": "Residence cancellation copy, if residence is cancelled",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "review-required",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "ejari-individuals",
+      "audience": "individual",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "ejari",
+        "title": {
+          "ar": "إيجاري",
+          "en": "Ejari"
+        }
+      },
+      "name": {
+        "ar": "إيجاري للأفراد",
+        "en": "Personal Ejari Services"
+      },
+      "description": {
+        "ar": "توثيق عقود الإيجار",
+        "en": "Tenancy contract registration"
+      },
+      "about": {
+        "ar": "توثيق عقود الإيجار",
+        "en": "Tenancy contract registration"
+      },
+      "actions": [
+        {
+          "id": "register-tenancy",
+          "name": {
+            "ar": "تسجيل إيجاري سكني",
+            "en": "Register Residential Ejari"
+          },
+          "documents": [
+            {
+              "id": "tenancy",
+              "ar": "عقد الإيجار الموقّع",
+              "en": "Signed Tenancy Contract",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "الهوية الإماراتية للمستأجر",
+              "en": "Tenant Emirates ID",
+              "optional": false
+            },
+            {
+              "id": "owner",
+              "ar": "مستندات المالك أو التفويض عند الحاجة",
+              "en": "Landlord / Authority Documents, if required",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "renew-tenancy",
+          "name": {
+            "ar": "تجديد إيجاري سكني",
+            "en": "Renew Residential Ejari"
+          },
+          "documents": [
+            {
+              "id": "tenancy",
+              "ar": "عقد الإيجار الموقّع",
+              "en": "Signed Tenancy Contract",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "الهوية الإماراتية للمستأجر",
+              "en": "Tenant Emirates ID",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "cancel-tenancy",
+          "name": {
+            "ar": "إلغاء إيجاري سكني",
+            "en": "Cancel Residential Ejari"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "الهوية الإماراتية للمستأجر",
+              "en": "Tenant Emirates ID",
+              "optional": false
+            },
+            {
+              "id": "tenancy",
+              "ar": "عقد الإيجار الموقّع",
+              "en": "Signed Tenancy Contract",
+              "optional": false
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "tenancy",
+          "ar": "عقد الإيجار الموقّع",
+          "en": "Signed Tenancy Contract",
+          "optional": false
+        },
+        {
+          "id": "id",
+          "ar": "الهوية الإماراتية للمستأجر",
+          "en": "Tenant Emirates ID",
+          "optional": false
+        },
+        {
+          "id": "owner",
+          "ar": "مستندات المالك أو التفويض عند الحاجة",
+          "en": "Landlord / Authority Documents, if required",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "notary-individuals",
+      "audience": "individual",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "notary",
+        "title": {
+          "ar": "كاتب العدل",
+          "en": "Notary Public"
+        }
+      },
+      "name": {
+        "ar": "كاتب العدل للأفراد",
+        "en": "Notary Public"
+      },
+      "description": {
+        "ar": "توثيق وتعديل المحررات",
+        "en": "Personal notarization services"
+      },
+      "about": {
+        "ar": "توثيق وتعديل المحررات",
+        "en": "Personal notarization services"
+      },
+      "actions": [
+        {
+          "id": "notarize-poa",
+          "name": {
+            "ar": "توثيق وكالة",
+            "en": "Notarize a Power of Attorney"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "الهوية أو جواز السفر",
+              "en": "Emirates ID or Passport",
+              "optional": false
+            },
+            {
+              "id": "document",
+              "ar": "المستند المطلوب توثيقه",
+              "en": "Document for Notarization",
+              "optional": false
+            },
+            {
+              "id": "translation",
+              "ar": "ترجمة قانونية عند الحاجة",
+              "en": "Legal Translation, if required",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "notarize-declaration",
+          "name": {
+            "ar": "إقرار أو تعهد",
+            "en": "Notarize a Declaration or Undertaking"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "الهوية أو جواز السفر",
+              "en": "Emirates ID or Passport",
+              "optional": false
+            },
+            {
+              "id": "document",
+              "ar": "المستند المطلوب توثيقه",
+              "en": "Document for Notarization",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "notarize-instrument",
+          "name": {
+            "ar": "توثيق محرر",
+            "en": "Notarize a Document"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "الهوية أو جواز السفر",
+              "en": "Emirates ID or Passport",
+              "optional": false
+            },
+            {
+              "id": "document",
+              "ar": "المستند المطلوب توثيقه",
+              "en": "Document for Notarization",
+              "optional": false
+            },
+            {
+              "id": "translation",
+              "ar": "ترجمة قانونية عند الحاجة",
+              "en": "Legal Translation, if required",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "id",
+          "ar": "الهوية أو جواز السفر",
+          "en": "Emirates ID or Passport",
+          "optional": false
+        },
+        {
+          "id": "document",
+          "ar": "المستند المطلوب توثيقه",
+          "en": "Document for Notarization",
+          "optional": false
+        },
+        {
+          "id": "translation",
+          "ar": "ترجمة قانونية عند الحاجة",
+          "en": "Legal Translation, if required",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "courts-individuals",
+      "audience": "individual",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "courts",
+        "title": {
+          "ar": "المحاكم والخدمات القانونية",
+          "en": "Courts & Legal Services"
+        }
+      },
+      "name": {
+        "ar": "خدمات المحاكم",
+        "en": "Courts & Legal Services"
+      },
+      "description": {
+        "ar": "متابعة المعاملات القضائية",
+        "en": "Court and legal procedures"
+      },
+      "about": {
+        "ar": "متابعة المعاملات القضائية",
+        "en": "Court and legal procedures"
+      },
+      "actions": [
+        {
+          "id": "review-case",
+          "name": {
+            "ar": "متابعة قضية",
+            "en": "Follow Up a Case"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "الهوية الإماراتية أو جواز السفر",
+              "en": "Emirates ID or Passport",
+              "optional": false
+            },
+            {
+              "id": "notice",
+              "ar": "إشعار القضية إن وجد",
+              "en": "Case Notice, if available",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "file-request",
+          "name": {
+            "ar": "تقديم طلب للمحكمة",
+            "en": "Prepare a Court Request"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "الهوية الإماراتية أو جواز السفر",
+              "en": "Emirates ID or Passport",
+              "optional": false
+            },
+            {
+              "id": "evidence",
+              "ar": "المستندات الداعمة",
+              "en": "Supporting Documents",
+              "optional": false
+            },
+            {
+              "id": "poa",
+              "ar": "وكالة قانونية إذا لزمت",
+              "en": "Power of Attorney, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "file-evidence",
+          "name": {
+            "ar": "إيداع مستندات",
+            "en": "Submit Supporting Documents"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "الهوية الإماراتية أو جواز السفر",
+              "en": "Emirates ID or Passport",
+              "optional": false
+            },
+            {
+              "id": "notice",
+              "ar": "إشعار القضية إن وجد",
+              "en": "Case Notice, if available",
+              "optional": true
+            },
+            {
+              "id": "evidence",
+              "ar": "المستندات الداعمة",
+              "en": "Supporting Documents",
+              "optional": false
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "id",
+          "ar": "الهوية الإماراتية أو جواز السفر",
+          "en": "Emirates ID or Passport",
+          "optional": false
+        },
+        {
+          "id": "notice",
+          "ar": "إشعار القضية إن وجد",
+          "en": "Case Notice, if available",
+          "optional": true
+        },
+        {
+          "id": "evidence",
+          "ar": "المستندات الداعمة",
+          "en": "Supporting Documents",
+          "optional": false
+        },
+        {
+          "id": "poa",
+          "ar": "وكالة قانونية إذا لزمت",
+          "en": "Power of Attorney, if applicable",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "legal-translation-individuals",
+      "audience": "individual",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "translation",
+        "title": {
+          "ar": "الترجمة القانونية",
+          "en": "Legal Translation"
+        }
+      },
+      "name": {
+        "ar": "الترجمة القانونية",
+        "en": "Legal Translation"
+      },
+      "description": {
+        "ar": "ترجمة المستندات الرسمية",
+        "en": "Certified legal translation"
+      },
+      "about": {
+        "ar": "ترجمة المستندات الرسمية",
+        "en": "Certified legal translation"
+      },
+      "actions": [
+        {
+          "id": "translate-legal",
+          "name": {
+            "ar": "ترجمة قانونية",
+            "en": "Request Legal Translation"
+          },
+          "documents": [
+            {
+              "id": "document",
+              "ar": "المستند المراد ترجمته",
+              "en": "Document to Translate",
+              "optional": false
+            },
+            {
+              "id": "target",
+              "ar": "اللغة المطلوبة",
+              "en": "Target Language",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "translate-official",
+          "name": {
+            "ar": "ترجمة مستند رسمي",
+            "en": "Translate an Official Document"
+          },
+          "documents": [
+            {
+              "id": "document",
+              "ar": "المستند المراد ترجمته",
+              "en": "Document to Translate",
+              "optional": false
+            },
+            {
+              "id": "target",
+              "ar": "اللغة المطلوبة",
+              "en": "Target Language",
+              "optional": false
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "document",
+          "ar": "المستند المراد ترجمته",
+          "en": "Document to Translate",
+          "optional": false
+        },
+        {
+          "id": "target",
+          "ar": "اللغة المطلوبة",
+          "en": "Target Language",
+          "optional": false
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "attestation-individuals",
+      "audience": "individual",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "attestation",
+        "title": {
+          "ar": "تصديق المستندات",
+          "en": "Document Attestation"
+        }
+      },
+      "name": {
+        "ar": "تصديق المستندات",
+        "en": "Document Attestation"
+      },
+      "description": {
+        "ar": "توثيق وتصديق المستندات",
+        "en": "Document attestation"
+      },
+      "about": {
+        "ar": "توثيق وتصديق المستندات",
+        "en": "Document attestation"
+      },
+      "actions": [
+        {
+          "id": "attest-document",
+          "name": {
+            "ar": "تصديق مستند",
+            "en": "Attest a Document"
+          },
+          "documents": [
+            {
+              "id": "original",
+              "ar": "المستند الأصلي أو صورة واضحة",
+              "en": "Original or Clear Document Copy",
+              "optional": false
+            },
+            {
+              "id": "support",
+              "ar": "المستندات الداعمة",
+              "en": "Supporting Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "attest-certificate",
+          "name": {
+            "ar": "تصديق شهادة",
+            "en": "Attest a Certificate"
+          },
+          "documents": [
+            {
+              "id": "original",
+              "ar": "المستند الأصلي أو صورة واضحة",
+              "en": "Original or Clear Document Copy",
+              "optional": false
+            },
+            {
+              "id": "certificate",
+              "ar": "شهادة التصديق السابقة عند الحاجة",
+              "en": "Previous Attestation if Required",
+              "optional": true
+            },
+            {
+              "id": "support",
+              "ar": "المستندات الداعمة",
+              "en": "Supporting Documents",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "original",
+          "ar": "المستند الأصلي أو صورة واضحة",
+          "en": "Original or Clear Document Copy",
+          "optional": false
+        },
+        {
+          "id": "certificate",
+          "ar": "شهادة التصديق السابقة عند الحاجة",
+          "en": "Previous Attestation if Required",
+          "optional": true
+        },
+        {
+          "id": "support",
+          "ar": "المستندات الداعمة",
+          "en": "Supporting Documents",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "rta-individuals",
+      "audience": "individual",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "rta",
+        "title": {
+          "ar": "هيئة الطرق والمواصلات",
+          "en": "Roads & Transport Authority"
+        }
+      },
+      "name": {
+        "ar": "خدمات هيئة الطرق والمواصلات",
+        "en": "RTA Services"
+      },
+      "description": {
+        "ar": "معاملات المركبات والمرور",
+        "en": "Roads and transport services"
+      },
+      "about": {
+        "ar": "معاملات المركبات والمرور",
+        "en": "Roads and transport services"
+      },
+      "actions": [
+        {
+          "id": "renew-vehicle",
+          "name": {
+            "ar": "تجديد تسجيل مركبة",
+            "en": "Renew Vehicle Registration"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "الهوية الإماراتية",
+              "en": "Emirates ID",
+              "optional": false
+            },
+            {
+              "id": "vehicle",
+              "ar": "ملكية المركبة عند الحاجة",
+              "en": "Vehicle Registration, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "transfer-vehicle",
+          "name": {
+            "ar": "نقل ملكية مركبة",
+            "en": "Transfer Vehicle Ownership"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "الهوية الإماراتية",
+              "en": "Emirates ID",
+              "optional": false
+            },
+            {
+              "id": "vehicle",
+              "ar": "ملكية المركبة عند الحاجة",
+              "en": "Vehicle Registration, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "review-licence",
+          "name": {
+            "ar": "معاملات رخصة القيادة",
+            "en": "Driving Licence Enquiry"
+          },
+          "documents": [
+            {
+              "id": "id",
+              "ar": "الهوية الإماراتية",
+              "en": "Emirates ID",
+              "optional": false
+            },
+            {
+              "id": "licence",
+              "ar": "رخصة القيادة عند الحاجة",
+              "en": "Driving Licence, if applicable",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "id",
+          "ar": "الهوية الإماراتية",
+          "en": "Emirates ID",
+          "optional": false
+        },
+        {
+          "id": "licence",
+          "ar": "رخصة القيادة عند الحاجة",
+          "en": "Driving Licence, if applicable",
+          "optional": true
+        },
+        {
+          "id": "vehicle",
+          "ar": "ملكية المركبة عند الحاجة",
+          "en": "Vehicle Registration, if applicable",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "reference",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "license-renewal",
+      "audience": "company",
+      "legacyAliasOf": "trade-licenses",
+      "category": {
+        "id": "business",
+        "title": {
+          "ar": "تأسيس الشركات والرخص التجارية",
+          "en": "Company Setup & Trade Licences"
+        }
+      },
+      "name": {
+        "ar": "تجديد الرخص التجارية",
+        "en": "Trade Licence Renewal"
+      },
+      "description": {
+        "ar": "تجديد الرخصة التجارية ومراجعة المتطلبات",
+        "en": "Business licence renewals and requirements"
+      },
+      "about": {
+        "ar": "تجديد الرخصة التجارية ومراجعة المتطلبات",
+        "en": "Business licence renewals and requirements"
+      },
+      "actions": [
+        {
+          "id": "renew-licence",
+          "name": {
+            "ar": "تجديد الرخصة التجارية",
+            "en": "Renew the Trade Licence"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المالك أو المفوض",
+              "en": "Owner or Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "tenancy",
+              "ar": "عقد الإيجار أو إيجاري عند الحاجة",
+              "en": "Tenancy or Ejari Record, if applicable",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "review-renewal",
+          "name": {
+            "ar": "مراجعة متطلبات التجديد",
+            "en": "Review Renewal Requirements"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence",
+              "optional": false
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "نسخة الرخصة الحالية",
+          "en": "Current Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "id",
+          "ar": "هوية المالك أو المفوض",
+          "en": "Owner or Signatory ID",
+          "optional": false
+        },
+        {
+          "id": "tenancy",
+          "ar": "عقد الإيجار أو إيجاري عند الحاجة",
+          "en": "Tenancy or Ejari Record, if applicable",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "review-required",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "license-amendments",
+      "audience": "company",
+      "legacyAliasOf": "trade-licenses",
+      "category": {
+        "id": "business",
+        "title": {
+          "ar": "تأسيس الشركات والرخص التجارية",
+          "en": "Company Setup & Trade Licences"
+        }
+      },
+      "name": {
+        "ar": "تعديل الرخص التجارية",
+        "en": "Trade Licence Amendments"
+      },
+      "description": {
+        "ar": "تعديل بيانات الرخصة التجارية والأنشطة",
+        "en": "Changes to trade licences and activities"
+      },
+      "about": {
+        "ar": "تعديل بيانات الرخصة التجارية والأنشطة",
+        "en": "Changes to trade licences and activities"
+      },
+      "actions": [
+        {
+          "id": "amend-details",
+          "name": {
+            "ar": "تعديل بيانات الرخصة",
+            "en": "Update Licence Details"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المفوض",
+              "en": "Signatory ID",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "amend-activity",
+          "name": {
+            "ar": "تغيير أو إضافة نشاط",
+            "en": "Change or Add a Business Activity"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المفوض",
+              "en": "Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "activity",
+              "ar": "مستندات النشاط الجديد إن توفرت",
+              "en": "New Activity Documents, if available",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "amend-owners",
+          "name": {
+            "ar": "تعديل بيانات الشركاء",
+            "en": "Update Shareholder Details"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "نسخة الرخصة الحالية",
+              "en": "Current Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "id",
+              "ar": "هوية المفوض",
+              "en": "Signatory ID",
+              "optional": false
+            },
+            {
+              "id": "resolution",
+              "ar": "قرار الشركاء عند الحاجة",
+              "en": "Shareholders’ Resolution, if applicable",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "نسخة الرخصة الحالية",
+          "en": "Current Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "id",
+          "ar": "هوية المفوض",
+          "en": "Signatory ID",
+          "optional": false
+        },
+        {
+          "id": "activity",
+          "ar": "مستندات النشاط الجديد إن توفرت",
+          "en": "New Activity Documents, if available",
+          "optional": true
+        },
+        {
+          "id": "resolution",
+          "ar": "قرار الشركاء عند الحاجة",
+          "en": "Shareholders’ Resolution, if applicable",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "review-required",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "work-permits",
+      "audience": "company",
+      "legacyAliasOf": "labor-employment",
+      "category": {
+        "id": "labour",
+        "title": {
+          "ar": "الموارد البشرية والعمالة",
+          "en": "Human Resources & Labour"
+        }
+      },
+      "name": {
+        "ar": "تصاريح العمل",
+        "en": "Work Permits"
+      },
+      "description": {
+        "ar": "إجراءات تصاريح العمل للموظفين",
+        "en": "Employee work permit support"
+      },
+      "about": {
+        "ar": "إجراءات تصاريح العمل للموظفين",
+        "en": "Employee work permit support"
+      },
+      "actions": [
+        {
+          "id": "issue-permit",
+          "name": {
+            "ar": "إصدار تصريح عمل",
+            "en": "Issue a Work Permit"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "جواز سفر العامل",
+              "en": "Worker Passport",
+              "optional": false
+            },
+            {
+              "id": "offer",
+              "ar": "عرض العمل أو العقد إن وجد",
+              "en": "Job Offer or Employment Contract, if available",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "renew-permit",
+          "name": {
+            "ar": "تجديد تصريح العمل",
+            "en": "Renew a Work Permit"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "passport",
+              "ar": "جواز سفر العامل",
+              "en": "Worker Passport",
+              "optional": false
+            },
+            {
+              "id": "permit",
+              "ar": "نسخة تصريح العمل الحالي",
+              "en": "Current Work Permit",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "amend-permit",
+          "name": {
+            "ar": "تعديل بيانات التصريح",
+            "en": "Amend Work Permit Details"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "جواز سفر العامل",
+              "en": "Worker Passport",
+              "optional": false
+            },
+            {
+              "id": "permit",
+              "ar": "نسخة تصريح العمل الحالي",
+              "en": "Current Work Permit",
+              "optional": false
+            },
+            {
+              "id": "offer",
+              "ar": "عرض العمل أو العقد إن وجد",
+              "en": "Job Offer or Employment Contract, if available",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "cancel-permit",
+          "name": {
+            "ar": "إلغاء تصريح العمل",
+            "en": "Cancel a Work Permit"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "جواز سفر العامل",
+              "en": "Worker Passport",
+              "optional": false
+            },
+            {
+              "id": "permit",
+              "ar": "نسخة تصريح العمل الحالي",
+              "en": "Current Work Permit",
+              "optional": false
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "الرخصة التجارية",
+          "en": "Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "passport",
+          "ar": "جواز سفر العامل",
+          "en": "Worker Passport",
+          "optional": false
+        },
+        {
+          "id": "permit",
+          "ar": "نسخة تصريح العمل الحالي",
+          "en": "Current Work Permit",
+          "optional": false
+        },
+        {
+          "id": "offer",
+          "ar": "عرض العمل أو العقد إن وجد",
+          "en": "Job Offer or Employment Contract, if available",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "review-required",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "wage-protection",
+      "audience": "company",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "labour",
+        "title": {
+          "ar": "الموارد البشرية والعمالة",
+          "en": "Human Resources & Labour"
+        }
+      },
+      "name": {
+        "ar": "حماية الأجور WPS",
+        "en": "Wage Protection System (WPS)"
+      },
+      "description": {
+        "ar": "متابعة معاملات نظام حماية الأجور",
+        "en": "Wage protection system support"
+      },
+      "about": {
+        "ar": "متابعة معاملات نظام حماية الأجور",
+        "en": "Wage protection system support"
+      },
+      "actions": [
+        {
+          "id": "register-wps",
+          "name": {
+            "ar": "التسجيل في نظام حماية الأجور",
+            "en": "Register for WPS"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "review-wps",
+          "name": {
+            "ar": "متابعة حالة الأجور",
+            "en": "Review WPS Status"
+          },
+          "documents": [
+            {
+              "id": "licence",
+              "ar": "الرخصة التجارية",
+              "en": "Trade Licence",
+              "optional": false
+            },
+            {
+              "id": "payroll",
+              "ar": "المستندات المتعلقة بالأجور",
+              "en": "Relevant Payroll Documents",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "respond-notice",
+          "name": {
+            "ar": "مراجعة إشعار حماية الأجور",
+            "en": "Review a WPS Notice"
+          },
+          "documents": [
+            {
+              "id": "notice",
+              "ar": "الإشعار أو الملاحظة إن وجدت",
+              "en": "Notice, if available",
+              "optional": true
+            },
+            {
+              "id": "payroll",
+              "ar": "المستندات المتعلقة بالأجور",
+              "en": "Relevant Payroll Documents",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "licence",
+          "ar": "الرخصة التجارية",
+          "en": "Trade Licence",
+          "optional": false
+        },
+        {
+          "id": "payroll",
+          "ar": "المستندات المتعلقة بالأجور",
+          "en": "Relevant Payroll Documents",
+          "optional": true
+        },
+        {
+          "id": "notice",
+          "ar": "الإشعار أو الملاحظة إن وجدت",
+          "en": "Notice, if available",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "review-required",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "family-sponsorship",
+      "audience": "individual",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "residency",
+        "title": {
+          "ar": "الإقامة والتأشيرات",
+          "en": "Residency & Visas"
+        }
+      },
+      "name": {
+        "ar": "لم شمل العائلة",
+        "en": "Family Sponsorship"
+      },
+      "description": {
+        "ar": "استفسارات معاملات إقامة العائلة",
+        "en": "Family residency and sponsorship support"
+      },
+      "about": {
+        "ar": "استفسارات معاملات إقامة العائلة",
+        "en": "Family residency and sponsorship support"
+      },
+      "actions": [
+        {
+          "id": "issue-family",
+          "name": {
+            "ar": "إصدار إقامة لفرد من العائلة",
+            "en": "Sponsor a Family Member"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "صورة جواز سفر المكفول",
+              "en": "Sponsored Person Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "photo",
+              "ar": "صورة شخصية حديثة بخلفية بيضاء",
+              "en": "Recent Personal Photo with White Background",
+              "optional": false
+            },
+            {
+              "id": "medical",
+              "ar": "فحص اللياقة الطبية المعتمد لمن أتم ١٨ سنة",
+              "en": "Approved Medical Fitness Certificate for Applicants Aged 18+",
+              "optional": false
+            },
+            {
+              "id": "sponsor-passport",
+              "ar": "صورة جواز الكفيل",
+              "en": "Sponsor Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "sponsor-residency",
+              "ar": "صورة إقامة الكفيل",
+              "en": "Sponsor Residence Copy",
+              "optional": false
+            },
+            {
+              "id": "sponsor-id",
+              "ar": "صورة هوية الكفيل",
+              "en": "Sponsor Emirates ID Copy",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "renew-family",
+          "name": {
+            "ar": "تجديد إقامة العائلة",
+            "en": "Renew Family Residency"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "صورة جواز سفر المكفول",
+              "en": "Sponsored Person Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "photo",
+              "ar": "صورة شخصية حديثة بخلفية بيضاء",
+              "en": "Recent Personal Photo with White Background",
+              "optional": false
+            },
+            {
+              "id": "medical",
+              "ar": "فحص اللياقة الطبية المعتمد لمن أتم ١٨ سنة",
+              "en": "Approved Medical Fitness Certificate for Applicants Aged 18+",
+              "optional": false
+            },
+            {
+              "id": "sponsor-passport",
+              "ar": "صورة جواز الكفيل",
+              "en": "Sponsor Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "sponsor-residency",
+              "ar": "صورة إقامة الكفيل",
+              "en": "Sponsor Residence Copy",
+              "optional": false
+            },
+            {
+              "id": "sponsor-id",
+              "ar": "صورة هوية الكفيل",
+              "en": "Sponsor Emirates ID Copy",
+              "optional": false
+            },
+            {
+              "id": "renewal",
+              "ar": "صورة الإقامة الحالية للمكفول",
+              "en": "Sponsored Person Current Residence Copy",
+              "optional": false
+            },
+            {
+              "id": "sponsored-id",
+              "ar": "صورة الهوية الحالية للمكفول",
+              "en": "Sponsored Person Current Emirates ID Copy",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "cancel-family",
+          "name": {
+            "ar": "إلغاء إقامة فرد من الأسرة",
+            "en": "Cancel Family Residence"
+          },
+          "documents": [
+            {
+              "id": "cancel-sponsor-passport",
+              "ar": "جواز سفر الكفيل",
+              "en": "Sponsor Passport",
+              "optional": false
+            },
+            {
+              "id": "cancel-sponsored-passport",
+              "ar": "جواز سفر المكفول",
+              "en": "Sponsored Person Passport",
+              "optional": false
+            }
+          ]
+        },
+        {
+          "id": "review-eligibility",
+          "name": {
+            "ar": "استفسار عن كفالة العائلة",
+            "en": "Family Sponsorship Enquiry"
+          },
+          "documents": []
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "passport",
+          "ar": "صورة جواز سفر المكفول",
+          "en": "Sponsored Person Passport Copy",
+          "optional": false
+        },
+        {
+          "id": "photo",
+          "ar": "صورة شخصية حديثة بخلفية بيضاء",
+          "en": "Recent Personal Photo with White Background",
+          "optional": false
+        },
+        {
+          "id": "medical",
+          "ar": "فحص اللياقة الطبية المعتمد لمن أتم ١٨ سنة",
+          "en": "Approved Medical Fitness Certificate for Applicants Aged 18+",
+          "optional": false
+        },
+        {
+          "id": "sponsor-passport",
+          "ar": "صورة جواز الكفيل",
+          "en": "Sponsor Passport Copy",
+          "optional": false
+        },
+        {
+          "id": "sponsor-residency",
+          "ar": "صورة إقامة الكفيل",
+          "en": "Sponsor Residence Copy",
+          "optional": false
+        },
+        {
+          "id": "sponsor-id",
+          "ar": "صورة هوية الكفيل",
+          "en": "Sponsor Emirates ID Copy",
+          "optional": false
+        },
+        {
+          "id": "renewal",
+          "ar": "صورة الإقامة الحالية للمكفول",
+          "en": "Sponsored Person Current Residence Copy",
+          "optional": false
+        },
+        {
+          "id": "sponsored-id",
+          "ar": "صورة الهوية الحالية للمكفول",
+          "en": "Sponsored Person Current Emirates ID Copy",
+          "optional": false
+        },
+        {
+          "id": "cancel-sponsor-passport",
+          "ar": "جواز سفر الكفيل",
+          "en": "Sponsor Passport",
+          "optional": false
+        },
+        {
+          "id": "cancel-sponsored-passport",
+          "ar": "جواز سفر المكفول",
+          "en": "Sponsored Person Passport",
+          "optional": false
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "review-required",
+      "feeStatus": "not-verified"
+    },
+    {
+      "id": "residency-fines",
+      "audience": "individual",
+      "legacyAliasOf": null,
+      "category": {
+        "id": "residency",
+        "title": {
+          "ar": "الإقامة والتأشيرات",
+          "en": "Residency & Visas"
+        }
+      },
+      "name": {
+        "ar": "مخالفات الإقامة",
+        "en": "Residency Fines"
+      },
+      "description": {
+        "ar": "مراجعة الوضع والخيارات المتاحة",
+        "en": "Residency status and available options"
+      },
+      "about": {
+        "ar": "مراجعة الوضع والخيارات المتاحة",
+        "en": "Residency status and available options"
+      },
+      "actions": [
+        {
+          "id": "review-fine",
+          "name": {
+            "ar": "الاستعلام عن مخالفة إقامة",
+            "en": "Check a Residency Fine"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "نسخة جواز السفر",
+              "en": "Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "notice",
+              "ar": "إشعار المخالفة إن وجد",
+              "en": "Fine Notice, if available",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "id": "review-options",
+          "name": {
+            "ar": "مراجعة خيارات تسوية المخالفة",
+            "en": "Review Residency Fine Options"
+          },
+          "documents": [
+            {
+              "id": "passport",
+              "ar": "نسخة جواز السفر",
+              "en": "Passport Copy",
+              "optional": false
+            },
+            {
+              "id": "notice",
+              "ar": "إشعار المخالفة إن وجد",
+              "en": "Fine Notice, if available",
+              "optional": true
+            },
+            {
+              "id": "residency",
+              "ar": "نسخة التأشيرة أو الإقامة إن وجدت",
+              "en": "Visa or Residency Copy, if available",
+              "optional": true
+            }
+          ]
+        }
+      ],
+      "commonDocuments": [
+        {
+          "id": "passport",
+          "ar": "نسخة جواز السفر",
+          "en": "Passport Copy",
+          "optional": false
+        },
+        {
+          "id": "notice",
+          "ar": "إشعار المخالفة إن وجد",
+          "en": "Fine Notice, if available",
+          "optional": true
+        },
+        {
+          "id": "residency",
+          "ar": "نسخة التأشيرة أو الإقامة إن وجدت",
+          "en": "Visa or Residency Copy, if available",
+          "optional": true
+        }
+      ],
+      "notes": [
+        {
+          "ar": "تختلف المتطلبات والمستندات حسب نوع المعاملة وحالة العميل؛ يلزم تأكيدها قبل التقديم.",
+          "en": "Requirements and documents depend on the transaction and applicant; confirm them before submission."
+        }
+      ],
+      "contentStatus": "review-required",
+      "feeStatus": "not-verified"
+    }
+  ]
+}

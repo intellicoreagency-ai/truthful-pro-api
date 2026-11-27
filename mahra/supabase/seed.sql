@@ -1,5 +1,5 @@
 -- مهرة: بيانات مرجعية (الوكلاء وفئات الخدمة). المصدر: دليل الوكلاء v18.
--- dialect = لهجة الوكيل عند التحدث بالعربية (jordanian | lebanese | syrian | egyptian | saudi). مهرة إماراتية.
+-- dialect = لهجة الوكيل عند التحدث بالعربية (jordanian | lebanese | syrian | egyptian | saudi؛ راشد استثناء: emirati). مهرة إماراتية.
 
 insert into agents (id, name_ar, name_en, gender, dialect, status, has_commission) values
   ('jalal',   'جلال',   'Jalal',   'm', 'jordanian',      'live', true),
@@ -8,7 +8,7 @@ insert into agents (id, name_ar, name_en, gender, dialect, status, has_commissio
   ('talal',   'طلال',   'Talal',   'm', 'jordanian',   'soon', true),
   ('khaled',  'خالد',   'Khaled',  'm', 'egyptian',      'soon', true),
   ('sara',    'سارة',   'Sara',    'f', 'syrian',      'soon', true),
-  ('rashid',  'راشد',   'Rashid',  'm', 'saudi',      'soon', true),
+  ('rashid',  'راشد',   'Rashid',  'm', 'emirati',      'soon', true),
   ('karim',   'كريم',   'Karim',   'm', 'saudi',      'soon', true),
   ('reem',    'د. ريم', 'Dr Reem', 'f', 'lebanese',      'soon', true),
   ('dana',    'دانة',   'Dana',    'f', 'jordanian',      'soon', true),
@@ -25,4 +25,7 @@ insert into service_categories (id, agent_id, name_ar, name_en, commission_rate,
   ('car_garage',   'jalal', 'ورشة سيارات',          'Car garage',       0.2000, 'rfq'),
   ('home_ac',      'talal', 'صيانة تكييف',          'AC maintenance',   0.2000, 'rfq'),
   ('home_clean',   'sara',  'تنظيف المنزل',         'Home cleaning',    0.2000, 'rfq'),
-  ('deco_project', 'khaled','ديكور ومقاولات',       'Décor and works',  0.2000, 'inspect_first');
+  ('deco_project', 'khaled','ديكور ومقاولات',       'Décor and works',  0.2000, 'inspect_first'),
+  -- راشد: المعاملات الحكومية تتم عبر «تروثفل لخدمات التخليص» وحدها (مسار مباشر بلا مناقصة).
+  -- نسبة العمولة 0 حتى يُحسم الاتفاق مع تروثفل؛ لا نفترضها.
+  ('gov_clearance','rashid','تخليص المعاملات الحكومية','Government clearance', 0.0000, 'direct');

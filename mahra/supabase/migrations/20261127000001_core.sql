@@ -24,7 +24,7 @@ create table agents (
   name_ar text not null,
   name_en text not null,
   gender char(1) not null check (gender in ('m','f')),
-  dialect text not null check (dialect in ('jordanian','lebanese','syrian','egyptian','saudi')),  -- لهجة/جنسية الوكيل بالعربية (لا مغاربية)
+  dialect text not null check (dialect in ('emirati','jordanian','lebanese','syrian','egyptian','saudi')),  -- لهجة/جنسية الوكيل بالعربية (لا مغاربية؛ راشد إماراتي)
   status text not null default 'soon' check (status in ('live','soon')),
   has_commission boolean not null default true
 );
@@ -35,7 +35,7 @@ create table service_categories (
   name_ar text not null,
   name_en text not null,
   commission_rate numeric(5,4) not null default 0.2000 check (commission_rate >= 0 and commission_rate <= 0.5),
-  flow text not null default 'rfq' check (flow in ('rfq','inspect_first')),
+  flow text not null default 'rfq' check (flow in ('rfq','inspect_first','direct')),   -- direct = مزود وحيد بلا مناقصة (راشد)
   active boolean not null default true
 );
 
