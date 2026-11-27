@@ -2,14 +2,14 @@
 -- dialect = لهجة الوكيل عند التحدث بالعربية (jordanian | lebanese | syrian | egyptian | saudi). مهرة إماراتية.
 
 insert into agents (id, name_ar, name_en, gender, dialect, status, has_commission) values
-  ('jalal',   'جلال',   'Jalal',   'm', 'saudi',      'live', true),
+  ('jalal',   'جلال',   'Jalal',   'm', 'jordanian',      'live', true),
   ('layla',   'ليلى',   'Layla',   'f', 'syrian',      'soon', true),
   ('noura',   'نورة',   'Noura',   'f', 'lebanese', 'soon', false),
   ('talal',   'طلال',   'Talal',   'm', 'jordanian',   'soon', true),
   ('khaled',  'خالد',   'Khaled',  'm', 'egyptian',      'soon', true),
   ('sara',    'سارة',   'Sara',    'f', 'syrian',      'soon', true),
   ('rashid',  'راشد',   'Rashid',  'm', 'saudi',      'soon', true),
-  ('karim',   'كريم',   'Karim',   'm', 'jordanian',      'soon', true),
+  ('karim',   'كريم',   'Karim',   'm', 'saudi',      'soon', true),
   ('reem',    'د. ريم', 'Dr Reem', 'f', 'lebanese',      'soon', true),
   ('dana',    'دانة',   'Dana',    'f', 'jordanian',      'soon', true),
   ('omar',    'أ. عمر', 'Mr Omar', 'm', 'egyptian',      'soon', false),

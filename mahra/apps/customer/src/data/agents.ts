@@ -42,7 +42,7 @@ export type Agent = {
 export const AGENTS: Agent[] = [
   { id: 'jalal', name: { ar: 'جلال', en: 'Jalal' }, role: { ar: 'السيارات والمساعدة على الطريق', en: 'Cars and roadside help' },
     summary: { ar: 'يفهم العطل من صورة وأسئلة، ويطلب لك سطحة أو ورشة.', en: 'Diagnoses from a photo and questions, then gets you a tow or a garage.' },
-    icon: 'car-sport-outline', accent: '#E0A33C', gender: 'm', dialect: 'saudi', status: 'live', hasCommission: true },
+    icon: 'car-sport-outline', accent: '#E0A33C', gender: 'm', dialect: 'jordanian', status: 'live', hasCommission: true },
   { id: 'sara', name: { ar: 'سارة', en: 'Sara' }, role: { ar: 'إدارة المنزل والتنظيف', en: 'Home management and cleaning' },
     summary: { ar: 'ترتيب الغرف، تنظيف، دراي كلين، وعناية بالمنزل.', en: 'Room tidying, cleaning, dry cleaning and home care.' },
     icon: 'sparkles-outline', accent: '#E07A6F', gender: 'f', dialect: 'syrian', status: 'soon', hasCommission: true },
@@ -63,7 +63,7 @@ export const AGENTS: Agent[] = [
     icon: 'document-text-outline', accent: '#9AA8D6', gender: 'm', dialect: 'saudi', status: 'soon', hasCommission: true },
   { id: 'karim', name: { ar: 'كريم', en: 'Karim' }, role: { ar: 'التنقل والسفر', en: 'Transport and travel' },
     summary: { ar: 'رحلات، مشاوير، وحجوزات مرتبة.', en: 'Trips, rides and organised bookings.' },
-    icon: 'airplane-outline', accent: '#7FD1B9', gender: 'm', dialect: 'jordanian', status: 'soon', hasCommission: true },
+    icon: 'airplane-outline', accent: '#7FD1B9', gender: 'm', dialect: 'saudi', status: 'soon', hasCommission: true },
   { id: 'reem', name: { ar: 'د. ريم', en: 'Dr Reem' }, role: { ar: 'الصحة والعافية والتجميل', en: 'Health, wellness and beauty' },
     summary: { ar: 'مواعيد وإرشاد عام، دون تشخيص طبي.', en: 'Appointments and general guidance, no medical diagnosis.' },
     icon: 'heart-outline', accent: '#E58FA8', gender: 'f', dialect: 'lebanese', status: 'soon', hasCommission: true },
