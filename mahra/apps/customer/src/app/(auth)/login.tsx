@@ -72,12 +72,7 @@ export default function Login() {
     setMsg({ tone: 'info', text: ok ? t('faceIdNeedsLogin') : t('faceIdUnavailable') });
   };
 
-  const field = (icon: 'call-outline' | 'logo-whatsapp' | 'keypad-outline', children: React.ReactNode) => (
-    <View style={styles.field}>
-      {children}
-      <Ionicons name={icon} size={20} color={color.textDim} />
-    </View>
-  );
+  const field = (_icon: 'call-outline' | 'logo-whatsapp' | 'keypad-outline', children: React.ReactNode) => <View style={styles.field}>{children}</View>;
 
   return (
     <View style={styles.root} onLayout={onLayout}>
@@ -86,8 +81,8 @@ export default function Login() {
 
       <ScrollView contentContainerStyle={{ paddingTop: CARD_TOP * s, paddingBottom: 40 + insets.bottom, paddingHorizontal: CARD_SIDE * s * 0.62 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Glass r={26} strong style={styles.card}>
-          <Text variant="title" weight="bold" center>{step === 'phone' ? t('loginTitle') : t('codeTitle')}</Text>
-          <Text variant="caption" tone="dim" center>{step === 'phone' ? t('loginSub') : t('codeSub', { phone: `+971 ${digits(phone)}` })}</Text>
+          <Text variant="title" font="body" weight="medium" center style={{ fontSize: 24, lineHeight: 38 }}>{step === 'phone' ? t('signIn') : t('codeTitle')}</Text>
+          {step === 'code' && <Text variant="caption" tone="dim" center>{t('codeSub', { phone: `+971 ${digits(phone)}` })}</Text>}
 
           {step === 'phone' ? (
             <>
@@ -121,29 +116,29 @@ export default function Login() {
           {msg && <Text variant="caption" tone={msg.tone === 'bad' ? 'danger' : 'gold'} accessibilityLiveRegion="polite">{msg.text}</Text>}
 
           <Press onPress={step === 'phone' ? sendCode : verify} accessibilityRole="button" accessibilityLabel={step === 'phone' ? t('sendCode') : t('verify')} style={styles.ctaWrap}>
-            <LinearGradient colors={['#E9D6AE', '#F6F0E8', '#DDBE86']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.cta}>
-              <Text variant="heading" font="body" weight="semibold" style={{ color: '#070B14', fontSize: 18 }}>{step === 'phone' ? t('sendCode') : t('verify')}</Text>
+            <LinearGradient colors={['#3E5CD3', '#8C9CE0', '#EEE0C4', '#DCBE8A']} locations={[0, 0.36, 0.72, 1]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.cta}>
+              <Text variant="heading" font="body" weight="medium" style={{ color: '#0B1020', fontSize: 18 }}>{step === 'phone' ? t('sendCode') : t('verify')}</Text>
             </LinearGradient>
           </Press>
 
           {step === 'code' ? (
             <Press onPress={() => { setStep('phone'); setCode(''); setMsg(null); }} accessibilityRole="button" style={styles.pill}>
-              <Text variant="caption" font="body" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('changeNumber')}</Text>
+              <Text variant="caption" font="body" weight="regular" style={{ fontSize: 16, lineHeight: 25 }}>{t('changeNumber')}</Text>
             </Press>
           ) : (
             <>
               <View style={styles.rule} />
               <Press onPress={biometric} accessibilityRole="button" accessibilityLabel={t('faceId')} style={styles.pill}>
                 <Ionicons name="finger-print-outline" size={24} color={color.goldBright} />
-                <Text variant="caption" font="body" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('faceId')}</Text>
+                <Text variant="caption" font="body" weight="regular" style={{ fontSize: 16, lineHeight: 25 }}>{t('faceId')}</Text>
               </Press>
               <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('google')} style={styles.pill}>
                 <GoogleG />
-                <Text variant="caption" font="body" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('google')}</Text>
+                <Text variant="caption" font="body" weight="regular" style={{ fontSize: 16, lineHeight: 25 }}>{t('google')}</Text>
               </Press>
               <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('apple')} style={styles.pill}>
                 <Ionicons name="logo-apple" size={22} color="#fff" />
-                <Text variant="caption" font="body" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('apple')}</Text>
+                <Text variant="caption" font="body" weight="regular" style={{ fontSize: 16, lineHeight: 25 }}>{t('apple')}</Text>
               </Press>
             </>
           )}
@@ -173,12 +168,12 @@ export default function Login() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#060913' },
   card: { padding: space.lg, gap: space.md, backgroundColor: 'rgba(120,130,160,0.10)' },
-  field: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.30)', borderTopColor: 'rgba(255,255,255,0.5)', backgroundColor: 'rgba(255,255,255,0.09)' },
+  field: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', borderTopColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.12)' },
   phoneRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, direction: 'ltr' },
   input: { flex: 1, minWidth: 0, minHeight: 44, color: color.text, fontSize: 17, textAlign: 'left', writingDirection: 'ltr' },
   check: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 44 },
   ctaWrap: { marginTop: space.xs },
-  cta: { minHeight: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 10px 28px rgba(235,208,142,0.38), inset 0 1px 0 rgba(255,255,255,0.8)' } as object) : { shadowColor: '#EBD08E', shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } }) },
+  cta: { minHeight: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 10px 28px rgba(110,140,255,0.38), 0 0 22px rgba(235,208,142,0.25), inset 0 1px 0 rgba(255,255,255,0.8)' } as object) : { shadowColor: '#8FA2F0', shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } }) },
   rule: { height: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginVertical: 2 },
   pill: { alignSelf: 'stretch', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.10)' },
   langWrap: { position: 'absolute', end: 16, alignItems: 'flex-end', gap: 6 },

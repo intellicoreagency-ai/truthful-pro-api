@@ -3,6 +3,7 @@ export const ar = {
 
   // الدخول
   loginTitle: 'أهلاً بك في مهرة',
+  signIn: 'تسجيل الدخول',
   loginSub: 'أدخل رقم هاتفك لنبدأ',
   phoneLabel: 'رقم الهاتف',
   phonePlaceholder: '50 123 4567',
