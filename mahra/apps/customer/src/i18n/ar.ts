@@ -3,7 +3,7 @@ export const ar = {
 
   // الدخول
   loginTitle: 'أهلاً بك في مهرة',
-  tagline: "مساعدك الذكي",
+  tagline: "مساعدك الشخصي الذكي",
   signIn: 'تسجيل الدخول',
   loginSub: 'أدخل رقم هاتفك لنبدأ',
   phoneLabel: 'رقم الهاتف',

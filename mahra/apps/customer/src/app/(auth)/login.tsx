@@ -101,7 +101,7 @@ export default function Login() {
       <ScrollView contentContainerStyle={{ paddingTop: CARD_TOP * s, paddingBottom: 40 + insets.bottom, paddingHorizontal: CARD_SIDE * s }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Glass r={12} blur={10} style={[styles.card, { minHeight: (1118 - CARD_TOP) * s + 8, justifyContent: 'space-evenly' }]}>
           <LinearGradient pointerEvents="none" colors={['rgba(255,238,205,0)', 'rgba(255,238,205,0.24)', 'rgba(255,238,205,0)']} locations={[0.28, 0.56, 0.84]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <T variant="title" weight="bold" center style={{ fontSize: 30, lineHeight: 46 }}>{step === 'phone' ? t('tagline') : t('codeTitle')}</T>
+          <T variant="title" weight="bold" center style={{ fontSize: lang === 'ar' ? 18 : 17, lineHeight: lang === 'ar' ? 30 : 26 }}>{step === 'phone' ? t('tagline') : t('codeTitle')}</T>
           {step === 'code' && <T variant="caption" tone="dim" center style={{ fontSize: 15, marginTop: -6 }}>{t('codeSub', { phone: `+${cc} ${digits(phone)}` })}</T>}
 
           {step === 'phone' ? (

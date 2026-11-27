@@ -4,7 +4,7 @@ import type { ar } from './ar';
 export const hi: Record<keyof typeof ar, string> = {
   appName: "मोहरा",
   loginTitle: "मोहरा में आपका स्वागत है",
-  tagline: "आपका स्मार्ट सहायक",
+  tagline: "आपका स्मार्ट निजी सहायक",
   signIn: "साइन इन",
   loginSub: "शुरू करने के लिए अपना फ़ोन नंबर दर्ज करें",
   phoneLabel: "फ़ोन नंबर",
