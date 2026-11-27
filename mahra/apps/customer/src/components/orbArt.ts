@@ -1,7 +1,8 @@
 import type { ImageSourcePropType } from 'react-native';
 
-/** كرة الصوت مُلوَّنة لكل وكيل (مولّدة من فقاعة التصميم). */
+/** كرة الصوت: الافتراضية + نسخة بلون كل وكيل (دائرة الفقاعة فقط؛ الموجات حيّة بالكود). */
 export const ORB_ART: Record<string, ImageSourcePropType> = {
+  default: require('../../assets/ui/orb-default.png'),
   jalal: require('../../assets/ui/orb-jalal.png'),
   talal: require('../../assets/ui/orb-talal.png'),
   sara: require('../../assets/ui/orb-sara.png'),

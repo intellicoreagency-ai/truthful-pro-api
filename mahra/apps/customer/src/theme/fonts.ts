@@ -39,7 +39,9 @@ const FAMILY: Partial<Record<Lang, string>> = { en: 'Inter', es: 'Inter', fr: 'I
 /** نمط الخط حسب اللغة والوزن. letterSpacing صفر دائماً (التباعد يقطع الحروف العربية المتصلة). */
 export function fontStyle(lang: Lang, weight: FontWeight, _role: FontRole = 'body'): TextStyle {
   if (lang === 'ar') {
-    const face = `NotoKufiArabic_${SUFFIX[weight]}`;
+    // الكوفي عريض بطبعه: نخفّض الوزن درجة ليناسب التصميم (bold→semibold، semibold→medium، medium→regular)
+    const w2: FontWeight = weight === 'bold' ? 'semibold' : weight === 'semibold' ? 'medium' : 'regular';
+    const face = `NotoKufiArabic_${SUFFIX[w2]}`;
     return { fontFamily: Platform.OS === 'web' ? `${face}, ${APPLE}, ${SYSTEM_FALLBACK}` : face, letterSpacing: 0 };
   }
   if (lang === 'zh') {

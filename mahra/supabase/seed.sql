@@ -10,7 +10,7 @@ insert into agents (id, name_ar, name_en, gender, dialect, status, has_commissio
   ('sara',    'سارة',   'Sara',    'f', 'syrian',      'soon', true),
   ('rashid',  'راشد',   'Rashid',  'm', 'emirati',      'soon', true),
   ('karim',   'كريم',   'Karim',   'm', 'saudi',      'soon', true),
-  ('reem',    'د. ريم', 'Dr Reem', 'f', 'lebanese',      'soon', true),
+  ('reem',    'ريم',    'Reem',    'f', 'lebanese',      'soon', true),
   ('dana',    'دانة',   'Dana',    'f', 'jordanian',      'soon', true),
   ('omar',    'أ. عمر', 'Mr Omar', 'm', 'egyptian',      'soon', false),
   ('tareq',   'طارق',   'Tareq',   'm', 'egyptian',      'soon', true),

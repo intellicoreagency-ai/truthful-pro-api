@@ -13,6 +13,7 @@ import { THEME } from '@/data/theme';
 import { useI18n, useTx, type StringKey } from '@/i18n';
 import { useAccent } from '@/lib/accent';
 import { useVoice, type VoiceState } from '@/lib/voice';
+import type { AgentId } from '@/data/agents';
 import { color, space } from '@/theme/tokens';
 
 const STATUS: Record<VoiceState, StringKey> = { idle: 'statusIdle', listening: 'statusListening', thinking: 'statusThinking', speaking: 'statusSpeaking' };
@@ -28,29 +29,30 @@ export default function Home() {
   const { state, toggle } = useVoice();
   const { setAccent } = useAccent();
   const [w, setW] = useState(358);
-  const [id, setId] = useState(PRIORITY[0]);
+  const [id, setId] = useState<AgentId | null>(null);
   const active = state !== 'idle';
-  const th = THEME[id];
+  const th = id ? THEME[id] : null;
+  const accent = th?.accent ?? null;
   const colW = (w - GAP) / 2;
 
   useFocusEffect(useCallback(() => {
-    setAccent(th.accent);
+    setAccent(accent);
     return () => setAccent(null);
-  }, [th.accent, setAccent]));
+  }, [accent, setAccent]));
 
   return (
     <Screen tabs>
       <Glass r={36} clear style={styles.bar}>
         <BarItem icon="briefcase-outline" label={tx('تحديث السيرة CV', 'Update CV')} onPress={() => router.push('/profile/cv')} />
         <BarItem icon="settings-outline" label={tx('إعدادات الصوت', 'Voice settings')} onPress={() => router.push('/settings/voice')} />
-        <BarItem icon="person-outline" label={tx('الوكلاء', 'Agents')} accent={th.accent} onPress={() => router.navigate('/specialists')} />
+        <BarItem icon="person-outline" label={tx('الوكلاء', 'Agents')} accent={accent ?? undefined} onPress={() => router.navigate('/specialists')} />
       </Glass>
 
       <View style={{ alignItems: 'center' }} onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
         <Press onPress={toggle} accessibilityRole="button" accessibilityLabel={active ? t('stop') : t('talkToMohra')} style={{ borderRadius: 200 }}>
-          <TintedOrb width={Math.min(w, 400)} agent={id} accent={th.accent} state={state} />
+          <TintedOrb width={Math.min(w, 400)} agent={id ?? 'default'} accent={accent} state={state} />
         </Press>
-        {active && <Text variant="caption" weight="semibold" accessibilityLiveRegion="polite" center style={{ color: th.accent }}>{t(STATUS[state])}</Text>}
+        {active && <Text variant="caption" weight="semibold" accessibilityLiveRegion="polite" center style={{ color: accent ?? color.goldBright }}>{t(STATUS[state])}</Text>}
       </View>
 
       <View style={styles.titleWrap}>
@@ -58,7 +60,7 @@ export default function Home() {
       </View>
 
       <View style={styles.grid}>
-        {PRIORITY.map((k) => <ExpertCard key={k} id={k} width={colW} selected={k === id} onSelect={() => setId(k)} />)}
+        {PRIORITY.map((k) => <ExpertCard key={k} id={k} width={colW} selected={k === id} onSelect={() => setId(k === id ? null : k)} />)}
       </View>
     </Screen>
   );
