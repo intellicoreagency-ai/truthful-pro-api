@@ -9,7 +9,7 @@ export const ar = {
   phoneLabel: 'رقم الهاتف',
   countryCode: "رمز الدولة",
   phonePlaceholder: '50 123 4567',
-  hasWhatsapp: 'هذا الرقم عليه واتساب',
+  hasWhatsapp: 'هل يوجد واتساب على هذا الرقم؟',
   whatsappLabel: 'رقم الواتساب',
   whatsappRequired: "أكّد أن هذا الرقم عليه واتساب للمتابعة.",
   sendCode: 'أرسل الرمز',
