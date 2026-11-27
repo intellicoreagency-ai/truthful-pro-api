@@ -88,6 +88,7 @@ export const es: Record<keyof typeof ar, string> = {
   apple: "Continuar con Apple",
   faceId: "Entrar con huella",
   orDivider: "o",
+  orSignUp: "O regístrate con",
   googleSoon: "El acceso con Google se activa cuando se configure una cuenta de Google para la app.",
   faceIdNeedsLogin: "Entra primero con tu teléfono y luego activa la huella desde Cuenta.",
   faceIdUnavailable: "La huella no está disponible en este dispositivo.",

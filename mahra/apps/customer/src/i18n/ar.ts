@@ -103,6 +103,7 @@ export const ar = {
   apple: "المتابعة بحساب Apple",
   faceId: "الدخول بالبصمة",
   orDivider: 'أو',
+  orSignUp: "أو سجّل عبر",
   googleSoon: 'يتفعل الدخول بجوجل بعد إعداد حساب Google للتطبيق.',
   faceIdNeedsLogin: "سجّل الدخول بالهاتف أولاً، ثم فعّل البصمة من حسابي.",
   faceIdUnavailable: "البصمة غير متاحة على هذا الجهاز.",

@@ -88,6 +88,7 @@ export const hi: Record<keyof typeof ar, string> = {
   apple: "Apple से जारी रखें",
   faceId: "फ़िंगरप्रिंट से साइन इन करें",
   orDivider: "या",
+  orSignUp: "या इनसे साइन अप करें",
   googleSoon: "ऐप के लिए Google खाता सेट होते ही Google साइन-इन चालू होगा।",
   faceIdNeedsLogin: "पहले फ़ोन से साइन इन करें, फिर खाता से फ़िंगरप्रिंट चालू करें।",
   faceIdUnavailable: "इस डिवाइस पर फ़िंगरप्रिंट उपलब्ध नहीं है।",

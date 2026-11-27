@@ -77,10 +77,11 @@ export default function Login() {
   return (
     <View style={styles.root} onLayout={onLayout}>
       <Image source={BG} style={{ position: 'absolute', top: 0, start: 0, width: w, height: IMG_H * s }} resizeMode="stretch" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
-      <LinearGradient colors={['rgba(6,9,19,0)', '#060913']} style={{ position: 'absolute', top: IMG_H * s - 120 * s, start: 0, end: 0, height: 160 }} pointerEvents="none" />
+      <LinearGradient colors={['rgba(6,9,19,0)', '#060913']} style={{ position: 'absolute', top: IMG_H * s - 240 * s, start: 0, end: 0, height: 240 * s }} pointerEvents="none" />
 
-      <ScrollView contentContainerStyle={{ paddingTop: CARD_TOP * s, paddingBottom: 40 + insets.bottom, paddingHorizontal: CARD_SIDE * s * 0.62 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Glass r={26} strong style={styles.card}>
+      <ScrollView contentContainerStyle={{ paddingTop: CARD_TOP * s, paddingBottom: 40 + insets.bottom, paddingHorizontal: CARD_SIDE * s }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <Glass r={12} strong style={styles.card}>
+          <LinearGradient pointerEvents="none" colors={['rgba(255,238,205,0)', 'rgba(255,238,205,0.20)', 'rgba(255,238,205,0)']} locations={[0.28, 0.56, 0.84]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
           <Text variant="title" font="body" weight="medium" center style={{ fontSize: 24, lineHeight: 38 }}>{step === 'phone' ? t('signIn') : t('codeTitle')}</Text>
           {step === 'code' && <Text variant="caption" tone="dim" center>{t('codeSub', { phone: `+971 ${digits(phone)}` })}</Text>}
 
@@ -132,10 +133,6 @@ export default function Login() {
                 <Ionicons name="finger-print-outline" size={24} color={color.goldBright} />
                 <Text variant="caption" font="body" weight="regular" style={{ fontSize: 16, lineHeight: 25 }}>{t('faceId')}</Text>
               </Press>
-              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('google')} style={styles.pill}>
-                <GoogleG />
-                <Text variant="caption" font="body" weight="regular" style={{ fontSize: 16, lineHeight: 25 }}>{t('google')}</Text>
-              </Press>
               <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('apple')} style={styles.pill}>
                 <Ionicons name="logo-apple" size={22} color="#fff" />
                 <Text variant="caption" font="body" weight="regular" style={{ fontSize: 16, lineHeight: 25 }}>{t('apple')}</Text>
@@ -144,6 +141,15 @@ export default function Login() {
           )}
         </Glass>
 
+        {step === 'phone' && (
+          <View style={styles.alt}>
+            <Text variant="caption" tone="dim">{t('orSignUp')}</Text>
+            <View style={styles.altRow}>
+              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('google')} style={styles.altBtn}><GoogleG /></Press>
+              <Press onPress={() => setHasWa(false)} accessibilityRole="button" accessibilityLabel={t('signIn')} style={styles.altBtn}><Ionicons name="person-add-outline" size={24} color="#fff" /></Press>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <View style={[styles.langWrap, { top: insets.top + 8 }]}>
@@ -167,7 +173,7 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#060913' },
-  card: { padding: space.lg, gap: space.md, backgroundColor: 'rgba(120,130,160,0.10)' },
+  card: { padding: space.lg, gap: space.md, backgroundColor: 'rgba(150,160,190,0.14)' },
   field: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', borderTopColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.12)' },
   phoneRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, direction: 'ltr' },
   input: { flex: 1, minWidth: 0, minHeight: 44, color: color.text, fontSize: 17, textAlign: 'left', writingDirection: 'ltr' },
@@ -176,6 +182,9 @@ const styles = StyleSheet.create({
   cta: { minHeight: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 10px 28px rgba(110,140,255,0.38), 0 0 22px rgba(235,208,142,0.25), inset 0 1px 0 rgba(255,255,255,0.8)' } as object) : { shadowColor: '#8FA2F0', shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } }) },
   rule: { height: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginVertical: 2 },
   pill: { alignSelf: 'stretch', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.10)' },
+  alt: { alignItems: 'center', gap: space.md, marginTop: space.xl },
+  altRow: { flexDirection: 'row', gap: space.md },
+  altBtn: { width: 54, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.12)' },
   langWrap: { position: 'absolute', end: 16, alignItems: 'flex-end', gap: 6 },
   langBtn: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, borderRadius: 99, borderWidth: 1, borderColor: 'rgba(235,208,142,0.5)', backgroundColor: 'rgba(10,16,34,0.6)' },
   langMenu: { padding: 6 },

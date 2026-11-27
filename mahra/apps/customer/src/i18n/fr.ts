@@ -88,6 +88,7 @@ export const fr: Record<keyof typeof ar, string> = {
   apple: "Continuer avec Apple",
   faceId: "Se connecter par empreinte",
   orDivider: "ou",
+  orSignUp: "Ou inscrivez-vous avec",
   googleSoon: "La connexion Google sera activée une fois un compte Google configuré pour l’app.",
   faceIdNeedsLogin: "Connectez-vous d’abord avec votre téléphone, puis activez l’empreinte depuis Compte.",
   faceIdUnavailable: "L’empreinte n’est pas disponible sur cet appareil.",

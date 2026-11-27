@@ -88,6 +88,7 @@ export const ru: Record<keyof typeof ar, string> = {
   apple: "Продолжить через Apple",
   faceId: "Войти по отпечатку",
   orDivider: "или",
+  orSignUp: "Или зарегистрируйтесь через",
   googleSoon: "Вход через Google включится после настройки аккаунта Google для приложения.",
   faceIdNeedsLogin: "Сначала войдите по телефону, затем включите отпечаток в разделе «Аккаунт».",
   faceIdUnavailable: "Отпечаток недоступен на этом устройстве.",

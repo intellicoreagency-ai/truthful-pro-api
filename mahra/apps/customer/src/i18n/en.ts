@@ -96,6 +96,7 @@ export const en: Record<keyof typeof ar, string> = {
   apple: "Continue with Apple",
   faceId: "Sign in with fingerprint",
   orDivider: 'or',
+  orSignUp: "Or sign up with",
   googleSoon: 'Google sign-in turns on once a Google account is set up for the app.',
   faceIdNeedsLogin: "Sign in with your phone first, then turn on fingerprint from Account.",
   faceIdUnavailable: "Fingerprint is not available on this device.",
