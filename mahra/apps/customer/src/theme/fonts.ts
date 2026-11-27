@@ -4,30 +4,25 @@ import type { Lang } from '@/i18n';
 export type FontWeight = 'regular' | 'medium' | 'semibold' | 'bold';
 
 /**
- * الخطوط تتبع سلسلة مرجع Spatial Glass: "SF Pro" ثم "Noto Sans Arabic".
- * العربية: Noto Sans Arabic محمّل (4 أوزان). اللاتينية والروسية: خط النظام (SF Pro على آيفون، Roboto على أندرويد)،
- * فلا يوجد ملف لاتيني قد يفشل تحميله ولا رجوع إلى Times.
+ * خط التصميم المعتمد (صور Gemini): Readex Pro، عريض هندسي متساوي السماكة. يغطي العربية واللاتينية (en/es/fr).
+ * الروسية والهندية والصينية خارج تغطيته: يتولاها خط النظام (SF Pro / Roboto) بحرف احتياطي سليم.
  */
 export const fontSources = {
-  NotoSansArabic_400Regular: require('@expo-google-fonts/noto-sans-arabic/400Regular/NotoSansArabic_400Regular.ttf'),
-  NotoSansArabic_500Medium: require('@expo-google-fonts/noto-sans-arabic/500Medium/NotoSansArabic_500Medium.ttf'),
-  NotoSansArabic_600SemiBold: require('@expo-google-fonts/noto-sans-arabic/600SemiBold/NotoSansArabic_600SemiBold.ttf'),
-  NotoSansArabic_700Bold: require('@expo-google-fonts/noto-sans-arabic/700Bold/NotoSansArabic_700Bold.ttf'),
+  ReadexPro_400Regular: require('@expo-google-fonts/readex-pro/400Regular/ReadexPro_400Regular.ttf'),
+  ReadexPro_500Medium: require('@expo-google-fonts/readex-pro/500Medium/ReadexPro_500Medium.ttf'),
+  ReadexPro_600SemiBold: require('@expo-google-fonts/readex-pro/600SemiBold/ReadexPro_600SemiBold.ttf'),
+  ReadexPro_700Bold: require('@expo-google-fonts/readex-pro/700Bold/ReadexPro_700Bold.ttf'),
 };
 
 const suffix: Record<FontWeight, string> = { regular: '400Regular', medium: '500Medium', semibold: '600SemiBold', bold: '700Bold' };
 const numeric: Record<FontWeight, TextStyle['fontWeight']> = { regular: '400', medium: '500', semibold: '600', bold: '700' };
-
 const WEB_SANS = '"SF Pro Text","SF Pro Display",-apple-system,system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif';
+const READEX_LANGS: Lang[] = ['ar', 'en', 'es', 'fr'];
 
-/**
- * نمط الخط حسب اللغة والوزن: يُدمج في style أي نص أو حقل إدخال.
- * على الويب نضيف سلسلة احتياط صريحة (وإلا يسقط الحرف السيريلي أو اللاتيني خارج Noto إلى Times).
- * على الجوال يتولى النظام الاحتياط بالحرف الواحد (SF Pro / Roboto).
- */
+/** نمط الخط حسب اللغة والوزن: يُدمج في style أي نص أو حقل إدخال. */
 export function fontStyle(lang: Lang, weight: FontWeight): TextStyle {
-  if (lang === 'ar') {
-    const family = `NotoSansArabic_${suffix[weight]}`;
+  if (READEX_LANGS.includes(lang)) {
+    const family = `ReadexPro_${suffix[weight]}`;
     return { fontFamily: Platform.OS === 'web' ? `${family}, ${WEB_SANS}` : family };
   }
   return Platform.OS === 'web' ? { fontFamily: WEB_SANS, fontWeight: numeric[weight] } : { fontWeight: numeric[weight] };
