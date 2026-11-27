@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as LocalAuthentication from 'expo-local-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
-import { Animated, Easing, Image, Platform, ScrollView, StyleSheet, TextInput, View, type LayoutChangeEvent } from 'react-native';
+import { Animated, Easing, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { Glass } from '@/components/Glass';
@@ -11,6 +10,10 @@ import { Text } from '@/components/Text';
 import type { ComponentProps } from 'react';
 import { LANGS, useI18n } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { AUTH_LIVE } from '@/lib/authConfig';
+import { isBiometricEnabled, unlockWithBiometric, updateStoredToken } from '@/lib/biometric';
+import { restoreSession, signInWithApple, signInWithGoogle, type OAuthOutcome } from '@/lib/oauth';
+import { authConfigured } from '@/lib/supabase';
 import { useReducedMotion } from '@/lib/voice';
 import { fontStyle } from '@/theme/fonts';
 import { color, radius, space } from '@/theme/tokens';
@@ -27,7 +30,7 @@ const ORB_SIZE = 212;
 const ND = Platform.OS !== 'web';
 
 /** دوران بطيء متصل (16 ثانية للدورة) مع تنفس خفيف؛ يتوقف مع «تقليل الحركة». */
-function SpinningOrb({ s }: { s: number }) {
+function SpinningOrb({ s, dx }: { s: number; dx: number }) {
   const reduced = useReducedMotion();
   const [spin] = useState(() => new Animated.Value(0));
   const [breath] = useState(() => new Animated.Value(0));
@@ -50,7 +53,7 @@ function SpinningOrb({ s }: { s: number }) {
       source={ORB}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={{ position: 'absolute', top: (ORB_CY - ORB_SIZE / 2) * s, left: (ORB_CX - ORB_SIZE / 2) * s, width: size, height: size, transform: [{ rotate }, { scale }] }}
+      style={{ position: 'absolute', top: (ORB_CY - ORB_SIZE / 2) * s, left: dx + (ORB_CX - ORB_SIZE / 2) * s, width: size, height: size, transform: [{ rotate }, { scale }] }}
     />
   );
 }
@@ -58,10 +61,7 @@ function SpinningOrb({ s }: { s: number }) {
 const IMG_W = 768;
 const IMG_H = 1376;
 /** موضع البطاقة تحت اسم «مهرة» (ينتهي الاسم عند ~390 في صورة التصميم): مسافة مريحة بينهما. */
-const CARD_TOP = 545;
-/** حدود البطاقة الأصلية المحذوفة من الصورة (لتغطية موضعها) */
-const ERASED_TOP = 440;
-const ERASED_BOTTOM = 1118;
+const CARD_TOP = 470;
 const CARD_SIDE = 100;
 
 const digits = (s: string) => s.replace(/\D/g, '');
@@ -74,6 +74,17 @@ const COUNTRIES: { iso: string; cc: string }[] = [
 ];
 /** الإمارات 9 أرقام بلا صفر؛ غيرها من 6 إلى 12 رقماً. */
 const validPhone = (s: string, cc: string) => (cc === '971' ? digits(s).length === 9 : digits(s).length >= 6 && digits(s).length <= 12);
+
+/** زر طريقة دخول زجاجي بعرض البطاقة؛ يظهر دائماً، ويكون معطّلاً بوضوح (شفافية وشارة «قريباً») حتى تجهز طريقته. */
+function AltButton({ ready, onPress, label, soon, icon }: { ready: boolean; onPress: () => void; label: string; soon: string; icon: React.ReactNode }) {
+  return (
+    <Press onPress={onPress} disabled={!ready} accessibilityRole="button" accessibilityLabel={ready ? label : `${label}. ${soon}`} accessibilityState={{ disabled: !ready }} style={[styles.pill, !ready && styles.pillOff]}>
+      <View style={{ opacity: ready ? 1 : 0.55 }}>{icon}</View>
+      <T variant="caption" weight="medium" numberOfLines={1} style={{ fontSize: 15, lineHeight: 24, flexShrink: 1, opacity: ready ? 1 : 0.55 }}>{label}</T>
+      {!ready && <T variant="caption" numberOfLines={1} style={styles.soon}>{soon}</T>}
+    </Press>
+  );
+}
 
 function GoogleG() {
   return (
@@ -92,9 +103,10 @@ function GoogleG() {
  */
 export default function Login() {
   const { t, lang, setLang } = useI18n();
-  const { signIn } = useAuth();
+  const { signIn, signInWithSession } = useAuth();
   const insets = useSafeAreaInsets();
   const [w, setW] = useState(390);
+  const [h, setH] = useState(844);
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [phone, setPhone] = useState('');
   const [hasWa, setHasWa] = useState(false);
@@ -103,10 +115,22 @@ export default function Login() {
   const [code, setCode] = useState('');
   const [langOpen, setLangOpen] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'bad' | 'info'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [bioEnabled, setBioEnabled] = useState(false);
+  // جاهزية كل طريقة منفصلة عن ظهورها: تتفعّل بعلم AUTH_LIVE (بعد اختبارها على جهاز مدعوم) وبجاهزية الخادم؛ البصمة أيضاً بعد تفعيلها على هذا الجهاز
+  const READY = { biometric: AUTH_LIVE.biometric && authConfigured && bioEnabled, google: AUTH_LIVE.google && authConfigured, apple: AUTH_LIVE.apple && authConfigured };
   const font = fontStyle(lang, 'regular', 'kufi');
-  const s = w / IMG_W;
+  useEffect(() => {
+    isBiometricEnabled().then(setBioEnabled, () => setBioEnabled(false));
+  }, []);
+  // الصورة تغطي شاشة الجوال كاملة (cover): مقياس واحد للصورة والكرة والبطاقة، وتُقَصّ أطرافها الجانبية على الشاشات الطويلة
+  const s = Math.max(w / IMG_W, h / IMG_H);
+  const dx = (w - IMG_W * s) / 2;
 
-  const onLayout = (e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width);
+  const onLayout = (e: LayoutChangeEvent) => {
+    setW(e.nativeEvent.layout.width);
+    setH(e.nativeEvent.layout.height);
+  };
 
   const sendCode = () => {
     if (!validPhone(phone, cc)) return setMsg({ tone: 'bad', text: t('phoneInvalid') });
@@ -120,10 +144,40 @@ export default function Login() {
     const full = `+${cc}${digits(phone)}`;
     signIn(full, full);
   };
+  /** يحوّل نتيجة المزوّد إلى جلسة أو رسالة؛ الإلغاء يبقي العميل في صفحة الدخول. */
+  const finish = (method: 'google' | 'apple' | 'biometric', r: OAuthOutcome) => {
+    if (r.status === 'ok') {
+      setMsg(null);
+      signInWithSession(method, r.email ?? method, r.refreshToken);
+      return;
+    }
+    if (r.status === 'cancelled') setMsg({ tone: 'info', text: t('signInCancelled') });
+    else if (r.status === 'unavailable') setMsg({ tone: 'info', text: t('authUnavailable') });
+    else setMsg({ tone: 'bad', text: t('signInFailed') });
+  };
+  const provider = (method: 'google' | 'apple') => async () => {
+    if (busy) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      finish(method, await (method === 'google' ? signInWithGoogle() : signInWithApple()));
+    } finally {
+      setBusy(false);
+    }
+  };
   const biometric = async () => {
-    if (Platform.OS === 'web') return setMsg({ tone: 'info', text: t('faceIdUnavailable') });
-    const ok = (await LocalAuthentication.hasHardwareAsync()) && (await LocalAuthentication.isEnrolledAsync());
-    setMsg({ tone: 'info', text: ok ? t('faceIdNeedsLogin') : t('faceIdUnavailable') });
+    if (busy) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const token = await unlockWithBiometric();
+      if (!token) return setMsg({ tone: 'bad', text: t('bioUnlockFailed') });
+      const r = await restoreSession(token);
+      if (r.status === 'ok') await updateStoredToken(r.refreshToken);
+      finish('biometric', r);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const field = (icon: 'call-outline' | 'keypad-outline', children: React.ReactNode) => (
@@ -135,18 +189,20 @@ export default function Login() {
 
   return (
     <View style={styles.root} onLayout={onLayout}>
-      <Image source={BG} style={{ position: 'absolute', top: 0, start: 0, width: w, height: IMG_H * s }} resizeMode="stretch" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
-      <SpinningOrb s={s} />
-      <LinearGradient colors={['rgba(6,9,19,0)', '#060913']} style={{ position: 'absolute', top: IMG_H * s - 240 * s, start: 0, end: 0, height: 240 * s }} pointerEvents="none" />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <ScrollView automaticallyAdjustKeyboardInsets contentContainerStyle={{ minHeight: IMG_H * s, paddingTop: CARD_TOP * s, paddingBottom: 40 + insets.bottom, paddingHorizontal: (CARD_SIDE / IMG_W) * w }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <Image source={BG} style={{ position: 'absolute', top: 0, left: dx, width: IMG_W * s, height: IMG_H * s }} resizeMode="stretch" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+        <SpinningOrb s={s} dx={dx} />
+        <LinearGradient colors={['rgba(6,9,19,0)', '#060913']} style={{ position: 'absolute', top: IMG_H * s - 240 * s, start: 0, end: 0, height: 240 * s }} pointerEvents="none" />
 
-      <ScrollView contentContainerStyle={{ paddingTop: CARD_TOP * s, paddingBottom: 40 + insets.bottom, paddingHorizontal: CARD_SIDE * s }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Glass r={12} clear style={[styles.card, { minHeight: (ERASED_BOTTOM - ERASED_TOP) * s + 8, justifyContent: 'space-evenly' }]}>
+        <Glass r={12} clear style={styles.card}>
           <LinearGradient pointerEvents="none" colors={['rgba(255,238,205,0)', 'rgba(255,238,205,0.28)', 'rgba(255,238,205,0)']} locations={[0.28, 0.56, 0.84]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <T variant="title" weight="bold" center style={{ fontSize: lang === 'ar' ? 16 : 15, lineHeight: lang === 'ar' ? 28 : 24 }}>{step === 'phone' ? t('tagline') : t('codeTitle')}</T>
+          <T variant="title" weight="bold" center style={{ fontSize: lang === 'ar' ? 16 : 15, lineHeight: lang === 'ar' ? 28 : 24 }}>{step === 'phone' ? t('welcomeTitle') : t('codeTitle')}</T>
           {step === 'code' && <T variant="caption" tone="dim" center style={{ fontSize: 15, marginTop: -6 }}>{t('codeSub', { phone: `+${cc} ${digits(phone)}` })}</T>}
 
           {step === 'phone' ? (
             <>
+              <T variant="caption" weight="semibold" style={styles.label}>{t('phoneLabel')}</T>
               {field('call-outline', (
                 <View style={styles.phoneRow}>
                   <Press onPress={() => setCcOpen((v) => !v)} accessibilityRole="button" accessibilityLabel={`${t('countryCode')} +${cc}`} accessibilityState={{ expanded: ccOpen }} style={styles.ccBtn}>
@@ -169,7 +225,7 @@ export default function Login() {
               )}
               <Press onPress={() => setHasWa((v) => !v)} accessibilityRole="checkbox" accessibilityState={{ checked: hasWa }} style={styles.check}>
                 <Ionicons name={hasWa ? 'checkbox' : 'square-outline'} size={24} color={hasWa ? color.goldBright : color.textDim} />
-                <T variant="caption" style={{ flex: 1 }}>{t('hasWhatsapp')}</T>
+                <T variant="caption" style={{ flex: 1, color: '#FFFFFF', fontSize: 14 }}>{t('waUse')}</T>
               </Press>
             </>
           ) : (
@@ -180,9 +236,9 @@ export default function Login() {
 
           {msg && <T variant="caption" tone={msg.tone === 'bad' ? 'danger' : 'gold'} accessibilityLiveRegion="polite">{msg.text}</T>}
 
-          <Press onPress={step === 'phone' ? sendCode : verify} accessibilityRole="button" accessibilityLabel={step === 'phone' ? t('signIn') : t('verify')} style={styles.ctaWrap}>
+          <Press onPress={step === 'phone' ? sendCode : verify} accessibilityRole="button" accessibilityLabel={step === 'phone' ? t('sendVerification') : t('verify')} style={styles.ctaWrap}>
             <LinearGradient colors={['#3E5CD3', '#8C9CE0', '#EEE0C4', '#DCBE8A']} locations={[0, 0.36, 0.72, 1]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.cta}>
-              <T variant="heading" weight="medium" style={{ color: '#0B1020', fontSize: 18 }}>{step === 'phone' ? t('signIn') : t('verify')}</T>
+              <T variant="heading" weight="medium" style={{ color: '#0B1020', fontSize: 18 }}>{step === 'phone' ? t('sendVerification') : t('verify')}</T>
             </LinearGradient>
           </Press>
 
@@ -192,23 +248,20 @@ export default function Login() {
             </Press>
           ) : (
             <>
-              <View style={styles.rule} />
-              <Press onPress={biometric} accessibilityRole="button" accessibilityLabel={t('faceId')} style={styles.pill}>
-                <Ionicons name="finger-print-outline" size={24} color={color.goldBright} />
-                <T variant="caption" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('faceId')}</T>
-              </Press>
-              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('google')} style={styles.pill}>
-                <GoogleG />
-                <T variant="caption" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('google')}</T>
-              </Press>
-              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('apple')} style={styles.pill}>
-                <Ionicons name="logo-apple" size={22} color="#fff" />
-                <T variant="caption" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('apple')}</T>
-              </Press>
+              <View style={styles.orRow}>
+                <View style={styles.rule} />
+                <T variant="caption" tone="dim" style={{ fontSize: 12 }}>{t('orContinue')}</T>
+                <View style={styles.rule} />
+              </View>
+              <AltButton ready={READY.biometric} onPress={biometric} label={t('faceId')} soon={t('soonTag')} icon={<Ionicons name="finger-print-outline" size={24} color={color.goldBright} />} />
+              {!READY.biometric && <T variant="caption" tone="dim" center style={{ fontSize: 12, lineHeight: 18, marginTop: -4 }}>{t('bioHint')}</T>}
+              <AltButton ready={READY.google} onPress={provider('google')} label={t('google')} soon={t('soonTag')} icon={<GoogleG />} />
+              <AltButton ready={READY.apple} onPress={provider('apple')} label={t('apple')} soon={t('soonTag')} icon={<Ionicons name="logo-apple" size={22} color="#fff" />} />
             </>
           )}
         </Glass>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <View style={[styles.langWrap, { top: insets.top + 8 }]}>
         <Press onPress={() => setLangOpen((v) => !v)} accessibilityRole="button" accessibilityLabel={t('language')} style={styles.langBtn}>
@@ -232,17 +285,21 @@ export default function Login() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#060913' },
   card: { padding: space.lg, gap: space.md, backgroundColor: 'rgba(6,10,24,0.26)' },
-  field: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', borderTopColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.12)' },
-  ccBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4, paddingEnd: space.sm, borderEndWidth: 1, borderEndColor: 'rgba(255,255,255,0.2)' },
+  field: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', borderTopColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.16)' },
+  label: { alignSelf: 'stretch', color: '#FFFFFF', fontSize: 13, lineHeight: 20, marginBottom: -6 },
+  orRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  ccBtn: { minHeight: 52, alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 4, paddingEnd: space.sm, borderEndWidth: 1, borderEndColor: 'rgba(255,255,255,0.2)' },
   ccList: { padding: 4 },
   ccItem: { minHeight: 40, paddingHorizontal: 14, justifyContent: 'center', alignItems: 'flex-start' },
-  phoneRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, direction: 'ltr' },
-  input: { flex: 1, minWidth: 0, minHeight: 44, color: color.text, fontSize: 17, textAlign: 'left', writingDirection: 'ltr' },
+  phoneRow: { flex: 1, flexDirection: 'row', alignItems: 'stretch', gap: space.sm, direction: 'ltr' },
+  input: { flex: 1, minWidth: 0, minHeight: 52, color: '#FFFFFF', fontSize: 18, textAlign: 'left', writingDirection: 'ltr' },
   check: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 44 },
   ctaWrap: { marginTop: space.xs },
-  cta: { minHeight: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 10px 28px rgba(110,140,255,0.40), 0 0 22px rgba(235,208,142,0.28), inset 0 1px 0 rgba(255,255,255,0.85)' } as object) : { shadowColor: '#8FA2F0', shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } }) },
-  rule: { alignSelf: 'stretch', height: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginVertical: 2 },
-  pill: { alignSelf: 'stretch', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', borderTopColor: 'rgba(255,255,255,0.5)', backgroundColor: 'rgba(255,255,255,0.07)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 0 16px rgba(170,195,255,0.18), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -8px 14px rgba(120,150,255,0.06)' } as object) : { shadowColor: '#AFC3FF', shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } }) },
+  cta: { minHeight: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 6px 16px rgba(110,140,255,0.26), inset 0 1px 0 rgba(255,255,255,0.85)' } as object) : { shadowColor: '#8FA2F0', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } }) },
+  rule: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginVertical: 2 },
+  pill: { alignSelf: 'stretch', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', borderTopColor: 'rgba(255,255,255,0.5)', backgroundColor: 'rgba(255,255,255,0.07)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 0 16px rgba(170,195,255,0.18), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -8px 14px rgba(120,150,255,0.06)' } as object) : { shadowColor: '#AFC3FF', shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } }) },
+  pillOff: { borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.3)' },
+  soon: { position: 'absolute', top: -9, end: 18, fontSize: 11, lineHeight: 16, paddingHorizontal: 8, paddingVertical: 0, borderRadius: 99, borderWidth: 1, borderColor: 'rgba(235,208,142,0.55)', backgroundColor: '#0B1330', color: '#EBD08E', overflow: 'hidden' },
   alt: { alignSelf: 'stretch', alignItems: 'center', gap: space.sm },
   altRow: { flexDirection: 'row', gap: space.md },
   altBtn: { width: 54, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.10)' },

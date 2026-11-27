@@ -7,7 +7,8 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -42,6 +43,19 @@
               "ru"
             ]
           }
+        }
+      ],
+      "expo-apple-authentication",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "يستخدم تطبيق مهرة الوجه لفتح حسابك بسرعة وأمان."
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "يستخدم تطبيق مهرة الوجه لحماية اعتماد الدخول المحفوظ."
         }
       ]
     ],

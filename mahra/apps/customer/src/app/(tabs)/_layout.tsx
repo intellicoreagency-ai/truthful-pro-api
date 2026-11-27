@@ -1,4 +1,5 @@
 import { TabList, Tabs, TabSlot, TabTrigger } from 'expo-router/ui';
+import { BiometricOffer } from '@/components/BiometricOffer';
 import { TabBar } from '@/components/TabBar';
 import { AccentProvider } from '@/lib/accent';
 
@@ -20,6 +21,7 @@ export default function TabsLayout() {
         <TabTrigger name="history" href="/history" />
       </TabList>
     </Tabs>
+    <BiometricOffer />
     </AccentProvider>
   );
 }
