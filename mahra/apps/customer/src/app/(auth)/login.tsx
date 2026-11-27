@@ -21,7 +21,11 @@ const BG = require('../../../assets/ui/login-bg.jpg');
 /** أبعاد صورة التصميم المرجعية؛ كل المواضع تُحسب بنسبة العرض فتطابق أي شاشة. */
 const IMG_W = 768;
 const IMG_H = 1376;
-const CARD_TOP = 440;
+/** موضع البطاقة تحت اسم «مهرة» (ينتهي الاسم عند ~390 في صورة التصميم): مسافة مريحة بينهما. */
+const CARD_TOP = 500;
+/** حدود البطاقة الأصلية المحذوفة من الصورة (لتغطية موضعها) */
+const ERASED_TOP = 440;
+const ERASED_BOTTOM = 1118;
 const CARD_SIDE = 100;
 
 const digits = (s: string) => s.replace(/\D/g, '');
@@ -99,8 +103,8 @@ export default function Login() {
       <LinearGradient colors={['rgba(6,9,19,0)', '#060913']} style={{ position: 'absolute', top: IMG_H * s - 240 * s, start: 0, end: 0, height: 240 * s }} pointerEvents="none" />
 
       <ScrollView contentContainerStyle={{ paddingTop: CARD_TOP * s, paddingBottom: 40 + insets.bottom, paddingHorizontal: CARD_SIDE * s }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Glass r={12} blur={10} style={[styles.card, { minHeight: (1118 - CARD_TOP) * s + 8, justifyContent: 'space-evenly' }]}>
-          <LinearGradient pointerEvents="none" colors={['rgba(255,238,205,0)', 'rgba(255,238,205,0.24)', 'rgba(255,238,205,0)']} locations={[0.28, 0.56, 0.84]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <Glass r={12} clear style={[styles.card, { minHeight: (ERASED_BOTTOM - ERASED_TOP) * s + 8, justifyContent: 'space-evenly' }]}>
+          <LinearGradient pointerEvents="none" colors={['rgba(255,238,205,0)', 'rgba(255,238,205,0.28)', 'rgba(255,238,205,0)']} locations={[0.28, 0.56, 0.84]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
           <T variant="title" weight="bold" center style={{ fontSize: lang === 'ar' ? 16 : 15, lineHeight: lang === 'ar' ? 28 : 24 }}>{step === 'phone' ? t('tagline') : t('codeTitle')}</T>
           {step === 'code' && <T variant="caption" tone="dim" center style={{ fontSize: 15, marginTop: -6 }}>{t('codeSub', { phone: `+${cc} ${digits(phone)}` })}</T>}
 
@@ -140,8 +144,8 @@ export default function Login() {
           {msg && <T variant="caption" tone={msg.tone === 'bad' ? 'danger' : 'gold'} accessibilityLiveRegion="polite">{msg.text}</T>}
 
           <Press onPress={step === 'phone' ? sendCode : verify} accessibilityRole="button" accessibilityLabel={step === 'phone' ? t('signIn') : t('verify')} style={styles.ctaWrap}>
-            <LinearGradient colors={['#E6D0A0', '#F8F2EA', '#DCBD85']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.cta}>
-              <T variant="heading" weight="bold" style={{ color: '#0B1020', fontSize: 18 }}>{step === 'phone' ? t('signIn') : t('verify')}</T>
+            <LinearGradient colors={['#3E5CD3', '#8C9CE0', '#EEE0C4', '#DCBE8A']} locations={[0, 0.36, 0.72, 1]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.cta}>
+              <T variant="heading" weight="medium" style={{ color: '#0B1020', fontSize: 18 }}>{step === 'phone' ? t('signIn') : t('verify')}</T>
             </LinearGradient>
           </Press>
 
@@ -184,7 +188,7 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#060913' },
-  card: { padding: space.lg, gap: space.md, backgroundColor: 'rgba(170,180,205,0.06)' },
+  card: { padding: space.lg, gap: space.md, backgroundColor: 'rgba(6,10,24,0.26)' },
   field: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', borderTopColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.12)' },
   ccBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4, paddingEnd: space.sm, borderEndWidth: 1, borderEndColor: 'rgba(255,255,255,0.2)' },
   ccList: { padding: 4 },
@@ -193,7 +197,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, minWidth: 0, minHeight: 44, color: color.text, fontSize: 17, textAlign: 'left', writingDirection: 'ltr' },
   check: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 44 },
   ctaWrap: { marginTop: space.xs },
-  cta: { minHeight: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 8px 26px rgba(235,208,142,0.40), 0 0 24px rgba(255,240,210,0.28), inset 0 1px 0 rgba(255,255,255,0.9)' } as object) : { shadowColor: '#EBD08E', shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } }) },
+  cta: { minHeight: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 10px 28px rgba(110,140,255,0.40), 0 0 22px rgba(235,208,142,0.28), inset 0 1px 0 rgba(255,255,255,0.85)' } as object) : { shadowColor: '#8FA2F0', shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } }) },
   rule: { alignSelf: 'stretch', height: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginVertical: 2 },
   pill: { alignSelf: 'stretch', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.10)' },
   alt: { alignSelf: 'stretch', alignItems: 'center', gap: space.sm },
