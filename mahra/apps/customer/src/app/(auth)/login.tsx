@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, TextInput, View, type LayoutChangeEvent } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Animated, Easing, Image, Platform, ScrollView, StyleSheet, TextInput, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { Glass } from '@/components/Glass';
@@ -11,6 +11,7 @@ import { Text } from '@/components/Text';
 import type { ComponentProps } from 'react';
 import { LANGS, useI18n } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { useReducedMotion } from '@/lib/voice';
 import { fontStyle } from '@/theme/fonts';
 import { color, radius, space } from '@/theme/tokens';
 
@@ -18,11 +19,46 @@ import { color, radius, space } from '@/theme/tokens';
 const T = (props: ComponentProps<typeof Text>) => <Text font="kufi" {...props} />;
 
 const BG = require('../../../assets/ui/login-bg.jpg');
+/** الكرة مقصوصة من صورة التصميم (شفافة الحواف) وتدور فوق اسم «مهرة». مركزها وحجمها بإحداثيات الصورة. */
+const ORB = require('../../../assets/ui/login-orb.png');
+const ORB_CX = 384;
+const ORB_CY = 178;
+const ORB_SIZE = 212;
+const ND = Platform.OS !== 'web';
+
+/** دوران بطيء متصل (16 ثانية للدورة) مع تنفس خفيف؛ يتوقف مع «تقليل الحركة». */
+function SpinningOrb({ s }: { s: number }) {
+  const reduced = useReducedMotion();
+  const [spin] = useState(() => new Animated.Value(0));
+  const [breath] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (reduced) return;
+    const a = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 16000, easing: Easing.linear, useNativeDriver: ND }));
+    const b = Animated.loop(Animated.sequence([
+      Animated.timing(breath, { toValue: 1, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: ND }),
+      Animated.timing(breath, { toValue: 0, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: ND }),
+    ]));
+    a.start();
+    b.start();
+    return () => { a.stop(); b.stop(); };
+  }, [spin, breath, reduced]);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const scale = breath.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
+  const size = ORB_SIZE * s;
+  return (
+    <Animated.Image
+      source={ORB}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{ position: 'absolute', top: (ORB_CY - ORB_SIZE / 2) * s, left: (ORB_CX - ORB_SIZE / 2) * s, width: size, height: size, transform: [{ rotate }, { scale }] }}
+    />
+  );
+}
 /** أبعاد صورة التصميم المرجعية؛ كل المواضع تُحسب بنسبة العرض فتطابق أي شاشة. */
 const IMG_W = 768;
 const IMG_H = 1376;
 /** موضع البطاقة تحت اسم «مهرة» (ينتهي الاسم عند ~390 في صورة التصميم): مسافة مريحة بينهما. */
-const CARD_TOP = 500;
+const CARD_TOP = 545;
 /** حدود البطاقة الأصلية المحذوفة من الصورة (لتغطية موضعها) */
 const ERASED_TOP = 440;
 const ERASED_BOTTOM = 1118;
@@ -100,6 +136,7 @@ export default function Login() {
   return (
     <View style={styles.root} onLayout={onLayout}>
       <Image source={BG} style={{ position: 'absolute', top: 0, start: 0, width: w, height: IMG_H * s }} resizeMode="stretch" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+      <SpinningOrb s={s} />
       <LinearGradient colors={['rgba(6,9,19,0)', '#060913']} style={{ position: 'absolute', top: IMG_H * s - 240 * s, start: 0, end: 0, height: 240 * s }} pointerEvents="none" />
 
       <ScrollView contentContainerStyle={{ paddingTop: CARD_TOP * s, paddingBottom: 40 + insets.bottom, paddingHorizontal: CARD_SIDE * s }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -154,15 +191,21 @@ export default function Login() {
               <T variant="caption" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('changeNumber')}</T>
             </Press>
           ) : (
-            <View style={styles.alt}>
+            <>
               <View style={styles.rule} />
-              <T variant="caption" tone="dim">{t('orSignUp')}</T>
-              <View style={styles.altRow}>
-                <Press onPress={biometric} accessibilityRole="button" accessibilityLabel={t('faceId')} style={styles.altBtn}><Ionicons name="finger-print-outline" size={26} color={color.goldBright} /></Press>
-                <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('google')} style={styles.altBtn}><GoogleG /></Press>
-                <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('apple')} style={styles.altBtn}><Ionicons name="logo-apple" size={26} color="#fff" /></Press>
-              </View>
-            </View>
+              <Press onPress={biometric} accessibilityRole="button" accessibilityLabel={t('faceId')} style={styles.pill}>
+                <Ionicons name="finger-print-outline" size={24} color={color.goldBright} />
+                <T variant="caption" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('faceId')}</T>
+              </Press>
+              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('google')} style={styles.pill}>
+                <GoogleG />
+                <T variant="caption" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('google')}</T>
+              </Press>
+              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('apple')} style={styles.pill}>
+                <Ionicons name="logo-apple" size={22} color="#fff" />
+                <T variant="caption" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('apple')}</T>
+              </Press>
+            </>
           )}
         </Glass>
       </ScrollView>
@@ -199,7 +242,7 @@ const styles = StyleSheet.create({
   ctaWrap: { marginTop: space.xs },
   cta: { minHeight: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 10px 28px rgba(110,140,255,0.40), 0 0 22px rgba(235,208,142,0.28), inset 0 1px 0 rgba(255,255,255,0.85)' } as object) : { shadowColor: '#8FA2F0', shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } }) },
   rule: { alignSelf: 'stretch', height: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginVertical: 2 },
-  pill: { alignSelf: 'stretch', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.10)' },
+  pill: { alignSelf: 'stretch', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', borderTopColor: 'rgba(255,255,255,0.5)', backgroundColor: 'rgba(255,255,255,0.07)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 0 16px rgba(170,195,255,0.18), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -8px 14px rgba(120,150,255,0.06)' } as object) : { shadowColor: '#AFC3FF', shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } }) },
   alt: { alignSelf: 'stretch', alignItems: 'center', gap: space.sm },
   altRow: { flexDirection: 'row', gap: space.md },
   altBtn: { width: 54, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.10)' },
