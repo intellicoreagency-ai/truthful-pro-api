@@ -1,12 +1,30 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps, ReactNode } from 'react';
-import { StyleSheet, View, type ViewProps } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Platform, StyleSheet, View, type ViewProps, type ViewStyle } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Text } from './Text';
 import { color, radius, space } from '@/theme/tokens';
 
-export function Card({ style, ...rest }: ViewProps) {
-  return <View {...rest} style={[{ backgroundColor: color.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: color.line, padding: space.lg }, style]} />;
+/**
+ * بطاقة زجاجية نهارية (Spatial Glass): ضبابية فاتحة + لمعان + حافة علوية بيضاء أسطع + ظل بإزاحة.
+ * إن مُرِّر لها backgroundColor (تنبيه ملوّن) تُترك الطبقة اللامعة كي يبقى اللون.
+ */
+export function Card({ style, children, ...rest }: ViewProps) {
+  const flat = StyleSheet.flatten(style) as ViewStyle | undefined;
+  const tinted = !!flat?.backgroundColor;
+  const shadow = Platform.select<ViewStyle>({
+    web: { boxShadow: '0 1px 2px rgba(11,21,48,0.05), 0 14px 34px rgba(31,50,110,0.12)' } as ViewStyle,
+    default: { shadowColor: '#1F326E', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 3 },
+  })!;
+  return (
+    <View {...rest} style={[{ borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(17,26,51,0.07)', borderTopWidth: 1.5, borderTopColor: '#FFFFFF', padding: space.lg }, shadow, style]}>
+      {!tinted && <BlurView intensity={28} tint="light" style={[StyleSheet.absoluteFill, { borderRadius: radius.lg }]} />}
+      {!tinted && <LinearGradient colors={['rgba(255,255,255,0.88)', 'rgba(255,255,255,0.6)']} style={[StyleSheet.absoluteFill, { borderRadius: radius.lg }]} pointerEvents="none" />}
+      {children}
+    </View>
+  );
 }
 
 type Tone = 'ok' | 'bad' | 'warn' | 'info' | 'mute';

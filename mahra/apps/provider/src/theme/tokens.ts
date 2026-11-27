@@ -5,13 +5,14 @@
 export const color = {
   ink: '#0B1530',
   deep: '#0E1B3D',
-  canvas: '#F3F5F9',
+  canvas: '#ECF0F8',
   surface: '#FFFFFF',
   line: '#DCE1EA',
   lineSoft: '#E8ECF3',
   text: '#111A33',
   dim: '#4A5675',
-  gold: '#D9B66B',
+  gold: '#D9BC7E',
+  periwinkle: '#6B8CFF',
   goldInk: '#7A5C17',
   sapphire: '#2F54C9',
   aqua: '#6FC7D1',
@@ -26,6 +27,9 @@ export const color = {
   onInk: '#F3EFE6',
   onInkDim: 'rgba(243,239,230,0.74)',
 } as const;
+
+/** تدرّجات (Spatial Glass نهاري): ذهبي شمبانيا للفعل الرئيسي */
+export const gradient = { gold: ['#F3DDA0', '#D9BC7E', '#B8924A'] as const };
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 export const radius = { sm: 10, md: 14, lg: 20, xl: 28, pill: 999 } as const;

@@ -40,6 +40,7 @@ export function Orb({ on, size = 56 }: { on: boolean; size?: number }) {
             <Stop offset="1" stopColor={on ? color.aqua : '#5B637F'} />
           </LinearGradient>
         </Defs>
+        <Circle cx="100" cy="100" r="97" fill="none" stroke={on ? '#6B8CFF' : '#8B93AD'} strokeOpacity="0.5" strokeWidth="2" strokeDasharray="3 7" strokeLinecap="round" />
         <Circle cx="100" cy="100" r="90" fill={`url(#${uid}b)`} />
         <Circle cx="100" cy="100" r="90" fill="none" stroke={`url(#${uid}r)`} strokeWidth="6" />
         <Ellipse cx="72" cy="58" rx="34" ry="17" fill={color.onInk} opacity="0.2" transform="rotate(-28 72 58)" />

@@ -70,6 +70,7 @@ export default function Opportunities() {
           onValueChange={setAvailable}
           trackColor={{ false: '#4A5675', true: color.gold }}
           thumbColor="#fff"
+          {...({ activeThumbColor: '#fff' } as object)}
           accessibilityLabel={t('available')}
           style={{ transform: [{ scale: 1.25 }] }}
         />

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ambient } from './Ambient';
 import { color, space } from '@/theme/tokens';
 
 type Props = { children: ReactNode; tabs?: boolean; header?: ReactNode; contentStyle?: ViewStyle };
@@ -10,6 +11,7 @@ export function Screen({ children, tabs, header, contentStyle }: Props) {
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
+      <Ambient />
       <ScrollView
         contentContainerStyle={{ paddingBottom: (tabs ? 110 : 28) + insets.bottom }}
         keyboardShouldPersistTaps="handled"
