@@ -36,6 +36,9 @@ create table service_categories (
   name_en text not null,
   commission_rate numeric(5,4) not null default 0.2000 check (commission_rate >= 0 and commission_rate <= 0.5),
   flow text not null default 'rfq' check (flow in ('rfq','inspect_first','direct')),   -- direct = مزود وحيد بلا مناقصة (راشد)
+  -- markup: العمولة تُضاف فوق سعر المزود ويراها العميل ضمن السعر النهائي (المناقصات).
+  -- share : العمولة حصة من أتعاب المزود نفسه ولا تُضاف على العميل (تروثفل: 20% من الأتعاب دون الرسوم الحكومية).
+  commission_mode text not null default 'markup' check (commission_mode in ('markup','share')),
   active boolean not null default true
 );
 

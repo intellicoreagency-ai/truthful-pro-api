@@ -82,4 +82,19 @@ export const en: Record<keyof typeof ar, string> = {
   signOut: 'Sign out',
   emergencyNote: 'In immediate danger, call 999 first.',
   comingSoon: 'Soon',
+
+  studioWord: 'Studio',
+  talkNow: 'Talk now',
+  stripCv: 'Update CV',
+  stripVoice: 'Voice settings',
+  stripAgents: 'Agents',
+  allSpecialists: 'All specialists',
+  listeningLive: 'Mohra is listening',
+
+  google: 'Continue with Google',
+  faceId: 'Sign in with Face ID',
+  orDivider: 'or',
+  googleSoon: 'Google sign-in turns on once a Google account is set up for the app.',
+  faceIdNeedsLogin: 'Sign in with your phone first, then turn on Face ID from Account.',
+  faceIdUnavailable: 'Face ID is not available on this device.',
 };

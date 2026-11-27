@@ -87,4 +87,21 @@ export const ar = {
   signOut: 'تسجيل الخروج',
   emergencyNote: 'في الخطر الفوري اتصل بالطوارئ 999 قبل أي شيء.',
   comingSoon: 'قريباً',
+
+  // استوديو مهرة
+  studioWord: 'استوديو',
+  talkNow: 'تحدث الآن',
+  stripCv: 'تحديث السيرة CV',
+  stripVoice: 'إعدادات الصوت',
+  stripAgents: 'الوكلاء',
+  allSpecialists: 'كل المختصين',
+  listeningLive: 'مهرة تستمع إليك الآن',
+
+  // الدخول
+  google: 'المتابعة بحساب Google',
+  faceId: 'الدخول بـ Face ID',
+  orDivider: 'أو',
+  googleSoon: 'يتفعل الدخول بجوجل بعد إعداد حساب Google للتطبيق.',
+  faceIdNeedsLogin: 'سجّل الدخول بالهاتف أولاً، ثم فعّل Face ID من حسابي.',
+  faceIdUnavailable: 'Face ID غير متاح على هذا الجهاز.',
 } as const;

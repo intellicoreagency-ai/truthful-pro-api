@@ -85,7 +85,7 @@ export function TabBar() {
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', start: 16, end: 16 },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, minHeight: 68, backgroundColor: 'rgba(11,21,48,0.88)' },
+  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, minHeight: 68, backgroundColor: 'rgba(11,16,29,0.88)', borderTopColor: 'rgba(235,208,142,0.8)' },
   tab: { flex: 1, minHeight: TOUCH + 8, alignItems: 'center', justifyContent: 'center', gap: 2 },
   tabLabel: { fontSize: 12, lineHeight: 16 },
   micSlot: { width: 76, alignItems: 'center' },

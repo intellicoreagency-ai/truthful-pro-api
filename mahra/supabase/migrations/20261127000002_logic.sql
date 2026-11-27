@@ -99,6 +99,9 @@ declare r requests%rowtype; p providers%rowtype; d request_dispatches%rowtype; n
 begin
   select * into r from requests where id = new.request_id for update;   -- يسلسل العروض المتزامنة
   if not found then raise exception 'request not found'; end if;
+  if exists (select 1 from service_categories c where c.id = r.category_id and c.commission_mode = 'share') then
+    raise exception 'this category does not use RFQ offers (commission is a share of the provider fee)';
+  end if;
   if r.status not in ('rfq_sent','offers_received') then
     raise exception 'request is not accepting offers (status %)', r.status;
   end if;

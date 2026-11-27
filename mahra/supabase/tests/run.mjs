@@ -93,6 +93,11 @@ const miss2 = (await one('select missing from provider_readiness where provider_
 check('الواتساب وحده ناقص يُرصد دون خطأ', miss2.includes('whatsapp') && !miss2.includes('phone') && !miss2.includes('maps_url'), JSON.stringify(miss2));
 await db.query('delete from providers where id = $1', [bare]);
 
+console.log('\n— فئة بحصة من الأتعاب (راشد/تروثفل) —');
+const gov = await as(U.cust, async () => (await one(`insert into requests (customer_id, agent_id, category_id, title) values ($1,'rashid','gov_clearance','تجديد إقامة') returning id`, [U.cust])).id);
+await fails('فئة share لا تقبل عروض مناقصة', () => as(P[0].user, () => db.query(`insert into offers (request_id, provider_id, provider_price_fils) values ($1,$2,1000)`, [gov, P[0].id])), /does not use RFQ/);
+check('عمولة تروثفل 20% بنمط share', (await one(`select commission_rate::float r, commission_mode m from service_categories where id = 'gov_clearance'`)).r === 0.2 && (await one(`select commission_mode m from service_categories where id = 'gov_clearance'`)).m === 'share');
+
 console.log('\n— الطلب والعروض —');
 const rid = await newRequest();
 const n = await svc(async () => (await one('select dispatch_request($1, 6) as n', [rid])).n);

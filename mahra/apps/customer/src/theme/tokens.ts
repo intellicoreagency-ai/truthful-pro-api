@@ -1,33 +1,65 @@
 /**
- * رموز التصميم لمهرة (العميل).
- * اللون يُستعمل دائماً مع نص أو أيقونة؛ لا يُعتمد عليه وحده لنقل المعنى.
+ * رموز تصميم مهرة (العميل). الألوان من لوحة Apple للوضع الداكن (system colors) وأدوار النص (label)،
+ * مع كحلي ليلي للأرضية (من apple-design: deep navy) وذهبي «شمبانيا» للعلامة والفعل الرئيسي.
+ * اللون لا يحمل المعنى وحده: يقترن دائماً بنص أو أيقونة.
  */
 export const color = {
-  ink: '#060A18',
-  deep: '#0B1530',
-  pearl: '#EDE7DA',
-  gold: '#D9B66B',
-  sapphire: '#3D63DD',
-  aqua: '#6FC7D1',
+  // الأرضية
+  night: '#050816',
+  ink: '#050816',
+  deep: '#0A1430',
+  deep2: '#0E1B3D',
 
-  text: '#F3EFE6',
-  textDim: 'rgba(237,231,218,0.74)',
-  textMuted: 'rgba(237,231,218,0.58)', // للعناصر الثانوية الكبيرة فقط، لا لنص القراءة الصغير
+  // أدوار النص (Apple label, dark)
+  text: '#FFFFFF',
+  textDim: 'rgba(235,235,245,0.64)', // secondaryLabel
+  textMuted: 'rgba(235,235,245,0.38)', // tertiaryLabel: للزخرفة فقط، لا لنص القراءة
 
+  // الزجاج والفواصل
   glass: 'rgba(255,255,255,0.07)',
   glassStrong: 'rgba(255,255,255,0.12)',
-  hairline: 'rgba(255,255,255,0.16)',
+  hairline: 'rgba(255,255,255,0.15)',
+  hairlineSoft: 'rgba(255,255,255,0.08)',
 
-  success: '#3FA58A',
-  warning: '#E0A33C',
-  danger: '#D8584E',
+  // العلامة
+  gold: '#D9BC7E',
+  goldBright: '#EBD08E',
+  goldDeep: '#A8842F',
+  goldText: '#EBD08E',
+  pearl: '#EDE7DA',
+  periwinkle: '#6B8CFF', // أزرق ناعم لضوء الكرة والحلقة الصوتية (Spatial Glass)
+  sapphire: '#0A84FF',
+  aqua: '#64D2FF',
+
+  // Apple system colors (dark appearance)
+  blue: '#0A84FF',
+  green: '#30D158',
+  orange: '#FF9F0A',
+  pink: '#FF375F',
+  pinkSoft: '#FF6482',
+  teal: '#40C8E0',
+  cyan: '#64D2FF',
+  indigo: '#5E5CE6',
+  purple: '#BF5AF2',
+  yellow: '#FFD60A',
+  mint: '#63E6E2',
+  red: '#FF453A',
+  gray: '#98989D',
+  brown: '#AC8E68',
+
+  success: '#30D158',
+  warning: '#FF9F0A',
+  danger: '#FF453A',
 } as const;
 
+/** تدرّج زر الدخول الرئيسي: أزرق ناعم ← لؤلؤي ← شمبانيا (المنتصف اللؤلؤي يمنع الاخضرار الطيني) */
+export const gradient = {
+  cta: ['#6B8CFF', '#C3CCEB', '#F3D999'] as const,
+  gold: ['#F3DDA0', '#D9BC7E', '#B8924A'] as const,
+};
+
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
-
 export const radius = { sm: 12, md: 18, lg: 24, xl: 32, pill: 999 } as const;
-
-/** الحد الأدنى لمساحة اللمس (نقطة) */
 export const TOUCH = 48;
 
 export const motion = {

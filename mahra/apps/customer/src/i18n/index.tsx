@@ -50,6 +50,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
+/** نص ثنائي سريع للصفحات الجديدة: ar أو en (غيرهما يرجع للإنجليزية) */
+export function useTx(): (ar: string, en: string) => string {
+  const { lang } = useI18n();
+  return (ar, en) => (lang === 'ar' ? ar : en);
+}
+
 export function useI18n(): I18n {
   const v = useContext(Ctx);
   if (!v) throw new Error('useI18n must be used inside <I18nProvider>');

@@ -27,5 +27,6 @@ insert into service_categories (id, agent_id, name_ar, name_en, commission_rate,
   ('home_clean',   'sara',  'تنظيف المنزل',         'Home cleaning',    0.2000, 'rfq'),
   ('deco_project', 'khaled','ديكور ومقاولات',       'Décor and works',  0.2000, 'inspect_first'),
   -- راشد: المعاملات الحكومية تتم عبر «تروثفل لخدمات التخليص» وحدها (مسار مباشر بلا مناقصة).
-  -- نسبة العمولة 0 حتى يُحسم الاتفاق مع تروثفل؛ لا نفترضها.
-  ('gov_clearance','rashid','تخليص المعاملات الحكومية','Government clearance', 0.0000, 'direct');
+  -- عمولة 20% حصة من أتعاب تروثفل (رسوم الشركة) فقط، لا من الرسوم الحكومية ولا من قيمة المعاملة (قرار المالك).
+  ('gov_clearance','rashid','تخليص المعاملات الحكومية','Government clearance', 0.2000, 'direct');
+update service_categories set commission_mode = 'share' where id = 'gov_clearance';
