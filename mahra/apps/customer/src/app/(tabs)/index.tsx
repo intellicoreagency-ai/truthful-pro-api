@@ -1,85 +1,89 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
-import { ExpertCard } from '@/components/ExpertCard';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { Image, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { useState } from 'react';
 import { Glass } from '@/components/Glass';
 import { Press } from '@/components/Press';
 import { Screen } from '@/components/Screen';
+import { StudioOrb } from '@/components/StudioOrb';
 import { Text } from '@/components/Text';
-import { TintedOrb } from '@/components/TintedOrb';
-import { PRIORITY } from '@/data/home';
-import { THEME } from '@/data/theme';
-import { useI18n, useTx, type StringKey } from '@/i18n';
-import { useAccent } from '@/lib/accent';
+import { useI18n, type StringKey } from '@/i18n';
 import { useVoice, type VoiceState } from '@/lib/voice';
-import type { AgentId } from '@/data/agents';
-import { color, space } from '@/theme/tokens';
+import { color } from '@/theme/tokens';
 
+const WORDMARK = require('../../../assets/ui/mohra-wordmark.png');
 const STATUS: Record<VoiceState, StringKey> = { idle: 'statusIdle', listening: 'statusListening', thinking: 'statusThinking', speaking: 'statusSpeaking' };
-const GAP = space.md;
 
 /**
- * الرئيسية (تصميم الاستوديو): شريط علوي، الكرة الصوتية، «اختر مساعدك الشخصي» موسّطاً، ثم الخمسة عشر وكيلاً
- * بحسب أولوية الاحتياج. اختيار بطاقة يلوّن الأرضية والكرة وطابع الزجاج بلون الوكيل (ألوان Apple هادئة).
+ * الرئيسية («ابدأ الحديث») بحسب التصميم المعتمد: شريط مهرة مع الإشعارات، الكرة الصوتية بالميكروفون والموجات،
+ * «شو أقدر أساعدك فيه اليوم؟»، زر «ابدأ الحديث» بتدرج أزرق–ذهبي، ثم «اطلب خدمة» و«جدول اليوم».
  */
 export default function Home() {
   const { t } = useI18n();
-  const tx = useTx();
   const { state, toggle } = useVoice();
-  const { setAccent } = useAccent();
   const [w, setW] = useState(358);
-  const [id, setId] = useState<AgentId | null>(null);
   const active = state !== 'idle';
-  const th = id ? THEME[id] : null;
-  const accent = th?.accent ?? null;
-  const colW = (w - GAP) / 2;
-
-  useFocusEffect(useCallback(() => {
-    setAccent(accent);
-    return () => setAccent(null);
-  }, [accent, setAccent]));
 
   return (
-    <Screen tabs>
-      <Glass r={36} clear style={styles.bar}>
-        <BarItem icon="briefcase-outline" label={tx('تحديث السيرة CV', 'Update CV')} onPress={() => router.push('/profile/cv')} />
-        <BarItem icon="settings-outline" label={tx('إعدادات الصوت', 'Voice settings')} onPress={() => router.push('/settings/voice')} />
-        <BarItem icon="person-outline" label={tx('الوكلاء', 'Agents')} accent={accent ?? undefined} onPress={() => router.navigate('/specialists')} />
+    <Screen tabs contentStyle={{ flexGrow: 1 }}>
+      <Glass r={30} clear style={styles.bar}>
+        <View style={[styles.bell, { backgroundColor: "transparent" }]} />
+        <Image source={WORDMARK} style={styles.wordmark} resizeMode="contain" accessibilityLabel="مهرة" />
+        <Press onPress={() => router.push('/settings/privacy')} accessibilityRole="button" accessibilityLabel={t('notifications')} style={styles.bell}>
+          <Ionicons name="notifications-outline" size={20} color={color.text} />
+        </Press>
       </Glass>
 
-      <View style={{ alignItems: 'center' }} onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
+      <View style={styles.center} onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
         <Press onPress={toggle} accessibilityRole="button" accessibilityLabel={active ? t('stop') : t('talkToMohra')} style={{ borderRadius: 200 }}>
-          <TintedOrb width={Math.min(w, 400)} agent={id ?? 'default'} accent={accent} state={state} />
+          <StudioOrb width={Math.min(w * 1.08, 460)} state={state} />
         </Press>
-        {active && <Text variant="caption" weight="semibold" accessibilityLiveRegion="polite" center style={{ color: accent ?? color.goldBright }}>{t(STATUS[state])}</Text>}
-      </View>
+        <Text font="display" weight="bold" center style={styles.prompt}>{active ? t(STATUS[state]) : t('greeting')}</Text>
 
-      <View style={styles.titleWrap}>
-        <Text font="display" weight="bold" center style={styles.title}>{t('chooseAssistant')}</Text>
-      </View>
+        <Press onPress={toggle} accessibilityRole="button" accessibilityLabel={active ? t('stop') : t('startTalking')} style={styles.ctaWrap}>
+          {active ? (
+            <Glass r={28} clear style={styles.cta}>
+              <Ionicons name="stop" size={20} color={color.text} />
+              <Text weight="bold" style={styles.ctaText}>{t('stop')}</Text>
+            </Glass>
+          ) : (
+            <LinearGradient colors={['#5B7FE8', '#E9DCC0', '#D9B779']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.cta}>
+              <Ionicons name="mic-outline" size={22} color="#101830" />
+              <Text weight="bold" style={[styles.ctaText, { color: '#101830' }]}>{t('startTalking')}</Text>
+            </LinearGradient>
+          )}
+        </Press>
 
-      <View style={styles.grid}>
-        {PRIORITY.map((k) => <ExpertCard key={k} id={k} width={colW} selected={k === id} onSelect={() => setId(k === id ? null : k)} />)}
+        <View style={styles.chips}>
+          <Chip icon="layers-outline" label={t('chipRequest')} onPress={() => router.navigate('/specialists')} />
+          <Chip icon="calendar-outline" label={t('chipToday')} onPress={() => router.navigate('/requests')} />
+        </View>
       </View>
     </Screen>
   );
 }
 
-function BarItem({ icon, label, onPress, accent }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; accent?: string }) {
-  const c = accent ?? color.textDim;
+function Chip({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
   return (
-    <Press onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={styles.item}>
-      <Ionicons name={icon} size={26} color={c} />
-      <Text variant="caption" weight="medium" center style={{ fontSize: 11, lineHeight: 18, color: c }}>{label}</Text>
+    <Press onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={{ flex: 1 }}>
+      <Glass r={22} clear style={styles.chip}>
+        <Ionicons name={icon} size={20} color={color.goldBright} />
+        <Text variant="caption" weight="medium" style={{ color: color.text, fontSize: 14, lineHeight: 22 }}>{label}</Text>
+      </Glass>
     </Press>
   );
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingVertical: 10, backgroundColor: 'rgba(8,13,28,0.34)' },
-  item: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 4 },
-  titleWrap: { alignSelf: 'stretch', alignItems: 'center' },
-  title: { alignSelf: 'stretch', textAlign: 'center', color: '#FFFFFF', fontSize: 26, lineHeight: 42 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
+  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 8, minHeight: 60, backgroundColor: 'rgba(20,34,66,0.5)' },
+  bell: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
+  wordmark: { height: 44, width: 120 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 },
+  prompt: { color: '#FFFFFF', fontSize: 22, lineHeight: 36, alignSelf: 'stretch', textAlign: 'center' },
+  ctaWrap: { alignSelf: 'stretch', borderRadius: 28 },
+  cta: { minHeight: 56, borderRadius: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 20 },
+  ctaText: { fontSize: 18, lineHeight: 28, color: color.text },
+  chips: { flexDirection: 'row', gap: 12, alignSelf: 'stretch' },
+  chip: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
 });

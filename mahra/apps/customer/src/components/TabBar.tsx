@@ -54,7 +54,7 @@ export function TabBar() {
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', start: 20, end: 20 },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 6, backgroundColor: 'rgba(9,13,26,0.72)' },
+  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 6, backgroundColor: 'rgba(14,26,52,0.78)' },
   tab: { flex: 1, minHeight: 56, borderRadius: 20, alignItems: 'center', justifyContent: 'center', gap: 2, borderWidth: 1, borderColor: 'transparent' },
   tabOn: { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.30)' },
   tabLabel: { fontSize: 11, lineHeight: 15 },

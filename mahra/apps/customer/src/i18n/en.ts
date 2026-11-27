@@ -31,6 +31,10 @@ export const en: Record<keyof typeof ar, string> = {
   talkToMe: "Talk to me",
   noAgents: "No agent matches",
   talkToMohra: 'Talk to Mohra',
+  startTalking: "Start talking",
+  chipToday: "Today’s schedule",
+  chipRequest: "Request a service",
+  notifications: "Notifications",
 
   greeting: 'How can I help today?',
   statusIdle: 'Tap to talk',
@@ -68,7 +72,7 @@ export const en: Record<keyof typeof ar, string> = {
   callProvider: 'Call provider',
   ratingLabel: 'Rating {r}',
 
-  specialistsTitle: 'Specialists',
+  specialistsTitle: "Personal assistant agents",
   specialistsSub: 'Each specialist knows their field and solves your problem step by step.',
   tagLive: 'Available',
   tagSoon: 'Soon',

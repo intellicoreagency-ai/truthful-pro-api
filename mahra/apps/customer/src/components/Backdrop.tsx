@@ -11,24 +11,21 @@ function Layer({ accent, tone }: { accent: string | null; tone: 'gold' | 'blue' 
   const id = useId().replace(/:/g, '');
   const warm = accent ?? (tone === 'gold' ? color.gold : color.periwinkle);
   const cool = accent ?? color.periwinkle;
-  const low = accent ?? color.green;
+  const low = accent ?? '#1E4FD0';
   const k = accent ? 0.85 : 1;
   return (
     <Svg width="100%" height="100%" preserveAspectRatio="none">
       <Defs>
-        <LinearGradient id={`${id}b`} x1="0" y1="0" x2="0.35" y2="1"><Stop offset="0" stopColor="#060913" /><Stop offset="0.5" stopColor="#0D1528" /><Stop offset="1" stopColor="#151024" /></LinearGradient>
+        <LinearGradient id={`${id}b`} x1="0" y1="0" x2="0.35" y2="1"><Stop offset="0" stopColor="#00081B" /><Stop offset="0.55" stopColor="#030F2B" /><Stop offset="1" stopColor="#020A1F" /></LinearGradient>
         <LinearGradient id={`${id}v`} x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.07" /><Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" /></LinearGradient>
         <RadialGradient id={`${id}1`} cx="0.82" cy="0.1" rx="0.7" ry="0.32"><Stop offset="0" stopColor={cool} stopOpacity={0.30 * k} /><Stop offset="1" stopColor={cool} stopOpacity="0" /></RadialGradient>
-        <RadialGradient id={`${id}2`} cx="0.16" cy="0.36" rx="0.7" ry="0.3"><Stop offset="0" stopColor={warm} stopOpacity={0.22 * k} /><Stop offset="1" stopColor={warm} stopOpacity="0" /></RadialGradient>
+        <RadialGradient id={`${id}2`} cx="0.16" cy="0.36" rx="0.7" ry="0.3"><Stop offset="0" stopColor={warm} stopOpacity={0.16 * k} /><Stop offset="1" stopColor={warm} stopOpacity="0" /></RadialGradient>
         <RadialGradient id={`${id}3`} cx="0.5" cy="0.95" rx="0.8" ry="0.3"><Stop offset="0" stopColor={low} stopOpacity={0.17 * k} /><Stop offset="1" stopColor={low} stopOpacity="0" /></RadialGradient>
       </Defs>
       <Rect width="100%" height="100%" fill={`url(#${id}b)`} />
       <Rect width="100%" height="100%" fill={`url(#${id}1)`} />
       <Rect width="100%" height="100%" fill={`url(#${id}2)`} />
       <Rect width="100%" height="100%" fill={`url(#${id}3)`} />
-      <Rect x="14%" width="3%" height="70%" fill={`url(#${id}v)`} />
-      <Rect x="49%" width="2%" height="55%" fill={`url(#${id}v)`} />
-      <Rect x="82%" width="3%" height="65%" fill={`url(#${id}v)`} />
     </Svg>
   );
 }

@@ -31,6 +31,10 @@ export const ar = {
   talkToMe: "تحدث معي",
   noAgents: "لا يوجد وكيل بهذا الاسم",
   talkToMohra: 'تحدّث مع مهرة',
+  startTalking: "ابدأ الحديث",
+  chipToday: "جدول اليوم",
+  chipRequest: "اطلب خدمة",
+  notifications: "الإشعارات",
 
   // الرئيسية
   greeting: 'شو أقدر أساعدك فيه اليوم؟',
@@ -71,7 +75,7 @@ export const ar = {
   ratingLabel: 'التقييم {r}',
 
   // المختصون
-  specialistsTitle: 'وكلاء مهرة',
+  specialistsTitle: "وكلاء المساعدة الشخصية",
   specialistsSub: 'كل مختص يعرف مجاله ويحل مشكلتك خطوة بخطوة.',
   tagLive: 'متاح',
   tagSoon: 'قريباً',
