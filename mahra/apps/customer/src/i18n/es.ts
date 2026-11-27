@@ -84,9 +84,10 @@ export const es: Record<keyof typeof ar, string> = {
   allSpecialists: "Todos los especialistas",
   listeningLive: "Mohra te escucha",
   google: "Continuar con Google",
-  faceId: "Entrar con Face ID",
+  apple: "Continuar con Apple",
+  faceId: "Entrar con huella",
   orDivider: "o",
   googleSoon: "El acceso con Google se activa cuando se configure una cuenta de Google para la app.",
-  faceIdNeedsLogin: "Entra primero con tu teléfono y luego activa Face ID desde Cuenta.",
-  faceIdUnavailable: "Face ID no está disponible en este dispositivo.",
+  faceIdNeedsLogin: "Entra primero con tu teléfono y luego activa la huella desde Cuenta.",
+  faceIdUnavailable: "La huella no está disponible en este dispositivo.",
 };

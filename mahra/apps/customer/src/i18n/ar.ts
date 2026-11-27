@@ -99,9 +99,10 @@ export const ar = {
 
   // الدخول
   google: 'المتابعة بحساب Google',
-  faceId: 'الدخول بـ Face ID',
+  apple: "المتابعة بحساب Apple",
+  faceId: "الدخول بالبصمة",
   orDivider: 'أو',
   googleSoon: 'يتفعل الدخول بجوجل بعد إعداد حساب Google للتطبيق.',
-  faceIdNeedsLogin: 'سجّل الدخول بالهاتف أولاً، ثم فعّل Face ID من حسابي.',
-  faceIdUnavailable: 'Face ID غير متاح على هذا الجهاز.',
+  faceIdNeedsLogin: "سجّل الدخول بالهاتف أولاً، ثم فعّل البصمة من حسابي.",
+  faceIdUnavailable: "البصمة غير متاحة على هذا الجهاز.",
 } as const;

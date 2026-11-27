@@ -66,7 +66,7 @@ export default function Login() {
     if (digits(code).length !== 4) return setMsg({ tone: 'bad', text: t('codeInvalid') });
     signIn(`+971${digits(phone)}`, hasWa ? `+971${digits(phone)}` : `+971${digits(wa)}`);
   };
-  const faceId = async () => {
+  const biometric = async () => {
     if (Platform.OS === 'web') return setMsg({ tone: 'info', text: t('faceIdUnavailable') });
     const ok = (await LocalAuthentication.hasHardwareAsync()) && (await LocalAuthentication.isEnrolledAsync());
     setMsg({ tone: 'info', text: ok ? t('faceIdNeedsLogin') : t('faceIdUnavailable') });
@@ -127,26 +127,28 @@ export default function Login() {
           </Press>
 
           {step === 'code' ? (
-            <Press onPress={() => { setStep('phone'); setCode(''); setMsg(null); }} accessibilityRole="button" style={styles.faceBtn}>
-              <Text variant="caption" weight="medium">{t('changeNumber')}</Text>
+            <Press onPress={() => { setStep('phone'); setCode(''); setMsg(null); }} accessibilityRole="button" style={styles.pill}>
+              <Text variant="caption" font="label" weight="semibold">{t('changeNumber')}</Text>
             </Press>
           ) : (
-            <Press onPress={faceId} accessibilityRole="button" accessibilityLabel={t('faceId')} style={styles.faceBtn}>
-              <Ionicons name="scan-outline" size={22} color={color.goldBright} />
-              <Text variant="caption" font="label" weight="semibold">{t('faceId')}</Text>
-            </Press>
+            <>
+              <View style={styles.rule} />
+              <Press onPress={biometric} accessibilityRole="button" accessibilityLabel={t('faceId')} style={styles.pill}>
+                <Ionicons name="finger-print-outline" size={24} color={color.goldBright} />
+                <Text variant="caption" font="label" weight="semibold">{t('faceId')}</Text>
+              </Press>
+              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('google')} style={styles.pill}>
+                <GoogleG />
+                <Text variant="caption" font="label" weight="semibold">{t('google')}</Text>
+              </Press>
+              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('apple')} style={styles.pill}>
+                <Ionicons name="logo-apple" size={22} color="#fff" />
+                <Text variant="caption" font="label" weight="semibold">{t('apple')}</Text>
+              </Press>
+            </>
           )}
         </Glass>
 
-        {step === 'phone' && (
-          <View style={styles.alt}>
-            <Text variant="caption" tone="dim">{t('orDivider')}</Text>
-            <View style={styles.altRow}>
-              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel="Google" style={styles.altBtn}><GoogleG /></Press>
-              <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel="Apple" style={styles.altBtn}><Ionicons name="logo-apple" size={24} color="#fff" /></Press>
-            </View>
-          </View>
-        )}
       </ScrollView>
 
       <View style={[styles.langWrap, { top: insets.top + 8 }]}>
@@ -177,10 +179,8 @@ const styles = StyleSheet.create({
   check: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 44 },
   ctaWrap: { marginTop: space.xs },
   cta: { minHeight: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...(Platform.OS === 'web' ? ({ boxShadow: '0 10px 28px rgba(235,208,142,0.38), inset 0 1px 0 rgba(255,255,255,0.8)' } as object) : { shadowColor: '#EBD08E', shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } }) },
-  faceBtn: { alignSelf: 'center', minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.10)' },
-  alt: { alignItems: 'center', gap: space.md, marginTop: space.xl },
-  altRow: { flexDirection: 'row', gap: space.md },
-  altBtn: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.10)' },
+  rule: { height: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginVertical: 2 },
+  pill: { alignSelf: 'stretch', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.xl, borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.10)' },
   langWrap: { position: 'absolute', end: 16, alignItems: 'flex-end', gap: 6 },
   langBtn: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, borderRadius: 99, borderWidth: 1, borderColor: 'rgba(235,208,142,0.5)', backgroundColor: 'rgba(10,16,34,0.6)' },
   langMenu: { padding: 6 },

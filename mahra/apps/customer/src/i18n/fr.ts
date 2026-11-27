@@ -84,9 +84,10 @@ export const fr: Record<keyof typeof ar, string> = {
   allSpecialists: "Tous les spécialistes",
   listeningLive: "Mohra vous écoute",
   google: "Continuer avec Google",
-  faceId: "Se connecter avec Face ID",
+  apple: "Continuer avec Apple",
+  faceId: "Se connecter par empreinte",
   orDivider: "ou",
   googleSoon: "La connexion Google sera activée une fois un compte Google configuré pour l’app.",
-  faceIdNeedsLogin: "Connectez-vous d’abord avec votre téléphone, puis activez Face ID depuis Compte.",
-  faceIdUnavailable: "Face ID n’est pas disponible sur cet appareil.",
+  faceIdNeedsLogin: "Connectez-vous d’abord avec votre téléphone, puis activez l’empreinte depuis Compte.",
+  faceIdUnavailable: "L’empreinte n’est pas disponible sur cet appareil.",
 };

@@ -84,9 +84,10 @@ export const ru: Record<keyof typeof ar, string> = {
   allSpecialists: "Все специалисты",
   listeningLive: "Мохра слушает",
   google: "Продолжить через Google",
-  faceId: "Войти по Face ID",
+  apple: "Продолжить через Apple",
+  faceId: "Войти по отпечатку",
   orDivider: "или",
   googleSoon: "Вход через Google включится после настройки аккаунта Google для приложения.",
-  faceIdNeedsLogin: "Сначала войдите по телефону, затем включите Face ID в разделе «Аккаунт».",
-  faceIdUnavailable: "Face ID недоступен на этом устройстве.",
+  faceIdNeedsLogin: "Сначала войдите по телефону, затем включите отпечаток в разделе «Аккаунт».",
+  faceIdUnavailable: "Отпечаток недоступен на этом устройстве.",
 };

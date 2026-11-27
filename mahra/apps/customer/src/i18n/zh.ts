@@ -84,9 +84,10 @@ export const zh: Record<keyof typeof ar, string> = {
   allSpecialists: "所有专家",
   listeningLive: "穆赫拉正在聆听",
   google: "使用 Google 继续",
-  faceId: "使用 Face ID 登录",
+  apple: "使用 Apple 继续",
+  faceId: "指纹登录",
   orDivider: "或",
   googleSoon: "为应用设置 Google 账户后即可启用 Google 登录。",
-  faceIdNeedsLogin: "请先用手机号登录，再在“账户”中开启 Face ID。",
-  faceIdUnavailable: "此设备不支持 Face ID。",
+  faceIdNeedsLogin: "请先用手机号登录，再在“账户”中开启指纹。",
+  faceIdUnavailable: "此设备不支持指纹。",
 };

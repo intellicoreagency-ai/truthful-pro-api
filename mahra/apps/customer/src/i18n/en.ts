@@ -92,9 +92,10 @@ export const en: Record<keyof typeof ar, string> = {
   listeningLive: 'Mohra is listening',
 
   google: 'Continue with Google',
-  faceId: 'Sign in with Face ID',
+  apple: "Continue with Apple",
+  faceId: "Sign in with fingerprint",
   orDivider: 'or',
   googleSoon: 'Google sign-in turns on once a Google account is set up for the app.',
-  faceIdNeedsLogin: 'Sign in with your phone first, then turn on Face ID from Account.',
-  faceIdUnavailable: 'Face ID is not available on this device.',
+  faceIdNeedsLogin: "Sign in with your phone first, then turn on fingerprint from Account.",
+  faceIdUnavailable: "Fingerprint is not available on this device.",
 };
