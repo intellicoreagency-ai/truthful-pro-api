@@ -26,10 +26,14 @@ export const ar = {
   tabRequests: 'طلباتي',
   tabSpecialists: 'الوكلاء',
   tabProfile: 'حسابي',
+  chooseAssistant: "اختر مساعدك الشخصي",
+  searchAgent: "ابحث عن وكيل",
+  talkToMe: "تحدث معي",
+  noAgents: "لا يوجد وكيل بهذا الاسم",
   talkToMohra: 'تحدّث مع مهرة',
 
   // الرئيسية
-  greeting: 'كيف أخدمك اليوم؟',
+  greeting: 'شو أقدر أساعدك فيه اليوم؟',
   statusIdle: 'اضغط للتحدث',
   statusListening: 'أسمعك…',
   statusThinking: 'أفكر…',
@@ -67,7 +71,7 @@ export const ar = {
   ratingLabel: 'التقييم {r}',
 
   // المختصون
-  specialistsTitle: 'المختصون',
+  specialistsTitle: 'وكلاء مهرة',
   specialistsSub: 'كل مختص يعرف مجاله ويحل مشكلتك خطوة بخطوة.',
   tagLive: 'متاح',
   tagSoon: 'قريباً',

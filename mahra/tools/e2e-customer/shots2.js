@@ -3,7 +3,7 @@ const { chromium } = require('playwright');
 const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error')errs.push(m.text().slice(0,120))});
 await p.goto('http://localhost:8099/');await p.waitForTimeout(2000);
 await p.getByLabel('رقم الهاتف').fill('501234567');await p.getByRole('checkbox').click();
-await p.getByRole('button',{name:'أرسل الرمز'}).click();await p.waitForTimeout(400);
+await p.getByRole('button',{name:'تسجيل الدخول'}).click();await p.waitForTimeout(400);
 await p.getByLabel('رمز التحقق').fill('1234');await p.getByRole('button',{name:'تأكيد'}).click();await p.waitForTimeout(1800);
 await p.getByRole('tab',{name:'حسابي'}).click();await p.waitForTimeout(900);
 await p.screenshot({path:process.argv[2]+'/new-profile.png'});

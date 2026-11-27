@@ -26,6 +26,10 @@ export const en: Record<keyof typeof ar, string> = {
   tabRequests: 'Requests',
   tabSpecialists: 'Specialists',
   tabProfile: 'Account',
+  chooseAssistant: "Choose your personal assistant",
+  searchAgent: "Search for an agent",
+  talkToMe: "Talk to me",
+  noAgents: "No agent matches",
   talkToMohra: 'Talk to Mohra',
 
   greeting: 'How can I help today?',

@@ -10,14 +10,13 @@ import { StudioMic } from '@/components/StudioMic';
 import { Text } from '@/components/Text';
 import { LANGS, useI18n, useTx, type StringKey } from '@/i18n';
 import { useVoice, type VoiceState } from '@/lib/voice';
-import { ltr } from '@/lib/bidi';
 import { color, space } from '@/theme/tokens';
 
 const STATUS: Record<VoiceState, StringKey> = { idle: 'statusIdle', listening: 'statusListening', thinking: 'statusThinking', speaking: 'statusSpeaking' };
 const chat = (agentId: string) => () => router.push({ pathname: '/chat/[agentId]', params: { agentId } });
 
 /**
- * استوديو مهرة AI: كبسولة عنوان عائمة، كرة زجاجية قزحية بميكروفون استوديو وموجات (ذهبية يساراً، فيروزية يميناً)،
+ * الرئيسية: كبسولة «اختر مساعدك الشخصي» عائمة، كرة زجاجية قزحية بميكروفون استوديو وموجات (ذهبية يساراً، فيروزية يميناً)،
  * ثم شبكة 2×2 بتوهج حواف: ميرا زمردي، منصور ياقوتي، سارة وردي ذهبي، جلال وخالد عنبري.
  * الضغط على الكرة يبدأ الاستماع ويوجّه الأمر الصوتي للوكيل المناسب.
  */
@@ -32,7 +31,7 @@ export default function Home() {
     <Screen tabs>
       <Glass r={999} strong style={styles.header}>
         <View style={styles.live} />
-        <Text variant="heading" weight="bold" style={{ flex: 1 }}>{tx('استوديو مهرة', 'Mohra')} {ltr('AI')}</Text>
+        <Text variant="heading" weight="bold" numberOfLines={1} style={{ flex: 1, fontSize: 16 }}>{t('chooseAssistant')}</Text>
         <Press onPress={() => router.navigate('/profile')} accessibilityRole="button" accessibilityLabel={t('language')} style={styles.langBadge}>
           <Ionicons name="globe-outline" size={16} color={color.goldBright} />
           <Text variant="caption" font="label" weight="semibold" style={{ color: color.goldBright }}>{langLabel}</Text>

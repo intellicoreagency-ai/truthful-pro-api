@@ -7,7 +7,6 @@ import { Pill } from '@/components/Pill';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { useTx } from '@/i18n';
-import { ltr } from '@/lib/bidi';
 import { color, glow, space, type Tone } from '@/theme/tokens';
 
 type Icon = ComponentProps<typeof Ionicons>['name'];
@@ -48,10 +47,6 @@ export default function Requests() {
 
   return (
     <Screen tabs>
-      <Glass r={999} strong style={styles.island}>
-        <View style={styles.live} />
-        <Text variant="caption" weight="bold">{tx('استوديو مهرة', 'Mohra')} {ltr('AI')}</Text>
-      </Glass>
       <View style={styles.title}>
         <Ionicons name="notifications-outline" size={24} color={color.goldBright} />
         <Text variant="title" weight="bold" style={{ flex: 1 }} center>{tx('طلباتي وخدماتي', 'My requests and services')}</Text>
@@ -68,8 +63,6 @@ export default function Requests() {
 }
 
 const styles = StyleSheet.create({
-  island: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xl, minHeight: 36 },
-  live: { width: 8, height: 8, borderRadius: 4, backgroundColor: color.green },
   title: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   card: { padding: space.lg, gap: space.md },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
