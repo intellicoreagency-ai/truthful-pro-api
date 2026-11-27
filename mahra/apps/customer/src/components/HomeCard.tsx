@@ -33,7 +33,7 @@ export function HomeCard({ id, width }: { id: AgentId; width: number }) {
   const art2 = SECOND[id];
   return (
     <Press onPress={() => router.push({ pathname: '/chat/[agentId]', params: { agentId: id } })} accessibilityRole="button" accessibilityLabel={`${tx(...c.title)}. ${tx(...c.sub)}`} style={{ width }}>
-      <Glass r={26} clear style={styles.card}>
+      <Glass card style={styles.card}>
         <View style={styles.tiles}>
           {art2 ? (
             <Image source={art2} style={styles.art} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />

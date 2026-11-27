@@ -34,7 +34,7 @@ export default function Requests() {
       {active.map((c) => <RequestCard key={c.id} c={c} />)}
 
       <Press onPress={() => router.push('/history')} accessibilityRole="button" accessibilityLabel={tx('سجل المعاملات', 'Transaction history')}>
-        <Glass r={26} clear blur={14} style={styles.history}>
+        <Glass card style={styles.history}>
           <Ionicons name="time-outline" size={24} color={color.goldBright} />
           <Text weight="bold" style={{ flex: 1, color: '#FFFFFF' }}>{tx('سجل المعاملات', 'Transaction history')}</Text>
           <Ionicons name={dir === 'rtl' ? 'chevron-back' : 'chevron-forward'} size={22} color={color.textDim} />

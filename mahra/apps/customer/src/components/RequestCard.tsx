@@ -18,7 +18,7 @@ export function RequestCard({ c }: { c: RequestItem }) {
   const tx = useTx();
   const ac = THEME[c.agent].accent;
   return (
-    <Glass r={26} clear blur={14} tint={ac + '08'} style={[styles.card, { borderColor: ac + '66' }]}>
+    <Glass card style={styles.card}>
       <View style={styles.head}>
         <Image source={PIC[c.agent]} style={[styles.badge, { borderColor: ac + '88' }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
         <Text weight="bold" numberOfLines={2} style={{ flex: 1, color: '#FFFFFF' }}>{tx(c.title[0], c.title[1])}</Text>

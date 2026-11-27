@@ -16,7 +16,7 @@ export function AgentCard({ agent, width }: { agent: Agent; width: number }) {
   const open = () => router.push({ pathname: '/chat/[agentId]', params: { agentId: agent.id } });
   return (
     <Press onPress={open} accessibilityRole="button" accessibilityLabel={`${agent.name[L]}، ${agent.role[L]}`} style={{ width }}>
-      <Glass r={22} clear style={styles.card}>
+      <Glass card style={styles.card}>
         <AgentIcon agent={agent} size={56} />
         <Text font="display" weight="semibold" center style={{ color: '#FFFFFF' }} numberOfLines={1}>{agent.name[L]}</Text>
         <Text variant="caption" tone="dim" center numberOfLines={3} style={{ fontSize: 12, lineHeight: 20, minHeight: 60 }}>{agent.summary[L]}</Text>

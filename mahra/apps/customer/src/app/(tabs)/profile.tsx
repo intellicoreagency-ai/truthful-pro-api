@@ -29,7 +29,7 @@ function Badge({ icon, tone }: { icon: Icon; tone?: Tone }) {
 
 function Cell({ tone, title, onPress, children }: { tone?: Tone; title: string; onPress?: () => void; children: ReactNode }) {
   const card = (
-    <Glass r={24} tone={tone} style={styles.cell}>
+    <Glass card style={styles.cell}>
       <Text weight="bold">{title}</Text>
       {children}
     </Glass>
