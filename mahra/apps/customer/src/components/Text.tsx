@@ -1,6 +1,6 @@
 import { I18nManager, Platform, Text as RNText, type TextProps, type TextStyle } from 'react-native';
 import { useI18n } from '@/i18n';
-import { fontFor, type FontWeight } from '@/theme/fonts';
+import { fontStyle, type FontWeight } from '@/theme/fonts';
 import { color } from '@/theme/tokens';
 
 type Variant = 'display' | 'title' | 'heading' | 'body' | 'caption';
@@ -52,7 +52,7 @@ export function Text({ variant = 'body', weight, tone = 'normal', center, style,
       {...rest}
       style={[
         {
-          fontFamily: fontFor(lang, weight ?? v.weight),
+          ...fontStyle(lang, weight ?? v.weight),
           fontSize: v.size,
           lineHeight: Math.round(v.size * (lang === 'ar' ? 1.65 : 1.5)),
           color: TONES[tone],

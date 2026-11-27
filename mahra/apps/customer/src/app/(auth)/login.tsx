@@ -10,7 +10,7 @@ import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { LANGS, useI18n } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { fontFor } from '@/theme/fonts';
+import { fontStyle } from '@/theme/fonts';
 import { color, radius, space, TOUCH } from '@/theme/tokens';
 import { FadeIn } from '@/components/FadeIn';
 import { Press } from '@/components/Press';
@@ -43,7 +43,7 @@ export default function Login() {
   const [wa, setWa] = useState('');
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState<{ tone: 'bad' | 'info'; text: string } | null>(null);
-  const input = [styles.input, { fontFamily: fontFor(lang, 'regular') }];
+  const input = [styles.input, fontStyle(lang, 'regular')];
 
   const sendCode = () => {
     if (!validPhone(phone)) return setMsg({ tone: 'bad', text: t('phoneInvalid') });
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', gap: space.sm, paddingVertical: space.sm },
   card: { padding: space.xl, gap: space.lg },
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, direction: 'ltr' },
-  input: { minWidth: 0, minHeight: TOUCH + 8, borderRadius: radius.md, borderWidth: 1, borderColor: color.hairline, backgroundColor: 'rgba(5,8,22,0.5)', paddingHorizontal: space.lg, color: color.text, fontSize: 18 },
+  input: { minWidth: 0, minHeight: TOUCH + 8, borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(6,10,18,0.55)', paddingHorizontal: space.lg, color: color.text, fontSize: 18 },
   check: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: TOUCH },
   divider: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   line: { flex: 1, height: 1, backgroundColor: color.hairline },

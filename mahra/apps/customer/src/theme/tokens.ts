@@ -56,7 +56,7 @@ export const color = {
 
 /** تدرّج زر الدخول الرئيسي: أزرق ناعم ← لؤلؤي ← شمبانيا (المنتصف اللؤلؤي يمنع الاخضرار الطيني) */
 export const gradient = {
-  cta: ['#6B8CFF', '#C3CCEB', '#F3D999'] as const,
+  cta: ['#6B8CFF', '#D4AF6A', '#F3D999'] as const,
   gold: ['#F3DDA0', '#D9BC7E', '#B8924A'] as const,
 };
 

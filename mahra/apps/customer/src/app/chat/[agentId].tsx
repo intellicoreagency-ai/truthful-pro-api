@@ -9,7 +9,7 @@ import { Glass } from '@/components/Glass';
 import { Text } from '@/components/Text';
 import { agentById, nationality } from '@/data/agents';
 import { useI18n } from '@/i18n';
-import { fontFor } from '@/theme/fonts';
+import { fontStyle } from '@/theme/fonts';
 import { color, radius, space, TOUCH } from '@/theme/tokens';
 import { FadeIn } from '@/components/FadeIn';
 import { Press } from '@/components/Press';
@@ -129,7 +129,7 @@ export default function Chat() {
             placeholderTextColor={color.textMuted}
             accessibilityLabel={t('chatInputPlaceholder')}
             returnKeyType="send"
-            style={[styles.input, { fontFamily: fontFor(lang, 'regular') }]}
+            style={[styles.input, fontStyle(lang, 'regular')]}
           />
           <Press
             onPress={send}

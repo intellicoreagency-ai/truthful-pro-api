@@ -90,14 +90,13 @@ export function Pearl({ size, state, children }: Props) {
       <Animated.View style={{ width: s, height: s, transform: [{ scale }] }}>
         <Svg width={s} height={s} viewBox="0 0 300 300">
           <Defs>
-            <RadialGradient id={`${uid}h`} cx="50%" cy="50%" r="50%"><Stop offset="0.56" stopColor={color.gold} stopOpacity="0.30" /><Stop offset="0.82" stopColor={color.cyan} stopOpacity="0.08" /><Stop offset="1" stopColor={color.cyan} stopOpacity="0" /></RadialGradient>
-            <RadialGradient id={`${uid}b`} cx="34%" cy="28%" r="82%"><Stop offset="0" stopColor="#FFF8EC" stopOpacity="0.82" /><Stop offset="0.16" stopColor="#B7CBFF" stopOpacity="0.62" /><Stop offset="0.44" stopColor={color.periwinkle} stopOpacity="0.6" /><Stop offset="0.76" stopColor={color.deep} /><Stop offset="1" stopColor={color.night} /></RadialGradient>
+            <RadialGradient id={`${uid}h`} cx="50%" cy="50%" r="50%"><Stop offset="0.56" stopColor={color.gold} stopOpacity="0.42" /><Stop offset="0.82" stopColor={color.cyan} stopOpacity="0.08" /><Stop offset="1" stopColor={color.cyan} stopOpacity="0" /></RadialGradient>
+            <RadialGradient id={`${uid}b`} cx="32%" cy="28%" r="78%"><Stop offset="0" stopColor="#FFFFFF" /><Stop offset="0.32" stopColor="#E2C07D" /><Stop offset="0.7" stopColor="#6B8CFF" /><Stop offset="1" stopColor="#0C111D" /></RadialGradient>
             <LinearGradient id={`${uid}r`} x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#F6DDA6" /><Stop offset="0.34" stopColor="#EAB9D3" /><Stop offset="0.62" stopColor={color.cyan} /><Stop offset="1" stopColor={color.gold} /></LinearGradient>
           </Defs>
           <Circle cx="150" cy="150" r="146" fill={`url(#${uid}h)`} />
           <Circle cx="150" cy="150" r="139" fill="none" stroke={color.periwinkle} strokeOpacity="0.5" strokeWidth="1.3" strokeDasharray="3 7" strokeLinecap="round" />
           <Circle cx="150" cy="150" r="118" fill={`url(#${uid}b)`} />
-          <Ellipse cx="205" cy="212" rx="70" ry="30" fill={color.gold} opacity="0.34" transform="rotate(-28 205 212)" />
           <Circle cx="150" cy="150" r="118" fill="none" stroke={`url(#${uid}r)`} strokeWidth="2.6" />
           <Circle cx="150" cy="150" r="111" fill="none" stroke="#fff" strokeOpacity="0.12" />
           <Ellipse cx="108" cy="84" rx="54" ry="22" fill="#fff" opacity="0.34" transform="rotate(-28 108 84)" />
