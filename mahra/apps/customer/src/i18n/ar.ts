@@ -11,7 +11,7 @@ export const ar = {
   phonePlaceholder: '50 123 4567',
   hasWhatsapp: 'هل يوجد واتساب على هذا الرقم؟',
   whatsappLabel: 'رقم الواتساب',
-  whatsappRequired: "أكّد أن هذا الرقم عليه واتساب للمتابعة.",
+  whatsappRequired: "حدّد الخانة لتأكيد وجود واتساب على هذا الرقم، ثم تابع.",
   sendCode: 'أرسل الرمز',
   codeTitle: 'أدخل الرمز',
   codeSub: 'أرسلنا رمزاً من 4 أرقام إلى {phone}',
