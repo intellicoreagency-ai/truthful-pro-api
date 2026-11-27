@@ -1,95 +1,76 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import type { ComponentProps } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { AgentTile } from '@/components/AgentTile';
 import { Glass } from '@/components/Glass';
+import { Pill } from '@/components/Pill';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { agentById, type AgentId } from '@/data/agents';
-import { useI18n, useTx } from '@/i18n';
-import { color, space } from '@/theme/tokens';
-import { Press } from '@/components/Press';
+import { useTx } from '@/i18n';
+import { color, glow, space, type Tone } from '@/theme/tokens';
 
-type Card = {
-  id: string;
-  agent: AgentId;
-  title: [string, string];
-  line: [string, string];
-  pill: [string, string];
-  /** دفعات مرحلية: [المنجز، الإجمالي] */
-  stages?: [number, number];
-  go: () => void;
-};
+type Icon = ComponentProps<typeof Ionicons>['name'];
+type Card = { id: string; tone: Tone; icon: Icon; title: [string, string]; line: [string, string]; pill: [string, string]; go: () => void };
+
+const chat = (agentId: string) => () => router.push({ pathname: '/chat/[agentId]', params: { agentId } });
 
 /**
- * طلباتي وخدماتي: بطاقة زجاجية لكل طلب بلون وكيله (Apple system colors).
- * الطلب الأول حقيقي المسار (مقارنة عروض)؛ الباقي نماذج للحالات: توظيف، معاينة ودفعات مرحلية، تنظيف، سجل.
+ * طلباتي وخدماتي (مواصفات Spatial Glass): كبسولة Dynamic Island، عنوان بجرس، قسم «النشطة والمتابعة»
+ * وقسم «مكتملة وسجل المعاملات»؛ لكل بطاقة لون وكيلها وزر كبسولة بتدرجه.
+ * الطلب الأول (سطحة) هو مسار المقارنة الحقيقي بين العروض.
  */
 export default function Requests() {
-  const { t } = useI18n();
   const tx = useTx();
-  const chat = (id: AgentId) => () => router.push({ pathname: '/chat/[agentId]', params: { agentId: id } });
-  const CARDS: Card[] = [
-    { id: 'tow', agent: 'jalal', title: ['سطحة لسيارتي', 'Tow truck for my car'], line: ['الشيخ زايد · 3 عروض بأسعار نهائية', 'Sheikh Zayed · 3 final-price offers'], pill: ['عروض جاهزة', 'Offers ready'], go: () => router.push({ pathname: '/request/[id]', params: { id: 'r1' } }) },
-    { id: 'cv', agent: 'meera', title: ['تقديم: مدير مبيعات', 'Application: Sales Manager'], line: ['قُدّم عبر إنديد باسمك · سيرتك محدّثة', 'Submitted on Indeed for you · CV up to date'], pill: ['قيد المراجعة', 'In review'], go: chat('meera') },
-    { id: 'inspect', agent: 'khaled', title: ['معاينة موقع وعرض سعر مرحلي', 'Site inspection and staged quote'], line: ['الثلاثاء 4:00 عصراً · الدفعة الأولى عند البدء', 'Tuesday 4:00 pm · first payment on start'], pill: ['معاينة مجدولة', 'Inspection set'], stages: [1, 3], go: chat('khaled') },
-    { id: 'clean', agent: 'sara', title: ['تنظيف المنزل والدراي كلين', 'Home cleaning and dry cleaning'], line: ['اكتمل الأسبوع الماضي · قيّم الخدمة', 'Done last week · rate the service'], pill: ['مكتمل', 'Done'], go: chat('sara') },
+  const active: Card[] = [
+    { id: 'tow', tone: 'amber', icon: 'car-sport-outline', title: ['سطحة لسيارتي', 'Tow truck for my car'], line: ['الشيخ زايد • 3 عروض بأسعار نهائية. جلال', 'Sheikh Zayed • 3 final-price offers. Jalal'], pill: ['قارن العروض', 'Compare offers'], go: () => router.push({ pathname: '/request/[id]', params: { id: 'r1' } }) },
+    { id: 'cv', tone: 'emerald', icon: 'briefcase-outline', title: ['السيرة الذاتية والتقديمات الذكية', 'CV and smart applications'], line: ['تحديث الملف المهني والتقديم أونلاين وإنديد. وكيلة التوظيف ميرا', 'Update your profile and apply online and on Indeed. Recruiter Meera'], pill: ['تواصل الآن', 'Contact now'], go: chat('meera') },
+    { id: 'inspect', tone: 'amber', icon: 'business-outline', title: ['معاينة المقاولة والكوتيشن والمواعيد', 'Contracting inspection, quotes and slots'], line: ['معاينة ميدانية، اعتماد عرض السعر، والمواعيد. المهندس خالد', 'Site inspection, quote approval and slots. Eng. Khaled'], pill: ['تحديث / موافقة الآن', 'Update / approve now'], go: chat('khaled') },
   ];
+  const done: Card[] = [
+    { id: 'clean', tone: 'rose', icon: 'sparkles-outline', title: ['تنظيف ودراي كلين الغرف والمكاتب', 'Room and office cleaning, dry cleaning'], line: ['ترتيب، تنظيف، وخدمة دراي كلين. سارة', 'Tidying, cleaning and dry cleaning. Sara'], pill: ['تكرار الطلب', 'Repeat order'], go: chat('sara') },
+    { id: 'hist', tone: 'sapphire', icon: 'folder-open-outline', title: ['سجل المحادثات والملفات', 'Chats and files history'], line: ['آخر 5 محادثات و3 ملفات. جلال، فيصل، ميرا', 'Last 5 chats and 3 files. Jalal, Faisal, Meera'], pill: ['فتح السجل', 'Open history'], go: chat('mansour') },
+  ];
+
+  const render = (c: Card) => {
+    const g = glow[c.tone];
+    return (
+      <Glass key={c.id} r={26} tone={c.tone} style={styles.card}>
+        <View style={styles.head}>
+          <View style={[styles.badge, { backgroundColor: g.tint, borderColor: g.rim }]}><Ionicons name={c.icon} size={22} color={g.ink} /></View>
+          <Text weight="bold" style={{ flex: 1, color: '#FFFFFF' }}>{tx(c.title[0], c.title[1])}</Text>
+        </View>
+        <Text variant="caption" tone="dim">{tx(c.line[0], c.line[1])}</Text>
+        <Pill tone={c.tone} label={tx(c.pill[0], c.pill[1])} onPress={c.go} />
+      </Glass>
+    );
+  };
 
   return (
     <Screen tabs>
-      <Text variant="display">{t('requestsTitle')}</Text>
+      <Glass r={999} strong style={styles.island}>
+        <View style={styles.live} />
+        <Text variant="caption" weight="bold">{tx('استوديو مهرة', 'Mohra')} AI</Text>
+      </Glass>
+      <View style={styles.title}>
+        <Ionicons name="notifications-outline" size={24} color={color.goldBright} />
+        <Text variant="title" weight="bold" style={{ flex: 1 }} center>{tx('طلباتي وخدماتي', 'My requests and services')}</Text>
+        <View style={{ width: 24 }} />
+      </View>
 
-      {CARDS.map((c) => {
-        const a = agentById(c.agent)!;
-        return (
-          <Press key={c.id} onPress={c.go} accessibilityRole="button" accessibilityLabel={`${tx(c.title[0], c.title[1])}. ${tx(c.pill[0], c.pill[1])}`}>
-            <Glass r={24} style={[styles.card, { borderColor: a.accent + '55' }]}>
-              <View style={styles.head}>
-                <AgentTile agent={a} size={48} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text weight="bold">{tx(c.title[0], c.title[1])}</Text>
-                  <Text variant="caption" tone="dim">{tx(a.name.ar, a.name.en)} · {tx(a.role.ar, a.role.en)}</Text>
-                </View>
-              </View>
-              <Text tone="dim">{tx(c.line[0], c.line[1])}</Text>
-              {c.stages && (
-                <View style={{ gap: 6 }}>
-                  <View style={styles.bars}>
-                    {Array.from({ length: c.stages[1] }).map((_, i) => (
-                      <View key={i} style={[styles.bar, { backgroundColor: i < c.stages![0] ? a.accent : 'rgba(255,255,255,0.14)' }]} />
-                    ))}
-                  </View>
-                  <Text variant="caption" tone="dim">{tx(`الدفعة ${c.stages[0]} من ${c.stages[1]}`, `Payment ${c.stages[0]} of ${c.stages[1]}`)}</Text>
-                </View>
-              )}
-              <View style={[styles.pill, { backgroundColor: a.accent + '26', borderColor: a.accent + '66' }]}>
-                <Text variant="caption" weight="semibold" style={{ color: a.accent }}>{tx(c.pill[0], c.pill[1])}</Text>
-              </View>
-            </Glass>
-          </Press>
-        );
-      })}
+      <Text variant="heading" weight="bold">{tx('النشطة والمتابعة', 'Active and follow-ups')}</Text>
+      {active.map(render)}
 
-      <Press onPress={() => router.push({ pathname: '/chat/[agentId]', params: { agentId: 'mansour' } })} accessibilityRole="button" accessibilityLabel={tx('سجل المحادثات والملفات', 'Chats and files history')}>
-        <Glass r={24} style={[styles.card, { borderColor: color.blue + '55', flexDirection: 'row', alignItems: 'center', gap: space.md }]}>
-          <View style={[styles.hist, { backgroundColor: color.blue + '29', borderColor: color.blue + '99' }]}><Ionicons name="folder-open-outline" size={24} color={color.blue} /></View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text weight="bold">{tx('سجل المحادثات والملفات', 'Chats and files')}</Text>
-            <Text variant="caption" tone="dim">{tx('آخر محادثة مع منصور · 3 ملفات ومواقع', 'Last chat with Mansour · 3 files and places')}</Text>
-          </View>
-          <Ionicons name="chevron-back" size={20} color={color.textDim} />
-        </Glass>
-      </Press>
+      <Text variant="heading" weight="bold">{tx('مكتملة وسجل المعاملات', 'Completed and history')}</Text>
+      {done.map(render)}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  island: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xl, minHeight: 36 },
+  live: { width: 8, height: 8, borderRadius: 4, backgroundColor: color.green },
+  title: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   card: { padding: space.lg, gap: space.md },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  pill: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 3 },
-  bars: { flexDirection: 'row', gap: 6 },
-  bar: { flex: 1, height: 6, borderRadius: 3 },
-  hist: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  badge: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });

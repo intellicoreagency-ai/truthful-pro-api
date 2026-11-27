@@ -1,132 +1,164 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import type { ComponentProps } from 'react';
-import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import type { ComponentProps, ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Glass } from '@/components/Glass';
+import { Press } from '@/components/Press';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Toggle } from '@/components/Toggle';
 import { LANGS, useI18n, useTx } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { color, radius, space, TOUCH } from '@/theme/tokens';
-import { Press } from '@/components/Press';
+import { color, glow, radius, space, TOUCH, type Tone } from '@/theme/tokens';
 
 type Icon = ComponentProps<typeof Ionicons>['name'];
 
-function Bento({ icon, title, tint = color.gold, onPress, children }: { icon: Icon; title: string; tint?: string; onPress?: () => void; children?: React.ReactNode }) {
-  const body = (
-    <Glass r={24} style={[styles.bento, { borderColor: tint + '40' }]}>
-      <View style={[styles.ico, { backgroundColor: tint + '22', borderColor: tint + '66' }]}><Ionicons name={icon} size={22} color={tint} /></View>
+/** أيقونة دائرية زجاجية (شارة) بلون النغمة. */
+function Badge({ icon, tone }: { icon: Icon; tone?: Tone }) {
+  const g = tone ? glow[tone] : null;
+  return (
+    <View style={[styles.badge, { backgroundColor: g?.tint ?? 'rgba(255,255,255,0.08)', borderColor: g?.rim ?? 'rgba(255,255,255,0.28)' }]}>
+      <Ionicons name={icon} size={18} color={g?.ink ?? color.goldBright} />
+    </View>
+  );
+}
+
+function Cell({ tone, title, onPress, children }: { tone?: Tone; title: string; onPress?: () => void; children: ReactNode }) {
+  const card = (
+    <Glass r={24} tone={tone} style={styles.cell}>
       <Text weight="bold">{title}</Text>
       {children}
     </Glass>
   );
-  return onPress ? (
-    <Press style={styles.half} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>{body}</Press>
-  ) : (
-    <View style={styles.half}>{body}</View>
-  );
+  return onPress ? <Press style={styles.half} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>{card}</Press> : <View style={styles.half}>{card}</View>;
 }
 
-/** مهرة حسابي: بطاقة رأس زجاجية ثم بطاقات bento بأيقونات ذهبية وفضية ومفاتيح بنمط Apple. */
+/**
+ * مهرة حسابي (مواصفات Spatial Glass): رأس بصورة بإطار شمبانيا وشارة العضوية، ثم شبكة bento غير متماثلة:
+ * اللغات + التواصل، العناوين (ياقوتي) + السيرة (زمردي)، الخصوصية + إعدادات الصوت، وزر الحفظ.
+ */
 export default function Profile() {
   const { t, lang, setLang } = useI18n();
   const tx = useTx();
-  const { phone, signOut } = useAuth();
-  const [notif, setNotif] = useState(true);
-  const [sound, setSound] = useState(true);
-  const [haptic, setHaptic] = useState(true);
-  const [history, setHistory] = useState(true);
+  const { signOut } = useAuth();
+  const [listen, setListen] = useState(true);
+  const [recog, setRecog] = useState(true);
+  const [equalizer, setEqualizer] = useState(true);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!saved) return;
+    const id = setTimeout(() => setSaved(false), 2200);
+    return () => clearTimeout(id);
+  }, [saved]);
 
   return (
     <Screen tabs>
-      <Glass r={28} strong style={styles.header}>
-        <LinearGradient colors={['#F3D999', color.periwinkle]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatar}><Text variant="title" weight="bold" style={{ color: color.deep }}>{tx('س', 'S')}</Text></LinearGradient>
-        <Text variant="title" center>{tx('مهرة حسابي', 'My Mohra')}</Text>
-        <Text tone="dim" style={{ writingDirection: 'ltr' }}>{phone}</Text>
-        <View style={styles.verified}><Ionicons name="checkmark-circle" size={16} color={color.gold} /><Text variant="caption" weight="medium" tone="gold">{tx('رقمك موثّق', 'Number verified')}</Text></View>
-      </Glass>
-
-      <Glass r={24} style={styles.prefs}>
-        <Text weight="bold">{tx('تفضيلاتي', 'My preferences')}</Text>
-        {([
-          { icon: 'notifications-outline', label: tx('الإشعارات', 'Notifications'), v: notif, set: setNotif },
-          { icon: 'volume-high-outline', label: tx('صوت مهرة', 'Mohra’s voice'), v: sound, set: setSound },
-          { icon: 'phone-portrait-outline', label: tx('الاهتزاز', 'Haptics'), v: haptic, set: setHaptic },
-        ] as { icon: Icon; label: string; v: boolean; set: (v: boolean) => void }[]).map((r) => (
-          <View key={r.label} style={styles.prefRow}>
-            <Ionicons name={r.icon} size={22} color="#C7CBD6" />
-            <Text style={{ flex: 1 }}>{r.label}</Text>
-            <Toggle value={r.v} onChange={r.set} label={r.label} />
+      <View style={styles.headWrap}>
+        <LinearGradient colors={['#F3DFC1', '#D9B982', '#8C6B34']} style={styles.frame}>
+          <View style={styles.avatarIn}><Ionicons name="person" size={40} color={color.goldBright} /></View>
+        </LinearGradient>
+        <Glass r={28} strong style={styles.header}>
+          <Text variant="title" weight="bold" center>{tx('محمود الأحمد', 'Mahmoud Al-Ahmad')}</Text>
+          <View style={styles.member}>
+            <Ionicons name="checkmark-circle" size={16} color={color.goldBright} />
+            <Text variant="caption" weight="semibold" tone="gold">{tx('عضوية مهرة الذكية • الإمارات العربية المتحدة', 'Mohra Smart Member • UAE')}</Text>
           </View>
-        ))}
-      </Glass>
+        </Glass>
+      </View>
 
       <View style={styles.row}>
-        <Bento icon="document-text-outline" title={tx('السيرة الذاتية والملف المهني', 'CV and professional profile')} tint={color.green} onPress={() => router.push('/profile/cv')}>
-          <Text variant="caption" tone="dim">{tx('مرتبطة بميرا · 82% مكتملة', 'Linked to Meera · 82% complete')}</Text>
-          <View style={styles.meter}><View style={[styles.meterFill, { width: '82%', backgroundColor: color.green }]} /></View>
-        </Bento>
-        <Bento icon="location-outline" title={tx('العناوين المحفوظة في الإمارات', 'Saved UAE addresses')} tint="#64A0FF" onPress={() => router.push('/settings/addresses')}>
+        <Cell title={tx('اللغات', 'Languages')}>
           <View style={styles.chips}>
-            {[tx('دبي', 'Dubai'), tx('الشارقة', 'Sharjah'), tx('أبوظبي', 'Abu Dhabi')].map((c) => <View key={c} style={styles.chip}><Text variant="caption">{c}</Text></View>)}
+            {LANGS.map((l) => {
+              const on = l.code === lang;
+              return (
+                <Press key={l.code} onPress={() => setLang(l.code)} accessibilityRole="radio" accessibilityState={{ selected: on }} style={[styles.lang, on && styles.langOn]}>
+                  <Text variant="caption" weight={on ? 'bold' : 'regular'} tone={on ? 'gold' : 'normal'}>{l.label}</Text>
+                </Press>
+              );
+            })}
           </View>
-        </Bento>
+        </Cell>
+        <Cell title={tx('التواصل والواتساب', 'Contact and WhatsApp')}>
+          <View style={styles.badges}><Badge icon="call-outline" /><Badge icon="logo-whatsapp" tone="emerald" /><Badge icon="location-outline" tone="sapphire" /></View>
+          <Text variant="caption" tone="dim" style={{ writingDirection: 'ltr' }}>+971 50 XXXXX • {tx('الشارقة، الإمارات', 'Sharjah, UAE')}</Text>
+          <Text variant="caption" tone="dim">{tx('واتساب مفعّل', 'WhatsApp active')}</Text>
+        </Cell>
       </View>
 
       <View style={styles.row}>
-        <Bento icon="lock-closed-outline" title={tx('الخصوصية', 'Privacy')} tint={color.pinkSoft} onPress={() => router.push('/settings/privacy')}>
-          <View style={styles.prefRow}>
-            <Text variant="caption" tone="dim" style={{ flex: 1 }}>{tx('حفظ السجل', 'Keep history')}</Text>
-            <Toggle value={history} onChange={setHistory} label={tx('حفظ السجل', 'Keep history')} />
+        <Cell tone="sapphire" title={tx('العناوين المحفوظة في الإمارات', 'Saved UAE addresses')} onPress={() => router.push('/settings/addresses')}>
+          <View style={styles.badges}><Badge icon="pin-outline" tone="sapphire" /><Badge icon="pin-outline" tone="sapphire" /><Badge icon="pin-outline" tone="sapphire" /></View>
+          <Text variant="caption" tone="dim">{tx('دبي • الشارقة • أبوظبي', 'Dubai • Sharjah • Abu Dhabi')}</Text>
+          <Text variant="caption" weight="semibold" style={{ color: glow.sapphire.ink }}>{tx('4 عناوين مفعّلة', '4 active addresses')}</Text>
+        </Cell>
+        <Cell tone="emerald" title={tx('السيرة الذاتية CV', 'CV')} onPress={() => router.push('/profile/cv')}>
+          <Text variant="caption" tone="dim">{tx('ملف CV مرفوع ومرتبط مع ميرا', 'CV uploaded and linked to Meera')}</Text>
+          <View style={styles.badges}>
+            <View style={styles.docBtn}><Ionicons name="document-text-outline" size={18} color={color.goldBright} /><Text variant="caption" weight="semibold" tone="gold">{tx('معاينة', 'Preview')}</Text></View>
+            <View style={styles.docBtn}><Ionicons name="cloud-upload-outline" size={18} color={color.goldBright} /><Text variant="caption" weight="semibold" tone="gold">{tx('رفع', 'Upload')}</Text></View>
           </View>
-        </Bento>
-        <Bento icon="pulse-outline" title={tx('إعدادات الصوت', 'Voice settings')} tint={color.orange} onPress={() => router.push('/settings/voice')}>
-          <Text variant="caption" tone="dim">{tx('Veda · اللهجة الإماراتية', 'Veda · Emirati dialect')}</Text>
-        </Bento>
+        </Cell>
       </View>
 
-      <Glass r={24} style={{ padding: space.lg, gap: space.md }}>
-        <Text weight="bold">{t('language')}</Text>
-        <View style={styles.chips}>
-          {LANGS.map((l) => {
-            const on = l.code === lang;
-            return (
-              <Press key={l.code} onPress={() => setLang(l.code)} accessibilityRole="radio" accessibilityState={{ selected: on }} style={[styles.lang, on && { borderColor: color.gold, backgroundColor: color.gold + '22' }]}>
-                {on && <Ionicons name="checkmark" size={18} color={color.gold} />}
-                <Text tone={on ? 'gold' : 'normal'}>{l.label}</Text>
-              </Press>
-            );
-          })}
-        </View>
-      </Glass>
+      <View style={styles.row}>
+        <Cell title={tx('الخصوصية والأمان', 'Privacy and security')} onPress={() => router.push('/settings/privacy')}>
+          <View style={styles.badges}><Badge icon="lock-closed-outline" /><Badge icon="finger-print-outline" /><Badge icon="shield-checkmark-outline" tone="emerald" /></View>
+          <View style={styles.tog}>
+            <Text variant="caption" tone="dim" style={{ flex: 1 }}>{tx('الاستماع المتواصل والتعرّف على الصوت', 'Continuous listening and voice recognition')}</Text>
+            <Toggle value={listen} onChange={setListen} label={tx('الاستماع المتواصل', 'Continuous listening')} />
+          </View>
+        </Cell>
+        <Cell title={tx('إعدادات الصوت', 'Voice settings')} onPress={() => router.push('/settings/voice')}>
+          <View style={styles.badges}><Badge icon="mic-outline" /><Badge icon="pulse-outline" tone="sapphire" /></View>
+          <View style={styles.tog}>
+            <Text variant="caption" tone="dim" style={{ flex: 1 }}>{tx('موجات الصوت والمعادل', 'Waveform and equalizer')}</Text>
+            <Toggle value={equalizer} onChange={setEqualizer} label={tx('المعادل', 'Equalizer')} />
+          </View>
+          <View style={styles.tog}>
+            <Text variant="caption" tone="dim" style={{ flex: 1 }}>{tx('التعرّف على صوتي', 'Recognise my voice')}</Text>
+            <Toggle value={recog} onChange={setRecog} label={tx('التعرّف على صوتي', 'Recognise my voice')} />
+          </View>
+        </Cell>
+      </View>
 
-      <Glass r={24} style={{ padding: space.lg, flexDirection: 'row', gap: space.md, alignItems: 'center', borderColor: color.red + '66' }}>
+      <Button kind="cta" label={tx('حفظ التفضيلات وتحديث الضبط', 'Save preferences')} onPress={() => setSaved(true)} />
+      {saved && (
+        <Glass r={20} tone="emerald" style={styles.toast} accessibilityLiveRegion="polite">
+          <Ionicons name="checkmark-circle" size={20} color={glow.emerald.ink} />
+          <Text weight="semibold">{tx('تم حفظ التفضيلات', 'Preferences saved')}</Text>
+        </Glass>
+      )}
+
+      <Glass r={24} style={styles.emergency}>
         <Ionicons name="warning-outline" size={22} color={color.red} />
         <Text style={{ flex: 1 }}>{t('emergencyNote')}</Text>
       </Glass>
-
       <Button kind="glass" label={t('signOut')} onPress={signOut} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { alignItems: 'center', gap: space.sm, padding: space.xl },
-  avatar: { width: 88, height: 88, borderRadius: 44, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  verified: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: color.gold + '66', borderRadius: 99, paddingHorizontal: 12, paddingVertical: 3, backgroundColor: color.gold + '1A' },
-  prefs: { padding: space.lg, gap: space.sm },
-  prefRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: TOUCH },
+  headWrap: { alignItems: 'center', paddingTop: 40 },
+  frame: { width: 92, height: 92, borderRadius: 46, alignItems: 'center', justifyContent: 'center', position: 'absolute', top: 0, zIndex: 2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
+  avatarIn: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#0B1224', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#0B1224' },
+  header: { alignSelf: 'stretch', alignItems: 'center', gap: space.sm, paddingTop: 58, paddingBottom: space.lg, paddingHorizontal: space.lg },
+  member: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(235,208,142,0.5)', borderRadius: 99, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: 'rgba(235,208,142,0.10)' },
   row: { flexDirection: 'row', gap: space.md, alignItems: 'stretch' },
   half: { flex: 1 },
-  bento: { padding: space.lg, gap: space.sm, minHeight: 164, flex: 1 },
-  ico: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  meter: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' },
-  meterFill: { height: 6, borderRadius: 3 },
+  cell: { padding: space.md, gap: space.sm, flex: 1, minHeight: 150 },
+  badge: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  badges: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  docBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: 'rgba(235,208,142,0.5)', borderRadius: 14, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: 'rgba(235,208,142,0.10)' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { borderWidth: 1, borderColor: color.hairline, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 2, backgroundColor: color.glass },
-  lang: { minHeight: TOUCH - 4, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.lg, borderRadius: radius.pill, borderWidth: 1, borderColor: color.hairline },
+  lang: { minHeight: 32, paddingHorizontal: 10, justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  langOn: { borderColor: color.goldBright, backgroundColor: 'rgba(235,208,142,0.14)' },
+  tog: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: TOUCH - 8 },
+  toast: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, alignSelf: 'center' },
+  emergency: { padding: space.lg, flexDirection: 'row', gap: space.md, alignItems: 'center', borderColor: 'rgba(255,69,58,0.4)' },
 });

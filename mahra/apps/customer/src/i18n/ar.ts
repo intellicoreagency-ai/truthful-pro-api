@@ -21,7 +21,7 @@ export const ar = {
   // التبويبات
   tabHome: 'الرئيسية',
   tabRequests: 'طلباتي',
-  tabSpecialists: 'المختصون',
+  tabSpecialists: 'الوكلاء',
   tabProfile: 'حسابي',
   talkToMohra: 'تحدّث مع مهرة',
 
