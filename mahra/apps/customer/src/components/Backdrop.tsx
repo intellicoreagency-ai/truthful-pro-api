@@ -16,7 +16,7 @@ function Layer({ accent, tone }: { accent: string | null; tone: 'gold' | 'blue' 
   return (
     <Svg width="100%" height="100%" preserveAspectRatio="none">
       <Defs>
-        <LinearGradient id={`${id}b`} x1="0" y1="0" x2="0.35" y2="1"><Stop offset="0" stopColor="#060E26" /><Stop offset="0.5" stopColor="#0A1B4D" /><Stop offset="1" stopColor="#050C22" /></LinearGradient>
+        <LinearGradient id={`${id}b`} x1="0" y1="0" x2="0.35" y2="1"><Stop offset="0" stopColor="#0A1430" /><Stop offset="0.5" stopColor="#0C1A44" /><Stop offset="1" stopColor="#0A1430" /></LinearGradient>
         <LinearGradient id={`${id}v`} x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.07" /><Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" /></LinearGradient>
         <RadialGradient id={`${id}1`} cx="0.82" cy="0.1" rx="0.7" ry="0.32"><Stop offset="0" stopColor={cool} stopOpacity={0.30 * k} /><Stop offset="1" stopColor={cool} stopOpacity="0" /></RadialGradient>
         <RadialGradient id={`${id}2`} cx="0.16" cy="0.36" rx="0.7" ry="0.3"><Stop offset="0" stopColor={warm} stopOpacity={0.16 * k} /><Stop offset="1" stopColor={warm} stopOpacity="0" /></RadialGradient>

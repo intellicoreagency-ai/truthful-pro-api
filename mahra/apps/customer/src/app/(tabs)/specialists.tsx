@@ -6,7 +6,7 @@ import { ExpertCard } from '@/components/ExpertCard';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { AGENTS, type AgentId } from '@/data/agents';
-import { PRIORITY } from '@/data/home';
+import { HIDDEN_CARDS, PRIORITY } from '@/data/home';
 import { THEME } from '@/data/theme';
 import { useI18n } from '@/i18n';
 import { useAccent } from '@/lib/accent';
@@ -14,7 +14,7 @@ import { fontStyle } from '@/theme/fonts';
 import { color, space } from '@/theme/tokens';
 
 const GAP = space.md;
-const ORDERED = PRIORITY.map((id) => AGENTS.find((a) => a.id === id)!);
+const ORDERED = PRIORITY.filter((id) => !HIDDEN_CARDS.includes(id)).map((id) => AGENTS.find((a) => a.id === id)!);
 
 /**
  * وكلاء مهرة: عنوان وبحث ثم الخمسة عشر وكيلاً (بحسب أولوية الاحتياج).
