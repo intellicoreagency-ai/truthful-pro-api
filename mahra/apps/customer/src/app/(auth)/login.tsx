@@ -122,28 +122,28 @@ export default function Login() {
 
           <Press onPress={step === 'phone' ? sendCode : verify} accessibilityRole="button" accessibilityLabel={step === 'phone' ? t('sendCode') : t('verify')} style={styles.ctaWrap}>
             <LinearGradient colors={['#E9D6AE', '#F6F0E8', '#DDBE86']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.cta}>
-              <Text variant="heading" weight="bold" style={{ color: '#070B14' }}>{step === 'phone' ? t('sendCode') : t('verify')}</Text>
+              <Text variant="heading" font="body" weight="semibold" style={{ color: '#070B14', fontSize: 18 }}>{step === 'phone' ? t('sendCode') : t('verify')}</Text>
             </LinearGradient>
           </Press>
 
           {step === 'code' ? (
             <Press onPress={() => { setStep('phone'); setCode(''); setMsg(null); }} accessibilityRole="button" style={styles.pill}>
-              <Text variant="caption" font="label" weight="semibold">{t('changeNumber')}</Text>
+              <Text variant="caption" font="body" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('changeNumber')}</Text>
             </Press>
           ) : (
             <>
               <View style={styles.rule} />
               <Press onPress={biometric} accessibilityRole="button" accessibilityLabel={t('faceId')} style={styles.pill}>
                 <Ionicons name="finger-print-outline" size={24} color={color.goldBright} />
-                <Text variant="caption" font="label" weight="semibold">{t('faceId')}</Text>
+                <Text variant="caption" font="body" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('faceId')}</Text>
               </Press>
               <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('google')} style={styles.pill}>
                 <GoogleG />
-                <Text variant="caption" font="label" weight="semibold">{t('google')}</Text>
+                <Text variant="caption" font="body" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('google')}</Text>
               </Press>
               <Press onPress={() => setMsg({ tone: 'info', text: t('googleSoon') })} accessibilityRole="button" accessibilityLabel={t('apple')} style={styles.pill}>
                 <Ionicons name="logo-apple" size={22} color="#fff" />
-                <Text variant="caption" font="label" weight="semibold">{t('apple')}</Text>
+                <Text variant="caption" font="body" weight="medium" style={{ fontSize: 16, lineHeight: 25 }}>{t('apple')}</Text>
               </Press>
             </>
           )}
