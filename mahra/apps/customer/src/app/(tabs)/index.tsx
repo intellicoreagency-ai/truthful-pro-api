@@ -45,12 +45,12 @@ export default function Home() {
           {active ? (
             <Glass r={28} clear style={styles.cta}>
               <Ionicons name="stop" size={20} color={color.text} />
-              <Text weight="bold" style={styles.ctaText}>{t('stop')}</Text>
+              <Text font="kufi" weight="bold" style={styles.ctaText}>{t('stop')}</Text>
             </Glass>
           ) : (
             <LinearGradient colors={['#5B7FE8', '#E9DCC0', '#D9B779']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.cta}>
               <Ionicons name="mic-outline" size={22} color="#101830" />
-              <Text weight="bold" style={[styles.ctaText, { color: '#101830' }]}>{t('startTalking')}</Text>
+              <Text font="kufi" weight="bold" style={[styles.ctaText, { color: '#101830' }]}>{t('startTalking')}</Text>
             </LinearGradient>
           )}
         </Press>
@@ -69,7 +69,7 @@ function Chip({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; 
     <Press onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={{ flex: 1 }}>
       <Glass r={22} clear style={styles.chip}>
         <Ionicons name={icon} size={20} color={color.goldBright} />
-        <Text variant="caption" weight="medium" style={{ color: color.text, fontSize: 14, lineHeight: 22 }}>{label}</Text>
+        <Text variant="caption" font="kufi" weight="medium" style={{ color: color.text, fontSize: 14, lineHeight: 22 }}>{label}</Text>
       </Glass>
     </Press>
   );
