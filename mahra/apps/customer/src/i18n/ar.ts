@@ -35,6 +35,9 @@ export const ar = {
   startTalking: "ابدأ الحديث",
   chipToday: "جدول اليوم",
   chipRequest: "اطلب خدمة",
+  helloMorning: "صباح الخير",
+  helloEvening: "مساء الخير",
+  activeNow: "نشط الآن",
   notifications: "الإشعارات",
 
   // الرئيسية

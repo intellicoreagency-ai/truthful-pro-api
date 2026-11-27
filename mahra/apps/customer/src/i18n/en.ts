@@ -35,6 +35,9 @@ export const en: Record<keyof typeof ar, string> = {
   startTalking: "Start talking",
   chipToday: "Today’s schedule",
   chipRequest: "Request a service",
+  helloMorning: "Good morning",
+  helloEvening: "Good evening",
+  activeNow: "Active now",
   notifications: "Notifications",
 
   greeting: 'How can I help today?',

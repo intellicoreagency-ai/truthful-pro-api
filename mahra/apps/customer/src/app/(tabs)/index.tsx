@@ -1,34 +1,48 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Image, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { useState } from 'react';
+import { Image, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { Glass } from '@/components/Glass';
+import { PIC } from '@/components/picArt';
 import { Press } from '@/components/Press';
 import { Screen } from '@/components/Screen';
 import { StudioOrb } from '@/components/StudioOrb';
 import { Text } from '@/components/Text';
-import { useI18n, type StringKey } from '@/i18n';
+import type { AgentId } from '@/data/agents';
+import { THEME } from '@/data/theme';
+import { useI18n, useTx, type StringKey } from '@/i18n';
 import { useVoice, type VoiceState } from '@/lib/voice';
-import { color } from '@/theme/tokens';
+import { color, space } from '@/theme/tokens';
 
 const WORDMARK = require('../../../assets/ui/mohra-wordmark.png');
 const STATUS: Record<VoiceState, StringKey> = { idle: 'statusIdle', listening: 'statusListening', thinking: 'statusThinking', speaking: 'statusSpeaking' };
 
+/** مجالات العميل بصيغة المتكلم (سيارتي، منزلي، مناسباتي…): لمسة واحدة تفتح محادثة وكيل المجال. */
+const SUGGEST: { agent: AgentId; ar: string; en: string }[] = [
+  { agent: 'jalal', ar: 'سيارتي', en: 'My car' },
+  { agent: 'talal', ar: 'منزلي', en: 'My home' },
+  { agent: 'dana', ar: 'مناسباتي', en: 'My events' },
+  { agent: 'noura', ar: 'مطبخي', en: 'My kitchen' },
+  { agent: 'reem', ar: 'جمالي', en: 'My beauty' },
+];
+
 /**
- * الرئيسية («ابدأ الحديث») بحسب التصميم المعتمد: شريط مهرة مع الإشعارات، الكرة الصوتية بالميكروفون والموجات،
- * «شو أقدر أساعدك فيه اليوم؟»، زر «ابدأ الحديث» بتدرج أزرق–ذهبي، ثم «اطلب خدمة» و«جدول اليوم».
+ * الرئيسية: شريط مهرة، ترحيب باسم العميل، الكرة الصوتية، «شو أقدر أساعدك فيه اليوم؟»، اقتراحات صوتية،
+ * بطاقة «نشط الآن» لأهم طلب مفتوح، وأسفلها «اطلب خدمة» و«جدول اليوم». بدء المحادثة من زر مهرة في الفوتر أو بلمس الكرة.
  */
 export default function Home() {
   const { t } = useI18n();
+  const tx = useTx();
   const { state, toggle } = useVoice();
   const [w, setW] = useState(358);
   const active = state !== 'idle';
+  const hello = new Date().getHours() < 12 ? t('helloMorning') : t('helloEvening');
+  const ac = THEME.jalal.accent;
 
   return (
     <Screen tabs contentStyle={{ flexGrow: 1 }}>
       <Glass r={30} clear style={styles.bar}>
-        <View style={[styles.bell, { backgroundColor: "transparent" }]} />
+        <View style={[styles.bell, { backgroundColor: 'transparent' }]} />
         <Image source={WORDMARK} style={styles.wordmark} resizeMode="contain" accessibilityLabel="مهرة" />
         <Press onPress={() => router.push('/settings/privacy')} accessibilityRole="button" accessibilityLabel={t('notifications')} style={styles.bell}>
           <Ionicons name="notifications-outline" size={20} color={color.text} />
@@ -36,29 +50,39 @@ export default function Home() {
       </Glass>
 
       <View style={styles.center} onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
+        <Text font="kufi" weight="medium" center style={styles.hello}>{hello}، {tx('محمود', 'Mahmoud')}</Text>
         <Press onPress={toggle} accessibilityRole="button" accessibilityLabel={active ? t('stop') : t('talkToMohra')} style={{ borderRadius: 200 }}>
-          <StudioOrb width={Math.min(w * 1.08, 460)} state={state} />
+          <StudioOrb width={Math.min(w * 0.86, 360)} state={state} />
         </Press>
         <Text font="display" weight="bold" center style={styles.prompt}>{active ? t(STATUS[state]) : t('greeting')}</Text>
+      </View>
 
-        <Press onPress={toggle} accessibilityRole="button" accessibilityLabel={active ? t('stop') : t('startTalking')} style={styles.ctaWrap}>
-          {active ? (
-            <Glass r={28} clear style={styles.cta}>
-              <Ionicons name="stop" size={20} color={color.text} />
-              <Text font="kufi" weight="bold" style={styles.ctaText}>{t('stop')}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggest} style={styles.suggestWrap}>
+        {SUGGEST.map((x) => (
+          <Press key={x.agent} onPress={() => router.push({ pathname: '/chat/[agentId]', params: { agentId: x.agent } })} accessibilityRole="button" accessibilityLabel={tx(x.ar, x.en)}>
+            <Glass r={26} clear style={styles.sChip}>
+              <Image source={PIC[x.agent]} style={styles.sPic} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+              <Text variant="caption" font="kufi" weight="medium" style={{ color: color.text, fontSize: 13, lineHeight: 21 }}>{tx(x.ar, x.en)}</Text>
             </Glass>
-          ) : (
-            <LinearGradient colors={['#5B7FE8', '#E9DCC0', '#D9B779']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.cta}>
-              <Ionicons name="mic-outline" size={22} color="#101830" />
-              <Text font="kufi" weight="bold" style={[styles.ctaText, { color: '#101830' }]}>{t('startTalking')}</Text>
-            </LinearGradient>
-          )}
-        </Press>
+          </Press>
+        ))}
+      </ScrollView>
 
-        <View style={styles.chips}>
-          <Chip icon="layers-outline" label={t('chipRequest')} onPress={() => router.navigate('/specialists')} />
-          <Chip icon="calendar-outline" label={t('chipToday')} onPress={() => router.navigate('/requests')} />
-        </View>
+      <Press onPress={() => router.push({ pathname: '/request/[id]', params: { id: 'r1' } })} accessibilityRole="button" accessibilityLabel={tx('سطحة لسيارتي', 'Tow truck for my car')}>
+        <Glass card style={styles.now}>
+          <Image source={PIC.jalal} style={[styles.nPic, { borderColor: ac + '88' }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text variant="caption" font="kufi" weight="medium" style={{ color: color.goldBright, fontSize: 12, lineHeight: 18 }}>{t('activeNow')}</Text>
+            <Text font="kufi" weight="bold" numberOfLines={1} style={{ color: '#FFFFFF' }}>{tx('سطحة لسيارتي', 'Tow truck for my car')}</Text>
+            <Text variant="caption" tone="dim" numberOfLines={1}>{tx('3 عروض بأسعار نهائية', '3 final-price offers')}</Text>
+          </View>
+          <Ionicons name="chevron-back" size={22} color={color.textDim} style={{ transform: [{ scaleX: 1 }] }} />
+        </Glass>
+      </Press>
+
+      <View style={styles.chips}>
+        <Chip icon="layers-outline" label={t('chipRequest')} onPress={() => router.navigate('/specialists')} />
+        <Chip icon="calendar-outline" label={t('chipToday')} onPress={() => router.navigate('/requests')} />
       </View>
     </Screen>
   );
@@ -79,11 +103,15 @@ const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 8, minHeight: 60, backgroundColor: 'rgba(20,34,66,0.26)' },
   bell: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
   wordmark: { height: 44, width: 120 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 },
+  center: { alignItems: 'center', gap: 10 },
+  hello: { color: color.goldBright, fontSize: 16, lineHeight: 26 },
   prompt: { color: '#FFFFFF', fontSize: 22, lineHeight: 36, alignSelf: 'stretch', textAlign: 'center' },
-  ctaWrap: { alignSelf: 'stretch', borderRadius: 28 },
-  cta: { minHeight: 56, borderRadius: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 20 },
-  ctaText: { fontSize: 18, lineHeight: 28, color: color.text },
-  chips: { flexDirection: 'row', gap: 12, alignSelf: 'stretch' },
+  suggestWrap: { marginHorizontal: -space.lg, flexGrow: 0 },
+  suggest: { paddingHorizontal: space.lg, gap: 10 },
+  sChip: { ...({ boxShadow: 'none' } as object), shadowOpacity: 0, elevation: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 8, paddingEnd: 14, minHeight: 48 },
+  sPic: { width: 34, height: 34, borderRadius: 10 },
+  now: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, minHeight: 84 },
+  nPic: { width: 56, height: 56, borderRadius: 14, borderWidth: 1 },
+  chips: { flexDirection: 'row', gap: 12, alignSelf: 'stretch', marginTop: 'auto' },
   chip: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
 });
