@@ -1,0 +1,13 @@
+const { chromium } = require('playwright');
+(async()=>{const b=await chromium.launch();const p=await (await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,locale:'ar-AE'})).newPage();
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:8099/');await p.waitForTimeout(2000);
+await p.getByRole('textbox',{name:'رقم الهاتف'}).fill('501234567');
+await p.getByRole('button',{name:'أرسل الرمز'}).click();await p.waitForTimeout(400);
+console.log('unchecked ->', await p.getByText(/أكّد أن هذا الرقم/).count()>0 ? 'blocked with message' : 'NOT BLOCKED');
+await p.getByRole('button',{name:/رمز الدولة/}).click();await p.waitForTimeout(400);
+await p.screenshot({path:process.argv[2]+'/look-cc.png'});
+await p.getByRole('button',{name:/IN\s+\+91/}).click();await p.waitForTimeout(300);
+console.log('code now', await p.getByText('+91').count()>0);
+await p.getByRole('textbox',{name:'رقم الهاتف'}).fill('9876543210');
+console.log('errors',JSON.stringify(errs));await b.close();})();
