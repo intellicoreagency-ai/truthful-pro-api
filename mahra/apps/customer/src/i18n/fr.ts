@@ -87,7 +87,7 @@ export const fr: Record<keyof typeof ar, string> = {
   listeningLive: "Mohra vous écoute",
   google: "Connexion avec Google",
   apple: "Connexion avec Apple",
-  faceId: "Connexion par empreinte",
+  faceId: "Empreinte digitale",
   orDivider: "ou",
   orSignUp: "Ou inscrivez-vous avec",
   googleSoon: "La connexion Google sera activée une fois un compte Google configuré pour l’app.",
